@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="GoldVault — Gold & Silver Loan Management App with Smart Risk Advisor for Money Lending Business">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>GoldVault — Loan Management</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- App Styles -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- ============================== -->
+    <!--        LOGIN SCREEN            -->
+    <!-- ============================== -->
+    <div id="login-screen" class="login-screen">
+        <div class="login-container">
+            <!-- Logo -->
+            <div class="login-logo">
+                <div class="logo-icon">
+                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="gold-grad" x1="0" y1="0" x2="48" y2="48">
+                                <stop offset="0%" stop-color="#f6d365" />
+                                <stop offset="100%" stop-color="#fda085" />
+                            </linearGradient>
+                        </defs>
+                        <circle cx="24" cy="24" r="22" stroke="url(#gold-grad)" stroke-width="3" fill="none" />
+                        <circle cx="24" cy="24" r="14" fill="url(#gold-grad)" />
+                        <text x="24" y="29" text-anchor="middle" fill="#1a1a2e" font-size="14"
+                            font-weight="800">₹</text>
+                    </svg>
+                </div>
+                <h1>GoldVault</h1>
+                <p class="login-subtitle">Smart Loan Management</p>
+            </div>
+
+            <!-- PIN Setup (First Time) -->
+            <div id="pin-setup" class="pin-section" style="display:none;">
+                <h2>Set Your PIN</h2>
+                <p>Create a 4-digit PIN to secure your data</p>
+                <div class="pin-input-group">
+                    <input type="password" id="new-pin" maxlength="4" pattern="[0-9]*" inputmode="numeric"
+                        placeholder="••••" autocomplete="off">
+                </div>
+                <div class="pin-input-group">
+                    <input type="password" id="confirm-pin" maxlength="4" pattern="[0-9]*" inputmode="numeric"
+                        placeholder="Confirm PIN" autocomplete="off">
+                </div>
+                <button id="set-pin-btn" class="btn btn-primary btn-lg">Set PIN & Enter</button>
+                <p id="pin-setup-error" class="error-text"></p>
+            </div>
+
+            <!-- PIN Login (Returning User) -->
+            <div id="pin-login" class="pin-section">
+                <h2>Enter PIN</h2>
+                <div class="pin-input-group">
+                    <input type="password" id="login-pin" maxlength="4" pattern="[0-9]*" inputmode="numeric"
+                        placeholder="••••" autocomplete="off">
+                </div>
+                <button id="login-btn" class="btn btn-primary btn-lg">Unlock</button>
+                <p id="pin-login-error" class="error-text"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================== -->
+    <!--          MAIN APP              -->
+    <!-- ============================== -->
+    <div id="app" class="app-container" style="display:none;">
+
+        <!-- ---- Sidebar (Desktop) ---- -->
+        <nav id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <svg width="28" height="28" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="gold-grad2" x1="0" y1="0" x2="48" y2="48">
+                                <stop offset="0%" stop-color="#f6d365" />
+                                <stop offset="100%" stop-color="#fda085" />
+                            </linearGradient>
+                        </defs>
+                        <circle cx="24" cy="24" r="22" stroke="url(#gold-grad2)" stroke-width="3" fill="none" />
+                        <circle cx="24" cy="24" r="14" fill="url(#gold-grad2)" />
+                        <text x="24" y="29" text-anchor="middle" fill="#1a1a2e" font-size="14"
+                            font-weight="800">₹</text>
+                    </svg>
+                    <span>GoldVault</span>
+                </div>
+                <button id="sidebar-close" class="sidebar-close">&times;</button>
+            </div>
+
+            <ul class="nav-list">
+                <li>
+                    <a href="#" class="nav-item active" data-page="dashboard">
+                        <span class="nav-icon">📊</span> Dashboard
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-item" data-page="new-loan">
+                        <span class="nav-icon">➕</span> New Loan
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-item" data-page="old-loan">
+                        <span class="nav-icon">🕰️</span> Old Loan Entry
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-item" data-page="loans">
+                        <span class="nav-icon">📋</span> All Loans
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-item" data-page="customers">
+                        <span class="nav-icon">👥</span> Customers
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-item" data-page="inventory">
+                        <span class="nav-icon">📦</span> Inventory
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-item" data-page="market">
+                        <span class="nav-icon">📈</span> Market Rates
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-item" data-page="settings">
+                        <span class="nav-icon">⚙️</span> Settings
+                    </a>
+                </li>
+            </ul>
+
+            <div class="sidebar-footer">
+                <button id="logout-btn" class="btn btn-outline btn-sm">🔒 Lock App</button>
+            </div>
+        </nav>
+
+        <!-- ---- Bottom Nav (Mobile) ---- -->
+        <nav class="bottom-nav">
+            <a href="#" class="bottom-nav-item active" data-page="dashboard">
+                <span>📊</span><small>Dashboard</small>
+            </a>
+            <a href="#" class="bottom-nav-item" data-page="new-loan">
+                <span>➕</span><small>New Loan</small>
+            </a>
+            <a href="#" class="bottom-nav-item" data-page="loans">
+                <span>📋</span><small>Loans</small>
+            </a>
+            <a href="#" class="bottom-nav-item" data-page="customers">
+                <span>👥</span><small>Customers</small>
+            </a>
+            <a href="#" class="bottom-nav-item" data-page="inventory">
+                <span>📦</span><small>Inventory</small>
+            </a>
+            <a href="#" class="bottom-nav-item" data-page="settings">
+                <span>⚙️</span><small>More</small>
+            </a>
+        </nav>
+
+        <!-- ---- Main Content Area ---- -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <button id="menu-toggle" class="menu-toggle">☰</button>
+                <h2 id="page-title" class="page-title">Dashboard</h2>
+                <div class="top-bar-actions">
+                    <div class="market-ticker" id="market-ticker">
+                        <span class="ticker-item gold-ticker">
+                            🥇 Gold: <strong id="ticker-gold">—</strong>/g
+                        </span>
+                        <span class="ticker-item silver-ticker">
+                            🥈 Silver: <strong id="ticker-silver">—</strong>/g
+                        </span>
+                    </div>
+                    <button id="dark-mode-toggle" class="icon-btn" title="Toggle Dark Mode">🌙</button>
+                </div>
+            </header>
+
+            <!-- Dynamic Page Container -->
+            <div id="page-container" class="page-container">
+                <!-- Pages are rendered dynamically by JavaScript -->
+            </div>
+        </main>
+    </div>
+
+    <!-- ============================== -->
+    <!--      TOAST NOTIFICATIONS       -->
+    <!-- ============================== -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- ============================== -->
+    <!--          SCRIPTS               -->
+    <!-- ============================== -->
+    <!-- Modules (load first — no dependencies on pages) -->
+    <script src="modules/db.js"></script>
+    <script src="modules/calculator.js"></script>
+    <script src="modules/market.js"></script>
+    <script src="modules/risk.js"></script>
+    <script src="modules/export.js"></script>
+    <script src="modules/ui.js"></script>
+
+    <!-- Pages (depend on modules above) -->
+    <script src="pages/dashboard.js"></script>
+    <script src="pages/newLoan.js"></script>
+    <script src="pages/oldLoan.js"></script>
+    <script src="pages/loanList.js"></script>
+    <script src="pages/loanDetail.js"></script>
+    <script src="pages/customers.js"></script>
+    <script src="pages/inventory.js"></script>
+    <script src="pages/marketPage.js"></script>
+    <script src="pages/settings.js"></script>
+
+    <!-- Main App Entry Point (load last) -->
+    <script src="main.js"></script>
+
+</body>
+
+</html>
