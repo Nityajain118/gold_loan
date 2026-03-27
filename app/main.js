@@ -21,6 +21,7 @@
         // Setup event listeners
         setupNav();
         setupDarkMode();
+        setupTimeMode();
         setupSessionTimer();
     }
 
@@ -128,13 +129,37 @@
         });
 
         // Menu toggle (mobile)
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.createElement('div');
+        overlay.id = 'sidebar-overlay';
+        overlay.className = 'sidebar-overlay';
+        document.body.appendChild(overlay);
+
         document.getElementById('menu-toggle').addEventListener('click', () => {
-            document.getElementById('sidebar').classList.toggle('open');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
         });
 
         // Sidebar close
         document.getElementById('sidebar-close').addEventListener('click', () => {
-            document.getElementById('sidebar').classList.remove('open');
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+        });
+
+        // Tap outside overlay to close
+        overlay.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+        });
+
+        // Close sidebar after nav click on mobile
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.remove('open');
+                    overlay.classList.remove('active');
+                }
+            });
         });
 
         // Logout
@@ -160,6 +185,28 @@
             DB.saveSettings({ darkMode: newTheme === 'dark' });
             toggle.textContent = newTheme === 'dark' ? '☀️' : '🌙';
         });
+    }
+
+    // --- Time Mode Toggle (Normal / Tithi) ---
+    function setupTimeMode() {
+        const settings = DB.getSettings();
+        const btn = document.getElementById('time-mode-toggle');
+        if (btn) {
+            btn.textContent = settings.timeMode === 'tithi' ? '🌙' : '📅';
+            btn.title = settings.timeMode === 'tithi' ? 'Tithi Mode Active (Click for Normal)' : 'Normal Mode Active (Click for Tithi)';
+        }
+
+        window._toggleTimeMode = () => {
+            const s = DB.getSettings();
+            const newMode = s.timeMode === 'tithi' ? 'normal' : 'tithi';
+            DB.saveSettings({ timeMode: newMode });
+            const b = document.getElementById('time-mode-toggle');
+            if (b) {
+                b.textContent = newMode === 'tithi' ? '🌙' : '📅';
+                b.title = newMode === 'tithi' ? 'Tithi Mode Active (Click for Normal)' : 'Normal Mode Active (Click for Tithi)';
+            }
+            UI.toast(newMode === 'tithi' ? '🌙 Tithi Mode Activated' : '📅 Normal Mode Activated', 'info');
+        };
     }
 
     // --- Session Timer ---

@@ -7,6 +7,91 @@ const Export = (() => {
      * Export loan details as a simple text report (downloadable)
      * For PDF, we generate an HTML page and use window.print()
      */
+
+    function getLoanReportHTML(loan, details, settings) {
+        return `
+    <style>
+        .report-body { font-family: 'Inter', Arial, sans-serif; padding: 20px; color: #1a1a2e; max-width: 800px; margin: 0 auto; }
+        .report-body h1 { color: #6366f1; font-size: 24px; border-bottom: 2px solid #6366f1; padding-bottom: 8px; }
+        .report-body h2 { color: #374151; font-size: 16px; margin-top: 24px; }
+        .report-body table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+        .report-body th, .report-body td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
+        .report-body th { background: #f3f4f6; font-weight: 600; color: #6b7280; text-transform: uppercase; font-size: 12px; }
+        .risk-safe { color: #10b981; font-weight: 700; }
+        .risk-monitor { color: #f59e0b; font-weight: 700; }
+        .risk-danger { color: #ef4444; font-weight: 700; }
+        .footer { margin-top: 40px; font-size: 12px; color: #9ca3af; text-align: center; border-top: 1px solid #e5e7eb; padding-top: 12px; }
+        .header-info { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .amount { font-size: 20px; font-weight: 700; }
+        .shop-header { text-align: center; border-bottom: 2px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 20px; }
+        .shop-name { font-size: 22px; font-weight: 800; color: #1a1a2e; text-transform: uppercase; letter-spacing: 1px; }
+        .shop-details { font-size: 14px; color: #4b5563; margin-top: 5px; }
+        .shop-logo { max-height: 60px; margin-bottom: 10px; }
+    </style>
+    <div class="report-body">
+        <div class="shop-header">
+            ${settings.shopLogo ? `<img src="${settings.shopLogo}" class="shop-logo" alt="Logo">` : ''}
+            <div class="shop-name">${settings.shopName || 'GOLD LOAN ACCOUNT'}</div>
+            <div class="shop-details">${settings.shopAddress || ''} ${settings.shopPhone ? ` | Phone: ${settings.shopPhone}` : ''}</div>
+        </div>
+        <h1 style="border-bottom:0; margin-top:0; font-size:18px;">📋 Loan Report</h1>
+        <div class="header-info">
+            <div>
+                <strong>Customer:</strong> ${loan.customerName}<br>
+                <strong>Mobile:</strong> ${loan.mobile || 'N/A'}<br>
+                <strong>Loan ID:</strong> ${loan.id}
+            </div>
+            <div style="text-align:right">
+                <strong>Date:</strong> ${new Date().toLocaleDateString('en-IN')}<br>
+                <strong>Status:</strong> ${(loan.status || 'active').toUpperCase()}<br>
+                ${loan.isMigrated ? '<strong>Type:</strong> Migrated Loan' : ''}
+            </div>
+        </div>
+
+        <h2>Metal Details</h2>
+        <table>
+            <tr><th>Metal Type</th><td>${loan.metalType === 'gold' ? '🥇 Gold' : '🥈 Silver'}</td></tr>
+            <tr><th>Purity</th><td>${loan.metalSubType}</td></tr>
+            <tr><th>Weight</th><td>${loan.weightGrams} grams</td></tr>
+            <tr><th>Locker</th><td>${loan.lockerName || 'N/A'}</td></tr>
+            <tr><th>Current Metal Value</th><td class="amount">₹${details.metalValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td></tr>
+        </table>
+
+        <h2>Loan Details</h2>
+        <table>
+            <tr><th>Loan Amount</th><td class="amount">₹${loan.loanAmount.toLocaleString('en-IN')}</td></tr>
+            <tr><th>Interest Rate</th><td>${loan.interestRate}% ${loan.interestPeriod}</td></tr>
+            <tr><th>Interest Type</th><td>${loan.interestType === 'compound' ? 'Compound' : 'Simple'}</td></tr>
+            <tr><th>Loan Start Date</th><td>${new Date(loan.loanStartDate).toLocaleDateString('en-IN')}</td></tr>
+            <tr><th>Maturity Date</th><td>${new Date(details.maturityDate).toLocaleDateString('en-IN')}</td></tr>
+            <tr><th>Duration</th><td>${details.monthsElapsed} months elapsed</td></tr>
+        </table>
+
+        <h2>Financial Summary</h2>
+        <table>
+            <tr><th>Total Interest</th><td>₹${details.totalInterest.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td></tr>
+            <tr><th>Paid Interest</th><td>₹${details.paidInterest.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td></tr>
+            <tr><th>Partial Repayment</th><td>₹${details.partialRepayment.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td></tr>
+            <tr><th>Penalty</th><td>₹${details.manualPenalty.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td></tr>
+            <tr><th>Total Payable</th><td class="amount">₹${details.totalPayable.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td></tr>
+        </table>
+
+        <h2>Risk Analysis</h2>
+        <table>
+            <tr><th>LTV</th><td>${details.ltv.toFixed(1)}%</td></tr>
+            <tr><th>Break-even Price</th><td>₹${details.breakEvenPrice.toLocaleString('en-IN', { maximumFractionDigits: 0 })}/g</td></tr>
+            <tr><th>Profit/Loss</th><td class="${details.profitLoss >= 0 ? 'risk-safe' : 'risk-danger'}">₹${details.profitLoss.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td></tr>
+            <tr><th>Safety Buffer</th><td>${details.safetyBuffer.toFixed(1)}%</td></tr>
+            <tr><th>Risk Level</th><td class="risk-${details.riskLevel}">${details.riskLabel}</td></tr>
+        </table>
+
+        <div class="footer">
+            Generated by GoldVault — Gold & Silver Loan Management System<br>
+            Report generated on ${new Date().toLocaleString('en-IN')}
+        </div>
+    </div>`;
+    }
+
     function exportLoanPDF(loan) {
         const settings = DB.getSettings();
         const rate = loan.metalType === 'gold' ? settings.currentGoldRate : settings.currentSilverRate;
@@ -17,85 +102,45 @@ const Export = (() => {
 <html>
 <head>
     <title>Loan Report — ${loan.customerName}</title>
-    <style>
-        body { font-family: 'Inter', Arial, sans-serif; padding: 40px; color: #1a1a2e; max-width: 800px; margin: 0 auto; }
-        h1 { color: #6366f1; font-size: 24px; border-bottom: 2px solid #6366f1; padding-bottom: 8px; }
-        h2 { color: #374151; font-size: 16px; margin-top: 24px; }
-        table { width: 100%; border-collapse: collapse; margin: 12px 0; }
-        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
-        th { background: #f3f4f6; font-weight: 600; color: #6b7280; text-transform: uppercase; font-size: 12px; }
-        .risk-safe { color: #10b981; font-weight: 700; }
-        .risk-monitor { color: #f59e0b; font-weight: 700; }
-        .risk-danger { color: #ef4444; font-weight: 700; }
-        .footer { margin-top: 40px; font-size: 12px; color: #9ca3af; text-align: center; border-top: 1px solid #e5e7eb; padding-top: 12px; }
-        .header-info { display: flex; justify-content: space-between; margin-bottom: 20px; }
-        .amount { font-size: 20px; font-weight: 700; }
-    </style>
 </head>
-<body>
-    <h1>📋 Loan Report — GoldVault</h1>
-    <div class="header-info">
-        <div>
-            <strong>Customer:</strong> ${loan.customerName}<br>
-            <strong>Mobile:</strong> ${loan.mobile || 'N/A'}<br>
-            <strong>Loan ID:</strong> ${loan.id}
-        </div>
-        <div style="text-align:right">
-            <strong>Date:</strong> ${new Date().toLocaleDateString('en-IN')}<br>
-            <strong>Status:</strong> ${(loan.status || 'active').toUpperCase()}<br>
-            ${loan.isMigrated ? '<strong>Type:</strong> Migrated Loan' : ''}
-        </div>
-    </div>
-
-    <h2>Metal Details</h2>
-    <table>
-        <tr><th>Metal Type</th><td>${loan.metalType === 'gold' ? '🥇 Gold' : '🥈 Silver'}</td></tr>
-        <tr><th>Purity</th><td>${loan.metalSubType}</td></tr>
-        <tr><th>Weight</th><td>${loan.weightGrams} grams</td></tr>
-        <tr><th>Locker</th><td>${loan.lockerName || 'N/A'}</td></tr>
-        <tr><th>Current Metal Value</th><td class="amount">₹${details.metalValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td></tr>
-    </table>
-
-    <h2>Loan Details</h2>
-    <table>
-        <tr><th>Loan Amount</th><td class="amount">₹${loan.loanAmount.toLocaleString('en-IN')}</td></tr>
-        <tr><th>Interest Rate</th><td>${loan.interestRate}% ${loan.interestPeriod}</td></tr>
-        <tr><th>Interest Type</th><td>${loan.interestType === 'compound' ? 'Compound' : 'Simple'}</td></tr>
-        <tr><th>Loan Start Date</th><td>${new Date(loan.loanStartDate).toLocaleDateString('en-IN')}</td></tr>
-        <tr><th>Maturity Date</th><td>${new Date(details.maturityDate).toLocaleDateString('en-IN')}</td></tr>
-        <tr><th>Duration</th><td>${details.monthsElapsed} months elapsed</td></tr>
-    </table>
-
-    <h2>Financial Summary</h2>
-    <table>
-        <tr><th>Total Interest</th><td>₹${details.totalInterest.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td></tr>
-        <tr><th>Paid Interest</th><td>₹${details.paidInterest.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td></tr>
-        <tr><th>Partial Repayment</th><td>₹${details.partialRepayment.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td></tr>
-        <tr><th>Penalty</th><td>₹${details.manualPenalty.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td></tr>
-        <tr><th>Total Payable</th><td class="amount">₹${details.totalPayable.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td></tr>
-    </table>
-
-    <h2>Risk Analysis</h2>
-    <table>
-        <tr><th>LTV</th><td>${details.ltv.toFixed(1)}%</td></tr>
-        <tr><th>Break-even Price</th><td>₹${details.breakEvenPrice.toLocaleString('en-IN', { maximumFractionDigits: 0 })}/g</td></tr>
-        <tr><th>Profit/Loss</th><td class="${details.profitLoss >= 0 ? 'risk-safe' : 'risk-danger'}">₹${details.profitLoss.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td></tr>
-        <tr><th>Safety Buffer</th><td>${details.safetyBuffer.toFixed(1)}%</td></tr>
-        <tr><th>Risk Level</th><td class="risk-${details.riskLevel}">${details.riskLabel}</td></tr>
-    </table>
-
-    <div class="footer">
-        Generated by GoldVault — Gold & Silver Loan Management System<br>
-        Report generated on ${new Date().toLocaleString('en-IN')}
-    </div>
+<body onload="window.print()" style="margin:0;">
+    ${getLoanReportHTML(loan, details, settings)}
 </body>
 </html>`;
 
         const printWindow = window.open('', '_blank');
         printWindow.document.write(html);
         printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => printWindow.print(), 500);
+    }
+
+    /**
+     * Generates a PDF Blob using html2pdf
+     */
+    async function generateLoanPDFBlob(loan) {
+        if (typeof html2pdf === 'undefined') {
+            throw new Error('html2pdf library is not loaded');
+        }
+
+        const settings = DB.getSettings();
+        const rate = loan.metalType === 'gold' ? settings.currentGoldRate : settings.currentSilverRate;
+        const details = Calculator.calcLoanDetails(loan, rate);
+
+        const container = document.createElement('div');
+        container.innerHTML = getLoanReportHTML(loan, details, settings);
+
+        const cleanName = loan.customerName.replace(/\s+/g, '');
+        const dateStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '');
+        const filename = `${cleanName}_GoldLoan_${dateStr}.pdf`;
+
+        const opt = {
+            margin:       10,
+            filename:     filename,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        return await html2pdf().set(opt).from(container).output('blob');
     }
 
     /**
@@ -191,6 +236,6 @@ const Export = (() => {
     }
 
     return {
-        exportLoanPDF, exportLoansCSV, exportBackup, importBackup
+        exportLoanPDF, generateLoanPDFBlob, exportLoansCSV, exportBackup, importBackup
     };
 })();

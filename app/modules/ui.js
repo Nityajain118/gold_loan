@@ -48,7 +48,11 @@ const UI = (() => {
             'old-loan': 'Old Loan Entry (Migration)',
             'loans': 'All Loans',
             'loan-detail': 'Loan Details',
+            'loan-detail': 'Loan Details',
             'customers': 'Customers',
+            'customer-profile': 'Customer Profile',
+            'customer-ledger': 'Customer Ledger',
+            'khata': 'Khata Ledger',
             'inventory': 'Inventory',
             'market': 'Market Rates',
             'settings': 'Settings'
@@ -64,6 +68,9 @@ const UI = (() => {
             'loans': () => LoanListPage.render(container),
             'loan-detail': () => LoanDetailPage.render(container, data),
             'customers': () => CustomersPage.render(container),
+            'customer-profile': () => CustomerProfilePage.render(container, data),
+            'customer-ledger': () => CustomerLedgerPage.render(container, data),
+            'khata': () => KhataPage.render(container),
             'inventory': () => InventoryPage.render(container),
             'market': () => MarketPage.render(container),
             'settings': () => SettingsPage.render(container)
@@ -166,7 +173,31 @@ const UI = (() => {
         `;
     }
 
+    /**
+     * Format Tithi info for display
+     */
+    function formatTithi(tithiInfo) {
+        if (!tithiInfo) return '';
+        return tithiInfo.formatted || `${tithiInfo.tithi} (${tithiInfo.paksha}) · ${tithiInfo.lunarMonth}`;
+    }
+
+    /**
+     * Format duration based on time mode
+     */
+    function formatDuration(months, tithiDuration, timeMode) {
+        if (timeMode === 'tithi' && tithiDuration) {
+            return tithiDuration.display || `${tithiDuration.tithis} tithis`;
+        }
+        if (months >= 12) {
+            const y = Math.floor(months / 12);
+            const m = Math.round(months % 12);
+            return m > 0 ? `${y}y ${m}m` : `${y} year${y > 1 ? 's' : ''}`;
+        }
+        return `${Math.round(months)} month${months !== 1 ? 's' : ''}`;
+    }
+
     return {
-        toast, navigateTo, currency, formatDate, pct, html, confirm, formGroup
+        toast, navigateTo, currency, formatDate, pct, html, confirm, formGroup,
+        formatTithi, formatDuration
     };
 })();

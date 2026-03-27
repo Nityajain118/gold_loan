@@ -20,6 +20,9 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
+    <!-- html2pdf.js for PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
     <!-- App Styles -->
     <link rel="stylesheet" href="style.css">
 </head>
@@ -133,6 +136,11 @@
                     </a>
                 </li>
                 <li>
+                    <a href="#" class="nav-item" data-page="khata">
+                        <span class="nav-icon">📒</span> Khata Ledger
+                    </a>
+                </li>
+                <li>
                     <a href="#" class="nav-item" data-page="inventory">
                         <span class="nav-icon">📦</span> Inventory
                     </a>
@@ -168,6 +176,9 @@
             <a href="#" class="bottom-nav-item" data-page="customers">
                 <span>👥</span><small>Customers</small>
             </a>
+            <a href="#" class="bottom-nav-item" data-page="khata">
+                <span>📒</span><small>Khata</small>
+            </a>
             <a href="#" class="bottom-nav-item" data-page="inventory">
                 <span>📦</span><small>Inventory</small>
             </a>
@@ -191,12 +202,13 @@
                             🥈 Silver: <strong id="ticker-silver">—</strong>/g
                         </span>
                     </div>
+                    <button id="time-mode-toggle" class="icon-btn" title="Toggle Time Mode (Normal / Tithi)" onclick="window._toggleTimeMode && window._toggleTimeMode()">📅</button>
                     <button id="dark-mode-toggle" class="icon-btn" title="Toggle Dark Mode">🌙</button>
                 </div>
             </header>
 
             <!-- Dynamic Page Container -->
-            <div id="page-container" class="page-container">
+            <div id="page-container" class="page-container container">
                 <!-- Pages are rendered dynamically by JavaScript -->
             </div>
         </main>
@@ -212,6 +224,8 @@
     <!-- ============================== -->
     <!-- Modules (load first — no dependencies on pages) -->
     <script src="modules/db.js"></script>
+    <script src="modules/tithi.js"></script>
+    <script src="modules/imageUpload.js"></script>
     <script src="modules/calculator.js"></script>
     <script src="modules/market.js"></script>
     <script src="modules/risk.js"></script>
@@ -222,9 +236,13 @@
     <script src="pages/dashboard.js"></script>
     <script src="pages/newLoan.js"></script>
     <script src="pages/oldLoan.js"></script>
+    <script src="pages/loans.js"></script> <!-- Assuming this might exist or just keep it clean -->
     <script src="pages/loanList.js"></script>
     <script src="pages/loanDetail.js"></script>
     <script src="pages/customers.js"></script>
+    <script src="pages/customerProfile.js"></script>
+    <script src="pages/customerLedger.js"></script>
+    <script src="pages/khata.js"></script>
     <script src="pages/inventory.js"></script>
     <script src="pages/marketPage.js"></script>
     <script src="pages/settings.js"></script>

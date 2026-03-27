@@ -2,11 +2,13 @@
    New Loan Page — Multi-Item Jewelry Support
    ============================================ */
 const NewLoanPage = (() => {
-    let _state = { interestPeriod: 'monthly', interestType: 'simple', items: [] };
+    let _state = { 
+        interestPeriod: 'monthly', interestType: 'simple', compoundingFrequency: 12, 
+        items: [], isManualTithi: false 
+    };
     const MAX_ITEMS = 10;
 
     function render(container) {
-        const settings = DB.getSettings();
         _state.items = [defaultItem()];
 
         container.innerHTML = `
@@ -17,10 +19,18 @@ const NewLoanPage = (() => {
                 </div>
                 <form id="new-loan-form" onsubmit="return false;">
                     <h4 class="mb-1" style="color:var(--primary);font-size:0.9rem;">👤 Customer Information</h4>
-                    <div class="form-grid mb-3">
-                        ${UI.formGroup('Customer Name *', '<input type="text" class="form-input" id="nl-customer" required placeholder="Enter customer name">')}
-                        ${UI.formGroup('Mobile Number', '<input type="tel" class="form-input" id="nl-mobile" placeholder="Mobile number" maxlength="10">')}
+                    <div class="form-grid mb-2">
+                        ${UI.formGroup('Customer Name *', '<input type="text" class="form-input" id="nl-customer" required placeholder="Enter customer name" autocomplete="off">')}
+                        ${UI.formGroup('Mobile Number (10 digits)', `<input type="tel" class="form-input" id="nl-mobile" placeholder="10-digit number" maxlength="10" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/\\D/g,'').slice(0,10)">
+                            <span id="nl-mobile-err" class="form-hint" style="color:var(--danger);display:none;">Enter a valid 10-digit mobile number</span>`)}
                         ${UI.formGroup('Locker Name', '<input type="text" class="form-input" id="nl-locker" placeholder="e.g., Locker A-12">')}
+                    </div>
+                    <div class="form-group mb-3">
+                        ${UI.formGroup('Customer Address', '<textarea class="form-input" id="nl-address" placeholder="Enter full address (optional)" style="height:70px;resize:vertical;"></textarea>')}
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="form-label">📸 Customer Photo</label>
+                        <div id="nl-customer-photo-wrap">${ImageUpload.renderUploader('nl-customer-photo', null, { label: 'Upload Customer Photo', compact: true, type: 'customer' })}</div>
                     </div>
 
                     <h4 class="mb-1" style="color:var(--primary);font-size:0.9rem;">💍 Jewelry Items (up to ${MAX_ITEMS})</h4>
@@ -37,12 +47,14 @@ const NewLoanPage = (() => {
                         <div class="items-summary-item"><div class="items-summary-label">Silver Items</div><div class="items-summary-value" id="nl-silver-items">0</div></div>
                         <div class="items-summary-item"><div class="items-summary-label">Total Weight</div><div class="items-summary-value" id="nl-total-weight">0g</div></div>
                         <div class="items-summary-item"><div class="items-summary-label">Total Metal Value</div><div class="items-summary-value" id="nl-total-value">₹0</div></div>
+                        <div class="items-summary-item"><div class="items-summary-label">Pure Gold Weight</div><div class="items-summary-value" id="nl-pure-gold-weight">0g</div></div>
+                        <div class="items-summary-item"><div class="items-summary-label">Safe Loan (<span id="nl-ltv-label">75</span>% LTV)</div><div class="items-summary-value safe" id="nl-safe-loan">₹0</div></div>
                     </div>
 
                     <h4 class="mb-1 mt-3" style="color:var(--primary);font-size:0.9rem;">💰 Loan Details</h4>
                     <div class="form-grid mb-2">
-                        ${UI.formGroup('Loan Amount (₹) *', '<input type="number" class="form-input" id="nl-amount" required placeholder="Enter loan amount" min="1" oninput="NewLoanPage.recalc()">')}
-                        ${UI.formGroup('Interest Rate (%) *', '<input type="number" class="form-input" id="nl-rate" required placeholder="e.g., 2" step="0.1" min="0.1" oninput="NewLoanPage.recalc()">')}
+                        ${UI.formGroup('Loan Amount (₹) *', '<input type="number" class="form-input" id="nl-amount" required placeholder="Enter loan amount" min="1" onkeydown="NewLoanPage.blockInvalidKey(event)" oninput="NewLoanPage.recalc()">')}
+                        ${UI.formGroup('Interest Rate (%) *', '<input type="number" class="form-input" id="nl-rate" required placeholder="e.g., 2" step="0.01" min="0.01" onkeydown="NewLoanPage.blockInvalidKey(event)" oninput="NewLoanPage.recalc()">')}
                         ${UI.formGroup('Interest Period', `
                             <div class="segment-control" id="nl-period-group">
                                 <button type="button" class="segment-btn active" data-value="monthly" onclick="NewLoanPage.setPeriod('monthly')">Monthly</button>
@@ -53,8 +65,44 @@ const NewLoanPage = (() => {
                                 <button type="button" class="segment-btn active" data-value="simple" onclick="NewLoanPage.setType('simple')">Simple</button>
                                 <button type="button" class="segment-btn" data-value="compound" onclick="NewLoanPage.setType('compound')">Compound</button>
                             </div>`)}
-                        ${UI.formGroup('Loan Start Date *', `<input type="date" class="form-input" id="nl-start" value="${new Date().toISOString().split('T')[0]}" onchange="NewLoanPage.recalc()">`)}
-                        ${UI.formGroup('Loan Duration *', `<div class="form-row"><input type="number" class="form-input" id="nl-duration" required placeholder="12" min="1" value="12" oninput="NewLoanPage.recalc()" style="flex:1;"><span style="color:var(--text-muted);font-size:0.85rem;">months</span></div>`)}
+                    </div>
+                    <!-- Compounding Frequency (shown only for compound) -->
+                    <div class="form-group mb-2" id="nl-compound-freq-wrap" style="display:none;">
+                        <label class="form-label">🔁 Compounding Frequency</label>
+                        <div class="segment-control" id="nl-freq-group">
+                            <button type="button" class="segment-btn active" data-value="12" onclick="NewLoanPage.setFreq(12)">Monthly</button>
+                            <button type="button" class="segment-btn" data-value="4" onclick="NewLoanPage.setFreq(4)">Quarterly</button>
+                            <button type="button" class="segment-btn" data-value="2" onclick="NewLoanPage.setFreq(2)">Half-Yearly</button>
+                            <button type="button" class="segment-btn" data-value="1" onclick="NewLoanPage.setFreq(1)">Yearly</button>
+                        </div>
+                    </div>
+                    <div class="form-grid mb-2">
+                        ${UI.formGroup('Loan Start Date *', `
+                            <input type="date" class="form-input" id="nl-start" value="${new Date().toISOString().split('T')[0]}" onchange="NewLoanPage.recalc()" style="margin-bottom:8px;">
+                            <div id="nl-tithi-container" style="display:none; padding:10px; border:1px solid var(--border-color); border-radius:4px; background:var(--bg-input);">
+                                <div id="nl-start-tithi" style="font-size:0.85rem; line-height:1.4;"></div>
+                                <div class="toggle-group mt-2">
+                                    <label class="toggle"><input type="checkbox" id="nl-panchang-override" onchange="NewLoanPage.togglePanchang()"><span class="toggle-slider"></span></label>
+                                    <span class="toggle-label" style="font-size:0.8rem; font-weight:600;">Panchang Override (Manual Mode)</span>
+                                </div>
+                                <div id="nl-panchang-inputs" style="display:none; margin-top:8px; gap:6px; flex-direction:column;">
+                                    <input type="number" id="nl-manual-samvat" class="form-input form-sm" placeholder="Samvat Yr (e.g. 2083)" oninput="NewLoanPage.recalc()">
+                                    <select id="nl-manual-month" class="form-select form-sm" onchange="NewLoanPage.recalc()">
+                                        ${(typeof Tithi !== 'undefined' ? Tithi.LUNAR_MONTHS : []).map(m => `<option value="${m}">${m}</option>`).join('')}
+                                    </select>
+                                    <div class="flex gap-1">
+                                        <select id="nl-manual-paksha" class="form-select form-sm" style="flex:1" onchange="NewLoanPage.recalc()">
+                                            <option value="Shukla">Shukla</option>
+                                            <option value="Krishna">Krishna</option>
+                                        </select>
+                                        <select id="nl-manual-tithi" class="form-select form-sm" style="flex:2" onchange="NewLoanPage.recalc()">
+                                            ${(typeof Tithi !== 'undefined' ? Tithi.TITHI_NAMES : []).map(t => `<option value="${t}">${t}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        `)}
+                        ${UI.formGroup('Loan Duration *', `<div class="form-row"><input type="number" class="form-input" id="nl-duration" required placeholder="12" min="1" value="12" onkeydown="NewLoanPage.blockInvalidKey(event)" oninput="NewLoanPage.recalc()" style="flex:1;"><span style="color:var(--text-muted);font-size:0.85rem;">months</span></div>`)}
                     </div>
 
                     <div class="calc-panel" id="nl-calc-panel">
@@ -64,6 +112,8 @@ const NewLoanPage = (() => {
                             <div class="calc-item"><div class="calc-item-label">Total Payable</div><div class="calc-item-value" id="nl-calc-payable">₹0</div></div>
                             <div class="calc-item"><div class="calc-item-label">LTV</div><div class="calc-item-value" id="nl-calc-ltv">0%</div></div>
                             <div class="calc-item"><div class="calc-item-label">Maturity Date</div><div class="calc-item-value" id="nl-calc-maturity" style="font-size:0.95rem;">—</div></div>
+                            <div class="calc-item"><div class="calc-item-label">Maturity Tithi</div><div class="calc-item-value" id="nl-calc-maturity-tithi" style="font-size:0.8rem;">—</div></div>
+                            <div class="calc-item"><div class="calc-item-label">Effective Annual Rate</div><div class="calc-item-value" id="nl-calc-ear">0%</div></div>
                             <div class="calc-item"><div class="calc-item-label">Break-even Price</div><div class="calc-item-value" id="nl-calc-breakeven">₹0/g</div></div>
                             <div class="calc-item"><div class="calc-item-label">Profit/Loss</div><div class="calc-item-value" id="nl-calc-pl">₹0</div></div>
                         </div>
@@ -72,14 +122,28 @@ const NewLoanPage = (() => {
                     <div class="flex gap-2 mt-3">
                         <button type="button" class="btn btn-gold btn-lg" onclick="NewLoanPage.save()">💾 Save Loan</button>
                     </div>
+
+                    <!-- Risk Analysis Panel (auto-populated by recalc) -->
+                    <div id="nl-risk-panel"></div>
                 </form>
             </div>`;
 
         renderItems();
+        
+        // Initial LTV label set
+        const settings = DB.getSettings();
+        const ltvPercentage = settings.ltvPercentage || 75;
+        const ltvLabel = document.getElementById('nl-ltv-label');
+        if (ltvLabel) ltvLabel.textContent = ltvPercentage;
     }
 
     function defaultItem() {
-        return { metalType: 'gold', purity: '22K', itemType: 'Ring', weightGrams: '' };
+        return { metalType: 'gold', purity: '22K', customPurity: '', itemType: 'Ring', weightGrams: '' };
+    }
+
+    // Block e, +, - in number inputs
+    function blockInvalidKey(e) {
+        if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
     }
 
     function renderItems() {
@@ -89,10 +153,13 @@ const NewLoanPage = (() => {
 
         list.innerHTML = _state.items.map((item, i) => {
             const types = Calculator.getJewelryTypes(item.metalType);
-            const purities = Calculator.getMetalSubTypes(item.metalType);
             const weight = parseFloat(item.weightGrams) || 0;
             const rate = item.metalType === 'gold' ? rates.gold : rates.silver;
-            const val = Calculator.calcMetalValue(weight, item.purity, rate);
+            const purityFactor = item.purity === 'custom'
+                ? (parseFloat(item.customPurity) || 0) / 100
+                : Calculator.getPurityFactor(item.purity);
+            const val = weight * purityFactor * rate;
+            const isCustomPurity = item.purity === 'custom';
 
             return `<div class="jewelry-item">
                 <div class="jewelry-item-header">
@@ -116,19 +183,30 @@ const NewLoanPage = (() => {
                     <div class="form-group">
                         <label class="form-label">Purity</label>
                         <select class="form-select" onchange="NewLoanPage.updateItem(${i},'purity',this.value)">
-                            ${purities.map(p => {
-                const pct = (Calculator.getPurityFactor(p) * 100).toFixed(1);
-                return `<option value="${p}" ${item.purity === p ? 'selected' : ''}>${p} (${pct}%)</option>`;
-            }).join('')}
+                            ${Calculator.buildItemPurityOptions(item.metalType, item.purity)}
                         </select>
                     </div>
+                    ${isCustomPurity ? `
+                    <div class="form-group">
+                        <label class="form-label">Custom Purity (%)</label>
+                        <input type="number" class="form-input" value="${item.customPurity}" step="0.1" min="1" max="100"
+                            placeholder="e.g., 87.5"
+                            onkeydown="NewLoanPage.blockInvalidKey(event)"
+                            oninput="NewLoanPage.updateCustomPurity(${i}, this.value)">
+                        <span class="form-hint">Enter purity as % (1–100)</span>
+                    </div>` : ''}
                     <div class="form-group">
                         <label class="form-label">Weight (g)</label>
                         <input type="number" class="form-input" value="${item.weightGrams}" step="0.01" min="0.01" placeholder="0.00"
+                            onkeydown="NewLoanPage.blockInvalidKey(event)"
                             oninput="NewLoanPage.updateItem(${i},'weightGrams',this.value)">
                     </div>
                 </div>
-                ${weight > 0 ? `<div class="jewelry-item-value">Value: ${UI.currency(val)} (@ ₹${rate.toLocaleString('en-IN')}/g)</div>` : ''}
+                <div class="form-group mt-1">
+                    <label class="form-label">📸 Item Photo</label>
+                    ${ImageUpload.renderUploader('nl-item-photo-' + i, item.photo || null, { label: 'Upload Gold Item Photo', compact: true, type: 'gold' })}
+                </div>
+                ${weight > 0 ? `<div class="jewelry-item-value">Value: ${UI.currency(val)} (@ ₹${rate.toLocaleString('en-IN')}/g · ${(purityFactor * 100).toFixed(1)}% purity)</div>` : ''}
             </div>`;
         }).join('');
 
@@ -149,28 +227,66 @@ const NewLoanPage = (() => {
     }
 
     function updateItem(index, field, value) {
-        _state.items[index][field] = field === 'weightGrams' ? value : value;
+        _state.items[index][field] = value;
         if (field === 'metalType') {
             const types = Calculator.getJewelryTypes(value);
-            const purities = Calculator.getMetalSubTypes(value);
             _state.items[index].itemType = types[0];
-            _state.items[index].purity = purities[value === 'gold' ? 1 : 0];
+            _state.items[index].purity = value === 'gold' ? '22K' : '999';
+            _state.items[index].customPurity = '';
+        }
+        if (field === 'purity' && value !== 'custom') {
+            _state.items[index].customPurity = '';
         }
         renderItems();
         recalc();
     }
 
+    function updateCustomPurity(index, value) {
+        _state.items[index].customPurity = value;
+        updateSummary();
+        recalc();
+    }
+
     function updateSummary() {
         const rates = Market.getCurrentRates();
-        const items = _state.items.map(i => ({ ...i, weightGrams: parseFloat(i.weightGrams) || 0 }));
-        const s = Calculator.calcItemsMetalValue(items, rates.gold, rates.silver);
+        const items = _state.items.map(i => {
+            const purityFactor = i.purity === 'custom'
+                ? (parseFloat(i.customPurity) || 0) / 100
+                : Calculator.getPurityFactor(i.purity);
+            const w = parseFloat(i.weightGrams) || 0;
+            const rate = i.metalType === 'gold' ? rates.gold : rates.silver;
+            return { ...i, weightGrams: w, purityFactor, _value: w * purityFactor * rate };
+        });
+
+        const totalItems = items.filter(i => i.weightGrams > 0).length;
+        const goldItems = items.filter(i => i.metalType === 'gold' && i.weightGrams > 0).length;
+        const silverItems = items.filter(i => i.metalType === 'silver' && i.weightGrams > 0).length;
+        const totalGoldWeight = items.filter(i => i.metalType === 'gold').reduce((s, i) => s + i.weightGrams, 0);
+        const totalSilverWeight = items.filter(i => i.metalType === 'silver').reduce((s, i) => s + i.weightGrams, 0);
+        const totalValue = items.reduce((s, i) => s + i._value, 0);
+
+        // Gold Valuation: Pure Gold Weight = weight × (purity/100) for gold items only
+        const pureGoldWeight = items
+            .filter(i => i.metalType === 'gold')
+            .reduce((s, i) => s + i.weightGrams * i.purityFactor, 0);
+
+        // Actual Gold Value = pureGoldWeight × gold market rate
+        const actualGoldValue = pureGoldWeight * rates.gold;
+
+        // Safe Loan Amount = Gold Value × LTV percentage
+        const settings = DB.getSettings();
+        const ltvPercentage = settings.ltvPercentage || 75;
+        const safeLoanAmount = actualGoldValue * (ltvPercentage / 100);
 
         const el = (id) => document.getElementById(id);
-        if (el('nl-total-items')) el('nl-total-items').textContent = s.totalItems;
-        if (el('nl-gold-items')) el('nl-gold-items').textContent = s.goldItems;
-        if (el('nl-silver-items')) el('nl-silver-items').textContent = s.silverItems;
-        if (el('nl-total-weight')) el('nl-total-weight').textContent = (s.totalGoldWeight + s.totalSilverWeight).toFixed(2) + 'g';
-        if (el('nl-total-value')) el('nl-total-value').textContent = UI.currency(s.totalValue);
+        if (el('nl-total-items')) el('nl-total-items').textContent = totalItems;
+        if (el('nl-gold-items')) el('nl-gold-items').textContent = goldItems;
+        if (el('nl-silver-items')) el('nl-silver-items').textContent = silverItems;
+        if (el('nl-total-weight')) el('nl-total-weight').textContent = (totalGoldWeight + totalSilverWeight).toFixed(2) + 'g';
+        if (el('nl-total-value')) el('nl-total-value').textContent = UI.currency(totalValue);
+        if (el('nl-pure-gold-weight')) el('nl-pure-gold-weight').textContent = pureGoldWeight.toFixed(3) + 'g';
+        if (el('nl-safe-loan')) el('nl-safe-loan').textContent = UI.currency(safeLoanAmount);
+
         recalc();
     }
 
@@ -183,6 +299,23 @@ const NewLoanPage = (() => {
     function setType(type) {
         _state.interestType = type;
         document.getElementById('nl-type-group').querySelectorAll('.segment-btn').forEach(b => b.classList.toggle('active', b.dataset.value === type));
+        // Show/hide compounding frequency
+        const freqWrap = document.getElementById('nl-compound-freq-wrap');
+        if (freqWrap) freqWrap.style.display = type === 'compound' ? '' : 'none';
+        recalc();
+    }
+
+    function setFreq(freq) {
+        _state.compoundingFrequency = freq;
+        document.getElementById('nl-freq-group').querySelectorAll('.segment-btn').forEach(b => b.classList.toggle('active', b.dataset.value === String(freq)));
+        recalc();
+    }
+
+    function togglePanchang() {
+        const checkbox = document.getElementById('nl-panchang-override');
+        _state.isManualTithi = checkbox && checkbox.checked;
+        const inputs = document.getElementById('nl-panchang-inputs');
+        if (inputs) inputs.style.display = _state.isManualTithi ? 'flex' : 'none';
         recalc();
     }
 
@@ -192,26 +325,89 @@ const NewLoanPage = (() => {
         const duration = parseInt(document.getElementById('nl-duration')?.value) || 12;
         const startDate = document.getElementById('nl-start')?.value;
 
+        // Show Tithi info for start date
+        const tithiContainer = document.getElementById('nl-tithi-container');
+        const startTithiEl = document.getElementById('nl-start-tithi');
+        let customTithiInfo = null;
+        
+        if (typeof Tithi !== 'undefined' && startDate) {
+            if (tithiContainer) tithiContainer.style.display = 'block';
+            
+            if (_state.isManualTithi) {
+                const s = document.getElementById('nl-manual-samvat').value || '2083';
+                const m = document.getElementById('nl-manual-month').value;
+                const p = document.getElementById('nl-manual-paksha').value;
+                const t = document.getElementById('nl-manual-tithi').value;
+                customTithiInfo = {
+                    samvat: parseInt(s) || 2083, lunarMonth: m, paksha: p, tithi: t,
+                    formatted: `📅 Samvat ${s} | ${m}<br/>🌙 Tithi: ${p} ${t}`
+                };
+                if (startTithiEl) startTithiEl.innerHTML = `<strong style="color:var(--alert)">[Manual Override]</strong><br/>${customTithiInfo.formatted}`;
+            } else {
+                const info = Tithi.getTithiInfo(new Date(startDate));
+                if (info && startTithiEl) {
+                    startTithiEl.innerHTML = info.formatted;
+                    document.getElementById('nl-manual-samvat').value = info.samvat;
+                    document.getElementById('nl-manual-month').value = info.lunarMonth;
+                    document.getElementById('nl-manual-paksha').value = info.paksha;
+                    document.getElementById('nl-manual-tithi').value = info.tithi;
+                }
+                customTithiInfo = info;
+            }
+        } else if (tithiContainer) {
+            tithiContainer.style.display = 'none';
+        }
+        _state.currentTithiInfo = customTithiInfo;
+
         const rates = Market.getCurrentRates();
-        const items = _state.items.map(i => ({ ...i, weightGrams: parseFloat(i.weightGrams) || 0 }));
-        const s = Calculator.calcItemsMetalValue(items, rates.gold, rates.silver);
-        const metalValue = s.totalValue;
+        let totalValue = 0, totalGoldWeight = 0, totalSilverWeight = 0;
+        let pureGoldWeight = 0, actualGoldValue = 0;
+
+        _state.items.forEach(i => {
+            const w = parseFloat(i.weightGrams) || 0;
+            if (w <= 0) return;
+            const pf = i.purity === 'custom' ? (parseFloat(i.customPurity) || 0) / 100 : Calculator.getPurityFactor(i.purity);
+            const r = i.metalType === 'gold' ? rates.gold : rates.silver;
+            totalValue += w * pf * r;
+            if (i.metalType === 'gold') {
+                totalGoldWeight += w;
+                pureGoldWeight += w * pf;
+            } else {
+                totalSilverWeight += w;
+            }
+        });
+
+        actualGoldValue = pureGoldWeight * rates.gold;
+        const settings = DB.getSettings();
+        const ltvPercentage = settings.ltvPercentage || 75;
+        const safeLoanAmount = actualGoldValue * (ltvPercentage / 100);
+        const totalWeight = totalGoldWeight + totalSilverWeight;
 
         const annualRate = Calculator.toAnnualRate(rate, _state.interestPeriod);
+        const compFreq = _state.compoundingFrequency || 12;
         let totalInterest;
         if (_state.interestType === 'compound') {
-            totalInterest = Calculator.calcCompoundInterest(amount, annualRate, duration);
+            totalInterest = Calculator.calcCompoundInterestWithFreq(amount, annualRate, duration, compFreq);
         } else {
             totalInterest = Calculator.calcSimpleInterest(amount, annualRate, duration);
         }
 
         const totalPayable = amount + totalInterest;
-        const ltv = metalValue > 0 ? (amount / metalValue) * 100 : 0;
-        const totalWeight = s.totalGoldWeight + s.totalSilverWeight;
+        const ltv = totalValue > 0 ? (amount / totalValue) * 100 : 0;
         const breakEven = totalWeight > 0 ? totalPayable / totalWeight : 0;
-        const pl = metalValue - totalPayable;
+        const pl = totalValue - totalPayable;
+
+        // Effective annual rate
+        const effectiveRate = _state.interestType === 'compound'
+            ? (Math.pow(1 + annualRate / 100 / compFreq, compFreq) - 1) * 100
+            : annualRate;
 
         const el = (id) => document.getElementById(id);
+
+        if (el('nl-pure-gold-weight')) el('nl-pure-gold-weight').textContent = pureGoldWeight.toFixed(3) + 'g';
+        if (el('nl-total-value')) el('nl-total-value').textContent = UI.currency(totalValue);
+        if (el('nl-safe-loan')) el('nl-safe-loan').textContent = UI.currency(safeLoanAmount);
+
         if (el('nl-calc-interest')) el('nl-calc-interest').textContent = UI.currency(totalInterest);
         if (el('nl-calc-payable')) el('nl-calc-payable').textContent = UI.currency(totalPayable);
         const ltvEl = el('nl-calc-ltv');
@@ -219,10 +415,28 @@ const NewLoanPage = (() => {
         if (startDate && el('nl-calc-maturity')) {
             const md = new Date(startDate); md.setMonth(md.getMonth() + duration);
             el('nl-calc-maturity').textContent = UI.formatDate(md.toISOString());
+            // Maturity Tithi
+            const mTithiEl = el('nl-calc-maturity-tithi');
+            if (mTithiEl) {
+                const mTithi = Tithi.getTithiInfo(md);
+                mTithiEl.innerHTML = mTithi ? mTithi.formatted : '—';
+            }
         }
+        if (el('nl-calc-ear')) el('nl-calc-ear').textContent = UI.pct(effectiveRate);
         if (el('nl-calc-breakeven')) el('nl-calc-breakeven').textContent = UI.currency(breakEven) + '/g';
         const plEl = el('nl-calc-pl');
         if (plEl) { plEl.textContent = UI.currency(pl); plEl.className = 'calc-item-value ' + (pl >= 0 ? 'safe' : 'danger'); }
+
+        // --- Risk Analysis Panel (auto-update) ---
+        const riskPanelEl = el('nl-risk-panel');
+        if (riskPanelEl) {
+            riskPanelEl.innerHTML = Risk.renderRiskPanel({
+                pureGoldWeight,
+                goldValue: totalValue,
+                loanAmount: amount,
+                currentPrice: rates.gold
+            });
+        }
     }
 
     function save() {
@@ -233,46 +447,107 @@ const NewLoanPage = (() => {
         const duration = parseInt(document.getElementById('nl-duration').value);
         const startDate = document.getElementById('nl-start').value;
         const locker = document.getElementById('nl-locker').value.trim();
+        const address = document.getElementById('nl-address').value.trim();
 
+        // --- Validate ---
         if (!customer) { UI.toast('Please enter customer name', 'error'); return; }
+        if (mobile && !/^\d{10}$/.test(mobile)) {
+            const err = document.getElementById('nl-mobile-err');
+            if (err) err.style.display = '';
+            UI.toast('Mobile number must be exactly 10 digits', 'error');
+            return;
+        }
+        const mobileErr = document.getElementById('nl-mobile-err');
+        if (mobileErr) mobileErr.style.display = 'none';
 
         const validItems = _state.items.filter(i => parseFloat(i.weightGrams) > 0);
         if (validItems.length === 0) { UI.toast('Add at least one jewelry item with weight', 'error'); return; }
+
+        // Validate custom purity items
+        for (let idx = 0; idx < validItems.length; idx++) {
+            const it = validItems[idx];
+            if (it.purity === 'custom') {
+                const cp = parseFloat(it.customPurity);
+                if (!cp || cp <= 0 || cp > 100) {
+                    UI.toast(`Item #${idx + 1}: Enter a valid custom purity (1–100%)`, 'error');
+                    return;
+                }
+            }
+        }
+
         if (!amount || amount <= 0) { UI.toast('Please enter valid loan amount', 'error'); return; }
         if (!rate || rate <= 0) { UI.toast('Please enter valid interest rate', 'error'); return; }
         if (!startDate) { UI.toast('Please select start date', 'error'); return; }
 
         const rates = Market.getCurrentRates();
-        const items = validItems.map(i => ({
-            itemType: i.itemType, metalType: i.metalType, purity: i.purity, weightGrams: parseFloat(i.weightGrams)
-        }));
-        const s = Calculator.calcItemsMetalValue(items, rates.gold, rates.silver);
+        const items = validItems.map(validItem => {
+            // Find the original index of this item in _state.items
+            const originalIdx = _state.items.findIndex(stateItem => 
+                stateItem === validItem
+            );
+            return {
+                itemType: validItem.itemType,
+                metalType: validItem.metalType,
+                purity: validItem.purity,
+                customPurity: validItem.purity === 'custom' ? parseFloat(validItem.customPurity) : null,
+                weightGrams: parseFloat(validItem.weightGrams),
+                photo: originalIdx >= 0 ? ImageUpload.getImageData('nl-item-photo-' + originalIdx) : ''
+            };
+        });
 
-        // Use the dominant metal type for backward compatibility
-        const dominantMetal = s.goldItems >= s.silverItems ? 'gold' : 'silver';
+        let totalValue = 0, totalGoldWeight = 0, totalSilverWeight = 0, goldItems = 0, silverItems = 0;
+        items.forEach(i => {
+            const pf = i.purity === 'custom' ? i.customPurity / 100 : Calculator.getPurityFactor(i.purity);
+            const r = i.metalType === 'gold' ? rates.gold : rates.silver;
+            totalValue += i.weightGrams * pf * r;
+            if (i.metalType === 'gold') { totalGoldWeight += i.weightGrams; goldItems++; }
+            else { totalSilverWeight += i.weightGrams; silverItems++; }
+        });
+
+        const dominantMetal = goldItems >= silverItems ? 'gold' : 'silver';
         const dominantPurity = items.find(i => i.metalType === dominantMetal)?.purity || '22K';
 
         const loan = {
             customerName: customer, mobile, lockerName: locker,
+            address,
             metalType: dominantMetal, metalSubType: dominantPurity,
-            weightGrams: s.totalGoldWeight + s.totalSilverWeight,
-            items: items,
+            weightGrams: totalGoldWeight + totalSilverWeight,
+            items,
             loanAmount: amount, interestRate: rate,
             interestPeriod: _state.interestPeriod, interestType: _state.interestType,
+            compoundingFrequency: _state.compoundingFrequency,
+            timeMode: DB.getSettings().timeMode || 'normal',
+            tithiInfo: _state.currentTithiInfo || null,
+            isManualTithi: _state.isManualTithi,
             loanStartDate: startDate, loanDuration: duration,
             historicalMarketRate: null, useHistoricalRate: false,
             paidInterest: 0, partialRepayment: 0, manualPenalty: 0,
             isMigrated: false, status: 'active',
+            customerPhoto: ImageUpload.getImageData('nl-customer-photo'),
             marketRateAtCreation: dominantMetal === 'gold' ? rates.gold : rates.silver
         };
 
-        // Auto save customer
+        // Auto-save customer
         const customers = DB.getCustomers();
-        let existing = customers.find(c => c.name.toLowerCase() === customer.toLowerCase() || (mobile && c.mobile === mobile));
+        // Priority 1: Match by mobile
+        // Priority 2: Match by exact name (if mobile is omitted)
+        let existing = null;
+        if (mobile) {
+            existing = customers.find(c => c.mobile === mobile);
+        }
         if (!existing) {
-            DB.saveCustomer({ name: customer, mobile, address: '', totalLoans: 1 });
+            existing = customers.find(c => c.name.toLowerCase() === customer.toLowerCase());
+        }
+
+        if (!existing) {
+            DB.saveCustomer({ name: customer, mobile, address, totalLoans: 1 });
         } else {
+            // Update the existing customer record
             existing.totalLoans = (existing.totalLoans || 0) + 1;
+            if (mobile && existing.mobile === mobile && existing.name.toLowerCase() !== customer.toLowerCase()) {
+                existing.name = customer;
+            }
+            if (address) existing.address = address;
             DB.saveCustomer(existing);
         }
 
@@ -281,5 +556,5 @@ const NewLoanPage = (() => {
         UI.navigateTo('loans');
     }
 
-    return { render, addItem, removeItem, updateItem, setPeriod, setType, recalc, save, _state };
+    return { render, addItem, removeItem, updateItem, updateCustomPurity, setPeriod, setType, setFreq, togglePanchang, recalc, save, blockInvalidKey, _state };
 })();

@@ -132,7 +132,107 @@ const Risk = (() => {
         });
     }
 
+    /**
+     * Render the "Loan Risk Analysis" HTML panel.
+     * Call this from any page that has pureGoldWeight, goldValue, loanAmount & currentPrice.
+     *
+     * Returns an HTML string for insertion into the DOM.
+     */
+    function renderRiskPanel({ pureGoldWeight, goldValue, loanAmount, currentPrice }) {
+        const settings = DB.getSettings();
+        const ltvPercentage = settings.ltvPercentage || 75;
+
+        if (!loanAmount || loanAmount <= 0 || !goldValue || goldValue <= 0) {
+            return `<div class="risk-analysis-panel">
+                <div class="risk-analysis-title">🔬 Loan Risk Analysis</div>
+                <p style="color:var(--text-muted);font-size:0.88rem;">Enter loan amount and jewelry weight to see risk analysis.</p>
+            </div>`;
+        }
+
+        const r = Calculator.calcGoldRiskAnalysis({ pureGoldWeight, goldValue, loanAmount, currentPrice });
+
+        const dropRows = r.drops.map(d => `
+            <tr>
+                <td><span class="drop-pct-badge drop-${d.pct}">−${d.pct}%</span></td>
+                <td>${UI.currency(d.newPrice)}/g</td>
+                <td>${UI.currency(d.newValue)}</td>
+                <td class="${d.covered ? 'drop-covered' : 'drop-not-covered'}">
+                    ${d.covered ? '✅ Covered' : `⚠️ Short ${UI.currency(d.loss)}`}
+                </td>
+            </tr>`).join('');
+
+        return `<div class="risk-analysis-panel">
+            <div class="risk-analysis-title">🔬 Loan Risk Analysis <small style="font-size:0.72rem;font-weight:500;color:var(--text-muted);margin-left:4px;">NBFC Analytics</small></div>
+
+            <!-- Risk Score Bar -->
+            <div class="risk-score-section">
+                <span class="risk-score-label">Risk Score</span>
+                <div class="risk-score-bar"><div class="risk-score-fill ${r.riskClass}"></div></div>
+                <span class="risk-score-badge ${r.riskClass}">${r.riskLabel}</span>
+            </div>
+
+            <!-- Core Metrics -->
+            <div class="risk-metrics-grid">
+                <div class="risk-metric-card ${r.ltvClass}">
+                    <div class="risk-metric-label">LTV Ratio</div>
+                    <div class="risk-metric-value">${r.ltv.toFixed(1)}%</div>
+                    <div class="risk-metric-sub ${r.ltvClass === 'safe' ? 'text-safe' : r.ltvClass === 'monitor' ? 'text-monitor' : 'text-danger'}">${r.ltvCategory}</div>
+                </div>
+                <div class="risk-metric-card ${r.safetyClass}">
+                    <div class="risk-metric-label">Safety Margin</div>
+                    <div class="risk-metric-value">${UI.currency(Math.abs(r.safetyMargin))}</div>
+                    <div class="risk-metric-sub">${r.safetyStatus}</div>
+                </div>
+                <div class="risk-metric-card ${r.ltv <= ltvPercentage ? 'safe' : 'monitor'}">
+                    <div class="risk-metric-label">Break-Even Price</div>
+                    <div class="risk-metric-value">${UI.currency(r.breakEvenPrice)}/g</div>
+                    <div class="risk-metric-sub">Min. price to recover loan</div>
+                </div>
+                <div class="risk-metric-card safe">
+                    <div class="risk-metric-label">Safe Loan Limit (${ltvPercentage}% LTV)</div>
+                    <div class="risk-metric-value">${UI.currency(r.safeLoanAmount)}</div>
+                    <div class="risk-metric-sub">Recommended maximum</div>
+                </div>
+            </div>
+
+            <!-- Break-Even Note -->
+            <div class="breakeven-note">
+                💡 Gold price must remain above <strong>${UI.currency(r.breakEvenPrice)}/g</strong> to recover the loan safely.
+                Current price: <strong>${UI.currency(currentPrice)}/g</strong>
+            </div>
+
+            <!-- Price Alert Banner -->
+            <div class="price-alert-banner ${r.alertClass}">
+                ${r.alertStatus}
+            </div>
+
+            <!-- Safe Loan Recommendation -->
+            <div class="safe-loan-box">
+                <div class="risk-metric-label" style="margin-bottom:6px;">📊 Recommended Safe Loan Amount</div>
+                <div class="safe-amount">✅ ${UI.currency(r.safeLoanAmount)}</div>
+                <div style="font-size:0.78rem;color:var(--text-muted);">Based on ${ltvPercentage}% LTV of gold value (${UI.currency(goldValue)})</div>
+                ${r.exceedsSafe ? `<div class="safe-warning">⚠️ Warning: Entered loan amount exceeds recommended safe lending limit by ${UI.currency(loanAmount - r.safeLoanAmount)}</div>` : ''}
+            </div>
+
+            <!-- Gold Price Drop Simulation -->
+            <div class="drop-simulation">
+                <div class="drop-simulation-title">📉 Gold Price Drop Simulation</div>
+                <div style="overflow-x:auto;">
+                    <table class="drop-table">
+                        <thead><tr>
+                            <th>Price Drop</th>
+                            <th>New Price/g</th>
+                            <th>New Gold Value</th>
+                            <th>Loan Coverage</th>
+                        </tr></thead>
+                        <tbody>${dropRows}</tbody>
+                    </table>
+                </div>
+            </div>
+        </div>`;
+    }
+
     return {
-        analyzePortfolio, getRiskDistribution, getPortfolioTrend
+        analyzePortfolio, getRiskDistribution, getPortfolioTrend, renderRiskPanel
     };
 })();

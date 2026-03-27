@@ -6,11 +6,75 @@ const DashboardPage = (() => {
 
     function render(container) {
         const summary = Risk.analyzePortfolio();
+        const loans = DB.getLoans();
+        
+        // --- Smart Money Lending Engine Logic ---
+        function calculateDashboard(loansList) {
+            let totalGiven = 0;
+            let totalInterest = 0;
+            let activeLoans = 0;
+            let overdueLoans = 0;
+
+            const today = new Date();
+
+            loansList.forEach(loan => {
+                totalGiven += loan.loanAmount || 0;
+
+                const loanDate = new Date(loan.loanStartDate || loan.createdAt);
+                const days = Math.floor((today - loanDate) / (1000*60*60*24));
+
+                // Safe calculation of interest for dashboard using calculator mod
+                const annualRate = Calculator.toAnnualRate(loan.interestRate || 0, loan.interestPeriod || 'yearly');
+                const interest = ((loan.loanAmount || 0) * (annualRate / 100) * Math.max(days, 1)) / 365;
+                totalInterest += interest;
+
+                // Active if not closed/completed (assume active if remaining Principal > 0 or no partialRepayment > loanAmount)
+                const remaining = (loan.loanAmount || 0) - (loan.partialRepayment || 0);
+                if (remaining > 0 || typeof loan.status === 'undefined' || loan.status === 'active') {
+                    activeLoans++;
+                    if (days > 90) overdueLoans++;
+                }
+            });
+
+            return { totalGiven, totalInterest, activeLoans, overdueLoans };
+        }
+        
+        const mlData = calculateDashboard(loans);
 
         container.innerHTML = `
-            <!-- KPI Cards -->
-            <div class="kpi-grid">
+            <!-- MONEY LENDING DASHBOARD -->
+            <div class="section-header mt-2" style="margin-bottom: 15px;">
+                <h3 class="section-title">💰 Money Lending Dashboard</h3>
+            </div>
+            
+            <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                <div class="kpi-card blue">
+                    <div class="kpi-icon">💰</div>
+                    <div class="kpi-value">₹${UI.currency(mlData.totalGiven)}</div>
+                    <div class="kpi-label">Total Principal Given</div>
+                </div>
+                <div class="kpi-card green">
+                    <div class="kpi-icon">📈</div>
+                    <div class="kpi-value">₹${UI.currency(Math.floor(mlData.totalInterest))}</div>
+                    <div class="kpi-label">Total Earned Interest</div>
+                </div>
                 <div class="kpi-card gold">
+                    <div class="kpi-icon">📋</div>
+                    <div class="kpi-value">${mlData.activeLoans}</div>
+                    <div class="kpi-label">Active Loans</div>
+                </div>
+                <div class="kpi-card red">
+                    <div class="kpi-icon">⚠️</div>
+                    <div class="kpi-value">${mlData.overdueLoans}</div>
+                    <div class="kpi-label">Overdue (>90 days)</div>
+                </div>
+            </div>
+
+            <div class="section-header mt-3">
+                <h3 class="section-title">📊 Portfolio Summary</h3>
+            </div>
+            <!-- KPI Cards (Original) -->
+            <div class="kpi-grid">
                     <div class="kpi-icon">💰</div>
                     <div class="kpi-value">${summary.totalLoans}</div>
                     <div class="kpi-label">Active Loans</div>

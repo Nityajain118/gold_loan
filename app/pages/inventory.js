@@ -43,10 +43,10 @@ const InventoryPage = (() => {
                                 <label class="form-label">Custom Purity (%)</label>
                                 <input type="number" class="form-input inv-custom-input" id="inv-custom-purity"
                                        placeholder="e.g., 87.5" step="0.1" min="1" max="100"
-                                       oninput="InventoryPage.calcPreview()">
+                                       oninput="InventoryPage.calcPreview()" onkeydown="InventoryPage.blockInvalidKey(event)">
                                 <span class="form-hint">Enter purity as a percentage (1–100%)</span>
                             </div>
-                            ${UI.formGroup('Weight (grams) *', '<input type="number" class="form-input" id="inv-weight" required placeholder="0.00" step="0.01" min="0.01" oninput="InventoryPage.calcPreview()">')}
+                            ${UI.formGroup('Weight (grams) *', '<input type="number" class="form-input" id="inv-weight" required placeholder="0.00" step="0.01" min="0.01" onkeydown="InventoryPage.blockInvalidKey(event)" oninput="InventoryPage.calcPreview()">')}
                             ${UI.formGroup('Notes', '<input type="text" class="form-input" id="inv-notes" placeholder="Optional notes">')}
                         </div>
 
@@ -445,8 +445,12 @@ const InventoryPage = (() => {
             </div>`;
     }
 
+    function blockInvalidKey(e) {
+        if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
+    }
+
     return {
         render, setMetal, onPurityChange, calcPreview,
-        save, cancelEdit, editItem, deleteItem, applyFilter
+        save, cancelEdit, editItem, deleteItem, applyFilter, blockInvalidKey
     };
 })();

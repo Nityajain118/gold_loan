@@ -10,13 +10,30 @@ const SettingsPage = (() => {
             <div class="card mb-2">
                 <h3 class="card-title mb-2">⚙️ General Settings</h3>
                 <div class="form-grid">
+                    ${UI.formGroup('LTV Percentage (%)', `<input type="number" class="form-input" id="set-ltv" value="${settings.ltvPercentage || 75}" min="10" max="100">`, 'Default 75%. Safe loan calculations use this.')}
                     ${UI.formGroup('Safety Margin (%)', `<input type="number" class="form-input" id="set-margin" value="${settings.safetyMargin}" min="5" max="50">`, 'Default 20%. Loans below this buffer trigger alerts.')}
                 </div>
                 <div class="toggle-group mt-2">
                     <label class="toggle"><input type="checkbox" id="set-auto-fetch" ${settings.autoFetchRates ? 'checked' : ''}><span class="toggle-slider"></span></label>
                     <span class="toggle-label">Auto-fetch live market rates</span>
                 </div>
+                <div class="toggle-group mt-2">
+                    <label class="toggle"><input type="checkbox" id="set-time-mode" ${settings.timeMode === 'tithi' ? 'checked' : ''}><span class="toggle-slider"></span></label>
+                    <span class="toggle-label">🌙 Hindu Tithi Mode</span>
+                    <small style="display:block;color:var(--text-muted);font-size:0.75rem;margin-top:2px;">Uses Tithi-based duration for interest calculations</small>
+                </div>
                 <button class="btn btn-primary mt-2" onclick="SettingsPage.saveGeneral()">💾 Save Settings</button>
+            </div>
+
+            <div class="card mb-2">
+                <h3 class="card-title mb-2">🏪 Shop Branding (For Bills)</h3>
+                <div class="form-grid">
+                    ${UI.formGroup('Shop Name', `<input type="text" class="form-input" id="set-shop-name" value="${settings.shopName || ''}">`)}
+                    ${UI.formGroup('Phone Number', `<input type="text" class="form-input" id="set-shop-phone" value="${settings.shopPhone || ''}">`)}
+                </div>
+                ${UI.formGroup('Shop Address', `<textarea class="form-textarea mt-1" id="set-shop-address">${settings.shopAddress || ''}</textarea>`)}
+                ${UI.formGroup('Shop Logo URL', `<input type="text" class="form-input mt-1" id="set-shop-logo" value="${settings.shopLogo || ''}" placeholder="https://example.com/logo.png">`)}
+                <button class="btn btn-primary mt-2" onclick="SettingsPage.saveBranding()">💾 Save Shop Branding</button>
             </div>
 
             <div class="card mb-2">
@@ -56,9 +73,27 @@ const SettingsPage = (() => {
 
     function saveGeneral() {
         const margin = parseInt(document.getElementById('set-margin').value) || 20;
+        const ltv = parseInt(document.getElementById('set-ltv').value) || 75;
         const autoFetch = document.getElementById('set-auto-fetch').checked;
-        DB.saveSettings({ safetyMargin: margin, autoFetchRates: autoFetch });
-        UI.toast('Settings saved', 'success');
+        const timeModeEl = document.getElementById('set-time-mode');
+        const timeMode = timeModeEl && timeModeEl.checked ? 'tithi' : 'normal';
+        DB.saveSettings({ safetyMargin: margin, ltvPercentage: ltv, autoFetchRates: autoFetch, timeMode });
+        // Sync top-bar toggle
+        const topBtn = document.getElementById('time-mode-toggle');
+        if (topBtn) {
+            topBtn.textContent = timeMode === 'tithi' ? '🌙' : '📅';
+            topBtn.title = timeMode === 'tithi' ? 'Tithi Mode Active (Click for Normal)' : 'Normal Mode Active (Click for Tithi)';
+        }
+        UI.toast('General settings saved', 'success');
+    }
+
+    function saveBranding() {
+        const shopName = document.getElementById('set-shop-name').value.trim();
+        const shopPhone = document.getElementById('set-shop-phone').value.trim();
+        const shopAddress = document.getElementById('set-shop-address').value.trim();
+        const shopLogo = document.getElementById('set-shop-logo').value.trim();
+        DB.saveSettings({ shopName, shopPhone, shopAddress, shopLogo });
+        UI.toast('Shop branding saved', 'success');
     }
 
     async function changePin() {
@@ -88,5 +123,5 @@ const SettingsPage = (() => {
         }
     }
 
-    return { render, saveGeneral, changePin, restore, resetAll };
+    return { render, saveGeneral, saveBranding, changePin, restore, resetAll };
 })();

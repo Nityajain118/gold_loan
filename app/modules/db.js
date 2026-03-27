@@ -19,7 +19,13 @@ const DB = (() => {
         autoFetchRates: true,
         currentGoldRate: 7200,
         currentSilverRate: 85,
-        lastRateUpdate: null
+        lastRateUpdate: null,
+        ltvPercentage: 75,
+        timeMode: 'normal',
+        shopName: 'GoldVault Finance',
+        shopAddress: '123 Main Street, City',
+        shopPhone: '',
+        shopLogo: ''
     };
 
     function _get(key) {

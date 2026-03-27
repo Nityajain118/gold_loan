@@ -6,6 +6,7 @@ const Calculator = (() => {
     const PURITY = {
         '24K': 1.0,
         '22K': 0.9167,
+        '20K': 0.8333,
         '18K': 0.75,
         '14K': 0.585,
         '999': 0.999,
@@ -14,7 +15,7 @@ const Calculator = (() => {
         '800': 0.800
     };
 
-    const GOLD_TYPES = ['24K', '22K', '18K', '14K'];
+    const GOLD_TYPES = ['24K', '22K', '20K', '18K', '14K'];
     const SILVER_TYPES = ['999', '925', '900', '800'];
 
     const JEWELRY_TYPES = {
@@ -23,7 +24,25 @@ const Calculator = (() => {
     };
 
     function getPurityFactor(subType) {
+        if (subType === 'custom') return 1.0; // fallback; use customPurity field directly
+        // If subType is a numeric string (e.g. "87.5"), treat as percentage
+        const num = parseFloat(subType);
+        if (!isNaN(num) && !PURITY[subType]) return Math.min(100, Math.max(0, num)) / 100;
         return PURITY[subType] || 1.0;
+    }
+
+    /**
+     * Build purity <select> options for item rows (New Loan & Old Loan)
+     * Includes a "Custom Purity" option at the end.
+     */
+    function buildItemPurityOptions(metal, selectedPurity) {
+        const types = metal === 'gold' ? GOLD_TYPES : SILVER_TYPES;
+        let opts = types.map(p => {
+            const pct = (getPurityFactor(p) * 100).toFixed(1);
+            return `<option value="${p}" ${selectedPurity === p ? 'selected' : ''}>${p} (${pct}%)</option>`;
+        }).join('');
+        opts += `<option value="custom" ${selectedPurity === 'custom' ? 'selected' : ''}>✏️ Custom Purity</option>`;
+        return opts;
     }
 
     function getMetalSubTypes(metalType) {
@@ -79,12 +98,28 @@ const Calculator = (() => {
     }
 
     /**
-     * Compound Interest (monthly compounding)
+     * Compound Interest (monthly compounding) — LEGACY, do not modify
      * CI = P × ((1 + r/12)^months - 1)
      */
     function calcCompoundInterest(principal, annualRate, months) {
         const monthlyRate = annualRate / 100 / 12;
         return principal * (Math.pow(1 + monthlyRate, months) - 1);
+    }
+
+    /**
+     * Compound Interest with configurable compounding frequency
+     * A = P × (1 + r/n)^(n×t)  →  CI = A - P
+     * @param {number} principal
+     * @param {number} annualRate — annual % (e.g. 24)
+     * @param {number} months — duration in months
+     * @param {number} frequency — compounding times per year: 1, 2, 4, or 12
+     */
+    function calcCompoundInterestWithFreq(principal, annualRate, months, frequency) {
+        frequency = frequency || 12;
+        const r = annualRate / 100;
+        const t = months / 12;
+        const amount = principal * Math.pow(1 + r / frequency, frequency * t);
+        return amount - principal;
     }
 
     /**
@@ -99,6 +134,7 @@ const Calculator = (() => {
      */
     function calcLoanDetails(loan, currentMarketRate) {
         const settings = DB.getSettings();
+        const timeMode = loan.timeMode || settings.timeMode || 'normal';
 
         // Calculate metal value — use items array if available, else legacy single-item
         let metalValue, metalValueForLTV;
@@ -113,22 +149,40 @@ const Calculator = (() => {
 
         const annualRate = toAnnualRate(loan.interestRate, loan.interestPeriod);
 
-        // Calculate months elapsed
+        // Calculate months elapsed — support Tithi mode
         const startDate = new Date(loan.loanStartDate);
         const now = new Date();
-        const monthsElapsed = Math.max(0,
-            (now.getFullYear() - startDate.getFullYear()) * 12 +
-            (now.getMonth() - startDate.getMonth()) +
-            (now.getDate() >= startDate.getDate() ? 0 : -1)
-        );
+        let monthsElapsed;
+        let tithiDuration = null;
+
+        if (timeMode === 'tithi' && typeof Tithi !== 'undefined') {
+            try {
+                tithiDuration = Tithi.getTithiDuration(startDate, now);
+                monthsElapsed = tithiDuration ? Math.max(0, tithiDuration.months) : 0;
+            } catch (e) {
+                // Fallback to normal
+                monthsElapsed = Math.max(0,
+                    (now.getFullYear() - startDate.getFullYear()) * 12 +
+                    (now.getMonth() - startDate.getMonth()) +
+                    (now.getDate() >= startDate.getDate() ? 0 : -1)
+                );
+            }
+        } else {
+            monthsElapsed = Math.max(0,
+                (now.getFullYear() - startDate.getFullYear()) * 12 +
+                (now.getMonth() - startDate.getMonth()) +
+                (now.getDate() >= startDate.getDate() ? 0 : -1)
+            );
+        }
 
         const durationMonths = loan.loanDuration || monthsElapsed;
         const monthsForCalc = Math.max(monthsElapsed, 1);
 
-        // Interest calculation
+        // Interest calculation — support compounding frequency
         let totalInterest;
+        const compFreq = loan.compoundingFrequency || 12;
         if (loan.interestType === 'compound') {
-            totalInterest = calcCompoundInterest(loan.loanAmount, annualRate, monthsForCalc);
+            totalInterest = calcCompoundInterestWithFreq(loan.loanAmount, annualRate, monthsForCalc, compFreq);
         } else {
             totalInterest = calcSimpleInterest(loan.loanAmount, annualRate, monthsForCalc);
         }
@@ -145,6 +199,15 @@ const Calculator = (() => {
         // Maturity date
         const maturityDate = new Date(startDate);
         maturityDate.setMonth(maturityDate.getMonth() + (loan.loanDuration || 12));
+
+        // Tithi info for start and maturity
+        let startTithi = null, maturityTithi = null;
+        if (typeof Tithi !== 'undefined') {
+            try {
+                startTithi = Tithi.getTithiInfo(startDate);
+                maturityTithi = Tithi.getTithiInfo(maturityDate);
+            } catch (e) { /* ignore */ }
+        }
 
         // LTV
         const ltv = metalValueForLTV > 0 ? (loan.loanAmount / metalValueForLTV) * 100 : 0;
@@ -180,6 +243,11 @@ const Calculator = (() => {
         const isNearMaturity = daysToMaturity <= 30 && daysToMaturity > 0;
         const isOverdue = daysToMaturity === 0 && now > maturityDate;
 
+        // Effective annual rate
+        const effectiveRate = loan.interestType === 'compound'
+            ? (Math.pow(1 + annualRate / 100 / compFreq, compFreq) - 1) * 100
+            : annualRate;
+
         return {
             metalValue,
             totalInterest,
@@ -202,7 +270,13 @@ const Calculator = (() => {
             isOverdue,
             monthsElapsed,
             annualRate,
-            durationMonths
+            effectiveRate,
+            durationMonths,
+            timeMode,
+            tithiDuration,
+            startTithi,
+            maturityTithi,
+            compoundingFrequency: compFreq
         };
     }
 
@@ -217,10 +291,11 @@ const Calculator = (() => {
         const annualRate = toAnnualRate(formData.interestRate || 0, formData.interestPeriod || 'yearly');
         const months = formData.loanDuration || 12;
         const principal = formData.loanAmount || 0;
+        const compFreq = formData.compoundingFrequency || 12;
 
         let totalInterest;
         if (formData.interestType === 'compound') {
-            totalInterest = calcCompoundInterest(principal, annualRate, months);
+            totalInterest = calcCompoundInterestWithFreq(principal, annualRate, months, compFreq);
         } else {
             totalInterest = calcSimpleInterest(principal, annualRate, months);
         }
@@ -232,14 +307,91 @@ const Calculator = (() => {
         const breakEvenPrice = effectiveWeight > 0 ? totalPayable / effectiveWeight : 0;
         const profitLoss = metalValue - totalPayable;
 
-        return { metalValue, totalInterest, totalPayable, ltv, breakEvenPrice, profitLoss };
+        // Effective annual rate for compound
+        const effectiveRate = formData.interestType === 'compound'
+            ? (Math.pow(1 + annualRate / 100 / compFreq, compFreq) - 1) * 100
+            : annualRate;
+
+        return { metalValue, totalInterest, totalPayable, ltv, breakEvenPrice, profitLoss, effectiveRate };
+    }
+
+    /**
+     * Professional NBFC-style Gold Loan Risk Analysis
+     *
+     * @param {object} params
+     *   pureGoldWeight  — weight × (purity/100) in grams
+     *   goldValue       — pureGoldWeight × currentMarketPrice
+     *   loanAmount      — principal loan amount (₹)
+     *   currentPrice    — current gold market price per gram (₹)
+     *
+     * @returns {object} Full risk analysis object
+     */
+    function calcGoldRiskAnalysis({ pureGoldWeight, goldValue, loanAmount, currentPrice }) {
+        const loan = loanAmount || 0;
+        const pgw  = pureGoldWeight || 0;
+        const gv   = goldValue || 0;
+        const cp   = currentPrice || 0;
+
+        // --- 1. Safety Margin ---
+        const safetyMargin = gv - loan;
+        let safetyStatus, safetyClass;
+        if (safetyMargin > 0)      { safetyStatus = '✅ Safe Loan';          safetyClass = 'safe'; }
+        else if (safetyMargin === 0){ safetyStatus = '⚠️ No Safety Margin';  safetyClass = 'monitor'; }
+        else                        { safetyStatus = '🔴 High Risk Loan';    safetyClass = 'danger'; }
+
+        // --- 2. LTV Risk Indicator ---
+        const settings = DB.getSettings();
+        const ltvPercentage = settings.ltvPercentage || 75;
+
+        const ltv = gv > 0 ? (loan / gv) * 100 : 0;
+        let ltvCategory, ltvClass;
+        if (ltv <= ltvPercentage)      { ltvCategory = 'Safe Loan';      ltvClass = 'safe'; }
+        else if (ltv <= 90) { ltvCategory = 'Moderate Risk';  ltvClass = 'monitor'; }
+        else                { ltvCategory = 'High Risk';       ltvClass = 'danger'; }
+
+        // --- 3. Break-even Gold Price ---
+        const breakEvenPrice = pgw > 0 ? loan / pgw : 0;
+        let alertStatus, alertClass;
+        if (cp > breakEvenPrice)      { alertStatus = '✅ Loan Safe — Price above recovery level'; alertClass = 'safe'; }
+        else if (cp === breakEvenPrice){ alertStatus = '⚠️ Warning: No Safety Margin';           alertClass = 'monitor'; }
+        else                           { alertStatus = '🔴 High Risk: Price below recovery level'; alertClass = 'danger'; }
+
+        // --- 4. Price Drop Simulation ---
+        const drops = [5, 10, 20].map(pct => {
+            const newPrice = cp * (1 - pct / 100);
+            const newValue = pgw * newPrice;
+            const covered  = newValue >= loan;
+            const loss     = loan - newValue;
+            return { pct, newPrice, newValue, covered, loss };
+        });
+
+        // --- 5. Safe Loan Recommendation (Custom LTV) ---
+        const safeLoanAmount = gv * (ltvPercentage / 100);
+        const exceedsSafe    = loan > safeLoanAmount;
+
+        // --- 6. Loan Risk Score (4-tier) ---
+        let riskScore, riskLabel, riskClass;
+        if (ltv <= 70)       { riskScore = 1; riskLabel = 'Low Risk';       riskClass = 'safe'; }
+        else if (ltv <= 85)  { riskScore = 2; riskLabel = 'Medium Risk';    riskClass = 'monitor'; }
+        else if (ltv <= 95)  { riskScore = 3; riskLabel = 'High Risk';      riskClass = 'danger'; }
+        else                 { riskScore = 4; riskLabel = 'Very High Risk';  riskClass = 'very-danger'; }
+
+        return {
+            safetyMargin, safetyStatus, safetyClass,
+            ltv, ltvCategory, ltvClass,
+            breakEvenPrice, alertStatus, alertClass,
+            drops,
+            safeLoanAmount, exceedsSafe,
+            riskScore, riskLabel, riskClass
+        };
     }
 
     return {
         PURITY, GOLD_TYPES, SILVER_TYPES, JEWELRY_TYPES,
-        getPurityFactor, getMetalSubTypes, getJewelryTypes,
+        getPurityFactor, getMetalSubTypes, getJewelryTypes, buildItemPurityOptions,
         calcMetalValue, calcItemsMetalValue,
-        calcSimpleInterest, calcCompoundInterest,
-        toAnnualRate, calcLoanDetails, quickCalc
+        calcSimpleInterest, calcCompoundInterest, calcCompoundInterestWithFreq,
+        toAnnualRate, calcLoanDetails, quickCalc, calcGoldRiskAnalysis
     };
 })();
+
