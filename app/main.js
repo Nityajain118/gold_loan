@@ -94,11 +94,22 @@
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('app').style.display = 'flex';
 
-        // Apply theme
+        // Apply theme (FH_theme takes priority for hub consistency)
+        const savedTheme = localStorage.getItem('FH_theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+
         const settings = DB.getSettings();
         if (settings.darkMode) {
             document.documentElement.setAttribute('data-theme', 'dark');
         }
+
+        // ★ Sync all existing GV customers to master on boot
+        setTimeout(() => {
+            try { DB.syncAllToMaster(); } catch(e) {}
+            try {
+                if (typeof JewelleryDataService !== 'undefined') JewelleryDataService.init();
+            } catch(e) {}
+        }, 300);
 
         // Update market ticker
         Market.updateTicker();
@@ -109,6 +120,7 @@
         // Navigate to dashboard
         UI.navigateTo('dashboard');
     }
+
 
     // --- Navigation ---
     function setupNav() {

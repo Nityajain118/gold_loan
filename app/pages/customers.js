@@ -32,6 +32,8 @@ const CustomersPage = (() => {
                         <td>
                             <div class="flex gap-1">
                                 <button class="btn btn-outline btn-xs" onclick="UI.navigateTo('customer-ledger', '${c.id}')">📘 Ledger</button>
+                                <button class="btn btn-outline btn-xs" style="background:rgba(212,175,55,0.15);border-color:rgba(212,175,55,0.4);color:#D4AF37;"
+                                    onclick="CustomersPage.openHisab('${c.id}','${(c.name||'').replace(/'/g,"\\'")}','${c.mobile||''}','${(c.address||'').replace(/'/g,"\\'")}')">👁️ Hisab</button>
                                 <button class="btn btn-ghost btn-xs text-danger" onclick="CustomersPage.del('${c.id}')">🗑️</button>
                             </div>
                         </td>
@@ -47,6 +49,25 @@ const CustomersPage = (() => {
         document.querySelectorAll('#cust-tbody tr').forEach(r => {
             r.style.display = (!s || r.dataset.search.includes(s)) ? '' : 'none';
         });
+    }
+
+    // Open cross-module HisabModal
+    function openHisab(gvCustomerId, name, mobile, address) {
+        if (typeof JewelleryDataService === 'undefined' || typeof HisabModal === 'undefined') {
+            UI.toast('Hisab service not loaded', 'error');
+            return;
+        }
+        DB.syncAllToMaster();
+        const master = JewelleryDataService.findInMaster(name, mobile);
+        if (master) {
+            HisabModal.open(master.id);
+        } else {
+            const mc = JewelleryDataService.upsertMaster({
+                name, mobile, village: address,
+                moduleId: 'gold', sourceId: gvCustomerId,
+            });
+            HisabModal.open(mc.id);
+        }
     }
 
     function showAdd() {
@@ -88,14 +109,21 @@ const CustomersPage = (() => {
         }
         if (mobileErr) mobileErr.style.display = 'none';
         const photo = ImageUpload.getImageData('add-cust-photo');
-        DB.saveCustomer({
-            name, mobile,
-            address: document.getElementById('add-cust-address').value.trim(),
-            photo: photo || '',
-            totalLoans: 0
+        const address = document.getElementById('add-cust-address').value.trim();
+        const newCust = DB.saveCustomer({
+            name, mobile, address, photo: photo || '', totalLoans: 0
         });
+
+        // Sync to master immediately
+        if (typeof JewelleryDataService !== 'undefined') {
+            JewelleryDataService.upsertMaster({
+                name, mobile, village: address,
+                moduleId: 'gold', sourceId: newCust.id,
+            });
+        }
+
         document.querySelector('.modal-overlay').remove();
-        UI.toast('Customer added', 'success');
+        UI.toast('✅ Customer added & synced', 'success');
         render(document.getElementById('page-container'));
     }
 
@@ -106,5 +134,5 @@ const CustomersPage = (() => {
         }
     }
 
-    return { render, filter, showAdd, saveNew, del };
+    return { render, filter, showAdd, saveNew, del, openHisab };
 })();
