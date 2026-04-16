@@ -86,8 +86,15 @@ const OldLoanPage = (() => {
                                             <option value="Krishna">Krishna</option>
                                         </select>
                                         <select id="ol-manual-tithi" class="form-select form-sm" style="flex:2" onchange="OldLoanPage.recalc()">
-                                            ${(typeof Tithi !== 'undefined' ? Tithi.TITHI_NAMES : []).map(t => `<option value="${t}">${t}</option>`).join('')}
+                                            ${(typeof Tithi !== 'undefined' ? Tithi.TITHI_NAMES : []).map((t, i) => `<option value="${t}">${i + 1}. ${t}</option>`).join('')}
                                         </select>
+                                    </div>
+                                    <div class="flex gap-1 align-center mt-1">
+                                        <select id="ol-manual-pakshatype" class="form-select form-sm" style="flex:1;" onchange="OldLoanPage.recalc()">
+                                            <option value="Vidhi">Vidhi</option>
+                                            <option value="Sudhi">Sudhi</option>
+                                        </select>
+                                        <button type="button" class="btn btn-gold btn-sm" style="flex:1;" onclick="OldLoanPage.saveOverride()">💾 Save Override</button>
                                     </div>
                                 </div>
                             </div>
@@ -243,7 +250,33 @@ const OldLoanPage = (() => {
         _state.isManualTithi = checkbox && checkbox.checked;
         const inputs = document.getElementById('ol-panchang-inputs');
         if (inputs) inputs.style.display = _state.isManualTithi ? 'flex' : 'none';
+        
+        if (_state.isManualTithi) {
+            try {
+                const saved = JSON.parse(localStorage.getItem("panchangOverride"));
+                if (saved) {
+                    const setVal = (id, val) => { if (document.getElementById(id) && val) document.getElementById(id).value = val; };
+                    setVal('ol-manual-samvat', saved.samvat);
+                    setVal('ol-manual-month', saved.month);
+                    setVal('ol-manual-paksha', saved.paksha);
+                    setVal('ol-manual-tithi', saved.tithi);
+                    setVal('ol-manual-pakshatype', saved.pakshaType || 'Vidhi');
+                }
+            } catch(e) {}
+        }
         recalc();
+    }
+
+    function saveOverride() {
+        const data = {
+            samvat: document.getElementById('ol-manual-samvat')?.value,
+            month: document.getElementById('ol-manual-month')?.value,
+            paksha: document.getElementById('ol-manual-paksha')?.value,
+            tithi: document.getElementById('ol-manual-tithi')?.value,
+            pakshaType: document.getElementById('ol-manual-pakshatype')?.value || 'Vidhi'
+        };
+        localStorage.setItem("panchangOverride", JSON.stringify(data));
+        UI.toast('Manual Panchang override saved!', 'success');
     }
 
     function recalc() {
@@ -268,11 +301,12 @@ const OldLoanPage = (() => {
                 const m = document.getElementById('ol-manual-month').value;
                 const p = document.getElementById('ol-manual-paksha').value;
                 const t = document.getElementById('ol-manual-tithi').value;
+                const pt = document.getElementById('ol-manual-pakshatype').value || 'Vidhi';
                 customTithiInfo = {
-                    samvat: parseInt(s) || 2083, lunarMonth: m, paksha: p, tithi: t,
-                    formatted: `📅 Samvat ${s} | ${m}<br/>🌙 Tithi: ${p} ${t}`
+                    samvat: parseInt(s) || 2083, lunarMonth: m, paksha: p, tithi: t, pakshaType: pt,
+                    formatted: `📅 Samvat ${s} | ${m}<br/>🌙 Tithi: ${pt} ${p} ${t}`
                 };
-                if (startTithiEl) startTithiEl.innerHTML = `<strong style="color:var(--alert)">[Manual Override]</strong><br/>${customTithiInfo.formatted}`;
+                if (startTithiEl) startTithiEl.innerHTML = `<strong style="color:var(--danger)">[Manual Override]</strong><br/>${customTithiInfo.formatted}`;
             } else {
                 const info = Tithi.getTithiInfo(new Date(startDate));
                 if (info && startTithiEl) {
@@ -423,5 +457,5 @@ const OldLoanPage = (() => {
         UI.navigateTo('loans');
     }
 
-    return { render, addItem, removeItem, updateItem, updateCustomPurity, setPeriod, setType, setFreq, toggleHistorical, togglePanchang, recalc, save, blockInvalidKey };
+    return { render, addItem, removeItem, updateItem, updateCustomPurity, setPeriod, setType, setFreq, toggleHistorical, togglePanchang, saveOverride, recalc, save, blockInvalidKey };
 })();

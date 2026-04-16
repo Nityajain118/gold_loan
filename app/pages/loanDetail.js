@@ -96,6 +96,22 @@ const LoanDetailPage = (() => {
                 </div>
             </div>
 
+            ${(loan.status === 'closed' && loan.settlement) ? `
+            <div class="card mb-2" style="background:rgba(16,185,129,0.05); border:1px solid rgba(16,185,129,0.3);">
+                <div class="flex-between mb-2">
+                    <h4 style="font-size:0.9rem;color:var(--safe);">🤝 Settlement Details</h4>
+                    <span class="badge" style="background:var(--safe);color:#fff;">CLOSED</span>
+                </div>
+                <div class="detail-grid">
+                    <div class="detail-item"><div class="detail-label">Total Amount</div><div class="detail-value text-danger font-semibold">${UI.currency(loan.settlement.totalAmount)}</div></div>
+                    <div class="detail-item"><div class="detail-label">Paid Amount</div><div class="detail-value text-gold font-bold">${UI.currency(loan.settlement.paidAmount)}</div></div>
+                    ${loan.settlement.discount > 0 ? `<div class="detail-item"><div class="detail-label">Discount Given</div><div class="detail-value text-danger font-bold">${UI.currency(loan.settlement.discount)}</div></div>` : ''}
+                    ${loan.settlement.adjustment > 0 ? `<div class="detail-item"><div class="detail-label">Adjustment</div><div class="detail-value text-muted">${UI.currency(loan.settlement.adjustment)}</div></div>` : ''}
+                    <div class="detail-item"><div class="detail-label">Final Status</div><div class="detail-value font-bold text-safe">${loan.settlement.status}</div></div>
+                </div>
+            </div>
+            ` : ''}
+
             <!-- Payment History Section -->
             <div class="card mb-2">
                 <div class="flex-between mb-2">

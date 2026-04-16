@@ -78,6 +78,14 @@ const LoanListPage = (() => {
                                 <span class="label">Risk:</span>
                                 <span class="value">${d.riskLabel}</span>
                             </div>
+                            ${(loan.status === 'closed' && loan.settlement) ? `
+                            <div class="settlement-info mt-2" style="grid-column: span 2; background: rgba(16,185,129,0.05); padding: 8px; border-radius: 4px; border: 1px solid rgba(16,185,129,0.2);">
+                                <div style="color:var(--text-primary);font-size:0.85rem">Paid: <strong>${UI.currency(loan.settlement.paidAmount)}</strong></div>
+                                ${loan.settlement.discount > 0 ? `<div style="color:var(--danger);font-size:0.85rem">Discount: <strong>${UI.currency(loan.settlement.discount)}</strong></div>` : ''}
+                                ${loan.settlement.adjustment > 0 ? `<div style="color:var(--text-secondary);font-size:0.85rem">Adjusted: <strong>${UI.currency(loan.settlement.adjustment)}</strong></div>` : ''}
+                                <div style="margin-top:4px;"><span class="badge" style="background:var(--safe);color:#fff;">CLOSED</span></div>
+                            </div>
+                            ` : ''}
                         </div>
                         <div class="loan-card-footer">
                             <button class="btn btn-ghost btn-xs" onclick="LoanListPage.stopPropagation(event); UI.navigateTo('loan-detail','${loan.id}')">👁️ View</button>

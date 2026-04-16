@@ -76,6 +76,16 @@ const Export = (() => {
             <tr><th>Total Payable</th><td class="amount">₹${details.totalPayable.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td></tr>
         </table>
 
+        ${(loan.status === 'closed' && loan.settlement) ? `
+        <h2 style="color: #10b981;">Settlement Details</h2>
+        <table>
+            <tr><th>Total Amount</th><td>₹${loan.settlement.totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td></tr>
+            <tr><th>Paid Amount</th><td class="amount" style="color:#d4af37">₹${loan.settlement.paidAmount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td></tr>
+            ${loan.settlement.discount > 0 ? `<tr><th>Discount Given</th><td style="color:#ef4444;">₹${loan.settlement.discount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td></tr>` : ''}
+            ${loan.settlement.adjustment > 0 ? `<tr><th>Adjustment</th><td style="color:#6b7280;">₹${loan.settlement.adjustment.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td></tr>` : ''}
+            <tr><th>Final Status</th><td style="color: #10b981; font-weight:700;">${loan.settlement.status} ${loan.settlement.discount > 0 ? '(Closed by Discount)' : (loan.settlement.adjustment > 0 ? '(Closed by Adjustment)' : '')}</td></tr>
+        </table>` : ''}
+
         <h2>Risk Analysis</h2>
         <table>
             <tr><th>LTV</th><td>${details.ltv.toFixed(1)}%</td></tr>

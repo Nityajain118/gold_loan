@@ -43,11 +43,11 @@ const DashboardPage = (() => {
 
         container.innerHTML = `
             <!-- MONEY LENDING DASHBOARD -->
-            <div class="section-header mt-2" style="margin-bottom: 15px;">
+            <div class="section-header mt-2 mb-3">
                 <h3 class="section-title">💰 Money Lending Dashboard</h3>
             </div>
             
-            <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+            <div class="kpi-grid">
                 <div class="kpi-card blue">
                     <div class="kpi-icon">💰</div>
                     <div class="kpi-value">₹${UI.currency(mlData.totalGiven)}</div>
@@ -70,11 +70,12 @@ const DashboardPage = (() => {
                 </div>
             </div>
 
-            <div class="section-header mt-3">
+            <div class="section-header mt-4 mb-3">
                 <h3 class="section-title">📊 Portfolio Summary</h3>
             </div>
             <!-- KPI Cards (Original) -->
             <div class="kpi-grid">
+                <div class="kpi-card">
                     <div class="kpi-icon">💰</div>
                     <div class="kpi-value">${summary.totalLoans}</div>
                     <div class="kpi-label">Active Loans</div>
@@ -107,7 +108,7 @@ const DashboardPage = (() => {
             </div>
 
             <!-- Profit/Loss Summary -->
-            <div class="kpi-grid" style="margin-bottom: 20px;">
+            <div class="kpi-grid mb-4">
                 <div class="kpi-card ${summary.portfolioProfitLoss >= 0 ? 'green' : 'red'}">
                     <div class="kpi-icon">${summary.portfolioProfitLoss >= 0 ? '📈' : '📉'}</div>
                     <div class="kpi-value ${summary.portfolioProfitLoss >= 0 ? 'text-safe' : 'text-danger'}">${UI.currency(summary.portfolioProfitLoss)}</div>

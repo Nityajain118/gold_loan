@@ -109,6 +109,27 @@ const CustomerLedgerPage = (() => {
                 </tr>`).join('')}
                 </tbody></table></div>`}
             </div>
+
+            <!-- Settlement History / Hisab -->
+            ${(customer.settlements && customer.settlements.length > 0) ? `
+            <div class="card mb-2">
+                <h3 class="card-title mb-2">🤝 Hisab / Settlement History</h3>
+                <div class="table-container"><table class="data-table"><thead><tr>
+                    <th>Date</th><th>Total Payable</th><th>Amount Paid</th><th>Discount / Adjusted</th><th>Status</th>
+                </tr></thead><tbody>
+                ${customer.settlements.sort((a,b) => new Date(b.date) - new Date(a.date)).map(s => `<tr>
+                    <td>${UI.formatDate(s.date)}</td>
+                    <td class="font-semibold text-danger">${UI.currency(s.totalAmount)}</td>
+                    <td class="text-gold font-semibold">${UI.currency(s.paidAmount)}</td>
+                    <td>
+                        ${s.discount > 0 ? `<span class="badge" style="background:rgba(99,102,241,0.1);color:var(--primary);">Discount: ${UI.currency(s.discount)}</span>` : ''}
+                        ${s.adjustment > 0 ? `<span class="badge badge-neutral">Adjusted: ${UI.currency(s.adjustment)}</span>` : ''}
+                        ${s.discount === 0 && s.adjustment === 0 ? '—' : ''}
+                    </td>
+                    <td><span class="status-badge closed">${s.status}</span></td>
+                </tr>`).join('')}
+                </tbody></table></div>
+            </div>` : ''}
         `;
     }
 
