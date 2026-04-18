@@ -27,6 +27,10 @@ const OldLoanPage = (() => {
                         ${UI.formGroup('Mobile Number (10 digits)', `<input type="tel" class="form-input" id="ol-mobile" placeholder="10-digit number" maxlength="10" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/\\D/g,'').slice(0,10)">
                             <span id="ol-mobile-err" class="form-hint" style="color:var(--danger);display:none;">Enter a valid 10-digit mobile number</span>`)}
                         ${UI.formGroup('Locker Name', '<input type="text" class="form-input" id="ol-locker" placeholder="e.g., Locker B-05">')}
+                        ${UI.formGroup('Customer Caste', '<input type="text" class="form-input" id="ol-caste" placeholder="Optional Caste">')}
+                    </div>
+                    <div class="form-group mb-3">
+                        ${UI.formGroup('Customer Address *', '<textarea class="form-input" id="ol-address" required placeholder="Enter full address" style="height:70px;resize:vertical;"></textarea>')}
                     </div>
 
                     <h4 class="mb-1" style="color:var(--primary);font-size:0.9rem;">💍 Jewelry Items (up to ${MAX_ITEMS})</h4>
@@ -381,6 +385,10 @@ const OldLoanPage = (() => {
         const startDate = document.getElementById('ol-start').value;
         const duration = parseInt(document.getElementById('ol-duration').value) || 12;
         const locker = document.getElementById('ol-locker').value.trim();
+        const addressEl = document.getElementById('ol-address');
+        const address = addressEl ? addressEl.value.trim() : '';
+        const casteEl = document.getElementById('ol-caste');
+        const caste = casteEl ? casteEl.value.trim() : '';
         const historicalRate = parseFloat(document.getElementById('ol-historical-rate').value) || null;
         const paidInterest = parseFloat(document.getElementById('ol-paid-interest').value) || 0;
         const partial = parseFloat(document.getElementById('ol-partial').value) || 0;
@@ -397,6 +405,8 @@ const OldLoanPage = (() => {
         }
         const mobileErr = document.getElementById('ol-mobile-err');
         if (mobileErr) mobileErr.style.display = 'none';
+
+        if (!address) { UI.toast('Enter customer address', 'error'); return; }
 
         const validItems = _state.items.filter(i => parseFloat(i.weightGrams) > 0);
         if (!validItems.length) { UI.toast('Add at least one item with weight', 'error'); return; }
@@ -432,6 +442,7 @@ const OldLoanPage = (() => {
         const dom = goldItems >= silverItems ? 'gold' : 'silver';
         const loan = {
             customerName: customer, mobile, lockerName: locker,
+            address, caste,
             metalType: dom, metalSubType: items.find(i => i.metalType === dom)?.purity || '22K',
             weightGrams: totalGoldWeight + totalSilverWeight, items,
             loanAmount: amount, interestRate: rate,
@@ -449,8 +460,13 @@ const OldLoanPage = (() => {
 
         const customers = DB.getCustomers();
         let existing = customers.find(c => c.name.toLowerCase() === customer.toLowerCase() || (mobile && c.mobile === mobile));
-        if (!existing) DB.saveCustomer({ name: customer, mobile, address: '', totalLoans: 1 });
-        else { existing.totalLoans = (existing.totalLoans || 0) + 1; DB.saveCustomer(existing); }
+        if (!existing) DB.saveCustomer({ name: customer, mobile, address, caste, totalLoans: 1 });
+        else { 
+            existing.totalLoans = (existing.totalLoans || 0) + 1; 
+            if (address) existing.address = address;
+            if (caste) existing.caste = caste;
+            DB.saveCustomer(existing); 
+        }
 
         DB.saveLoan(loan);
         UI.toast('Old loan migrated!', 'success');

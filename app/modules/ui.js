@@ -55,7 +55,8 @@ const UI = (() => {
             'khata': 'Khata Ledger',
             'inventory': 'Inventory',
             'market': 'Market Rates',
-            'settings': 'Settings'
+            'settings': 'Settings',
+            'common-customers': '🔗 Common Customers'
         };
 
         title.textContent = titles[page] || 'GoldVault';
@@ -73,7 +74,8 @@ const UI = (() => {
             'khata': () => KhataPage.render(container),
             'inventory': () => InventoryPage.render(container),
             'market': () => MarketPage.render(container),
-            'settings': () => SettingsPage.render(container)
+            'settings': () => SettingsPage.render(container),
+            'common-customers': () => CommonCustomersPage.render(container)
         };
 
         if (renderers[page]) {

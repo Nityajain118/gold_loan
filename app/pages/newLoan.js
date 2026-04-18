@@ -24,6 +24,7 @@ const NewLoanPage = (() => {
                         ${UI.formGroup('Mobile Number (10 digits)', `<input type="tel" class="form-input" id="nl-mobile" placeholder="10-digit number" maxlength="10" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/\\D/g,'').slice(0,10)">
                             <span id="nl-mobile-err" class="form-hint" style="color:var(--danger);display:none;">Enter a valid 10-digit mobile number</span>`)}
                         ${UI.formGroup('Locker Name', '<input type="text" class="form-input" id="nl-locker" placeholder="e.g., Locker A-12">')}
+                        ${UI.formGroup('Customer Caste', '<input type="text" class="form-input" id="nl-caste" placeholder="Optional Caste">')}
                     </div>
                     <div class="form-group mb-3">
                         ${UI.formGroup('Customer Address', '<textarea class="form-input" id="nl-address" placeholder="Enter full address (optional)" style="height:70px;resize:vertical;"></textarea>')}
@@ -482,6 +483,8 @@ const NewLoanPage = (() => {
         const startDate = document.getElementById('nl-start').value;
         const locker = document.getElementById('nl-locker').value.trim();
         const address = document.getElementById('nl-address').value.trim();
+        const casteEl = document.getElementById('nl-caste');
+        const caste = casteEl ? casteEl.value.trim() : '';
 
         // --- Validate ---
         if (!customer) { UI.toast('Please enter customer name', 'error'); return; }
@@ -543,7 +546,7 @@ const NewLoanPage = (() => {
 
         const loan = {
             customerName: customer, mobile, lockerName: locker,
-            address,
+            address, caste,
             metalType: dominantMetal, metalSubType: dominantPurity,
             weightGrams: totalGoldWeight + totalSilverWeight,
             items,
@@ -574,7 +577,7 @@ const NewLoanPage = (() => {
         }
 
         if (!existing) {
-            DB.saveCustomer({ name: customer, mobile, address, totalLoans: 1 });
+            DB.saveCustomer({ name: customer, mobile, address, caste, totalLoans: 1 });
         } else {
             // Update the existing customer record
             existing.totalLoans = (existing.totalLoans || 0) + 1;
@@ -582,6 +585,7 @@ const NewLoanPage = (() => {
                 existing.name = customer;
             }
             if (address) existing.address = address;
+            if (caste) existing.caste = caste;
             DB.saveCustomer(existing);
         }
 
