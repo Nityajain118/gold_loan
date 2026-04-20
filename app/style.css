@@ -359,6 +359,29 @@ body {
     color: #fff;
 }
 
+/* ── Back to Apps (Sidebar) ── */
+.sidebar-back {
+    margin: 0 12px 8px;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-sm);
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    letter-spacing: 0.02em;
+}
+
+.sidebar-back:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.25);
+    color: #fff;
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.08);
+    transform: translateX(3px);
+}
+
 .nav-list {
     list-style: none;
     padding: 12px;
