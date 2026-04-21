@@ -458,15 +458,25 @@ const OldLoanPage = (() => {
             marketRateAtCreation: historicalRate || Market.getRate(dom)
         };
 
+        // ── Customer resolution (phone-first, NEVER merge by name) ───────────
         const customers = DB.getCustomers();
-        let existing = customers.find(c => c.name.toLowerCase() === customer.toLowerCase() || (mobile && c.mobile === mobile));
-        if (!existing) DB.saveCustomer({ name: customer, mobile, address, caste, totalLoans: 1 });
-        else { 
-            existing.totalLoans = (existing.totalLoans || 0) + 1; 
-            if (address) existing.address = address;
-            if (caste) existing.caste = caste;
-            DB.saveCustomer(existing); 
+        let resolvedCustomer = null;
+
+        if (mobile) {
+            resolvedCustomer = customers.find(c => c.mobile === mobile) || null;
         }
+
+        if (!resolvedCustomer) {
+            resolvedCustomer = DB.saveCustomer({ name: customer, mobile, address, caste, totalLoans: 1 });
+        } else {
+            resolvedCustomer.totalLoans = (resolvedCustomer.totalLoans || 0) + 1;
+            if (address) resolvedCustomer.address = address;
+            if (caste) resolvedCustomer.caste = caste;
+            DB.saveCustomer(resolvedCustomer);
+        }
+
+        // Attach customerId so ledger lookups are reliable
+        loan.customerId = resolvedCustomer.id;
 
         DB.saveLoan(loan);
         UI.toast('Old loan migrated!', 'success');

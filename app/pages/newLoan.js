@@ -564,30 +564,29 @@ const NewLoanPage = (() => {
             marketRateAtCreation: dominantMetal === 'gold' ? rates.gold : rates.silver
         };
 
-        // Auto-save customer
+        // ── Customer resolution (phone-first, NEVER merge by name) ───────────
+        // Rule: if mobile provided AND matches an existing customer → same person.
+        //       Otherwise → always create a NEW customer record.
         const customers = DB.getCustomers();
-        // Priority 1: Match by mobile
-        // Priority 2: Match by exact name (if mobile is omitted)
-        let existing = null;
+        let resolvedCustomer = null;
+
         if (mobile) {
-            existing = customers.find(c => c.mobile === mobile);
-        }
-        if (!existing) {
-            existing = customers.find(c => c.name.toLowerCase() === customer.toLowerCase());
+            resolvedCustomer = customers.find(c => c.mobile === mobile) || null;
         }
 
-        if (!existing) {
-            DB.saveCustomer({ name: customer, mobile, address, caste, totalLoans: 1 });
+        if (!resolvedCustomer) {
+            // New person — create fresh record
+            resolvedCustomer = DB.saveCustomer({ name: customer, mobile, address, caste, totalLoans: 1 });
         } else {
-            // Update the existing customer record
-            existing.totalLoans = (existing.totalLoans || 0) + 1;
-            if (mobile && existing.mobile === mobile && existing.name.toLowerCase() !== customer.toLowerCase()) {
-                existing.name = customer;
-            }
-            if (address) existing.address = address;
-            if (caste) existing.caste = caste;
-            DB.saveCustomer(existing);
+            // Same person (matched by phone) — update counts & optional fields
+            resolvedCustomer.totalLoans = (resolvedCustomer.totalLoans || 0) + 1;
+            if (address) resolvedCustomer.address = address;
+            if (caste) resolvedCustomer.caste = caste;
+            DB.saveCustomer(resolvedCustomer);
         }
+
+        // Attach customerId so ledger lookups are reliable
+        loan.customerId = resolvedCustomer.id;
 
         DB.saveLoan(loan);
         UI.toast('Loan created successfully!', 'success');

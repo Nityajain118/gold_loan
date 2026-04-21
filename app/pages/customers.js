@@ -73,8 +73,8 @@ const CustomersPage = (() => {
             // Village-level stats
             const villageLoans  = loans.filter(l =>
                 rawList.some(c =>
-                    (c.mobile && l.mobile === c.mobile) ||
-                    l.customerName.toLowerCase() === c.name.toLowerCase()
+                    l.customerId === c.id ||
+                    (c.mobile && c.mobile.length === 10 && l.mobile === c.mobile)
                 ) && l.status !== 'closed'
             );
             const totalLent = villageLoans.reduce((s, l) => s + l.loanAmount, 0);
@@ -136,8 +136,8 @@ const CustomersPage = (() => {
     // ── Single Customer Card ───────────────────────────────────────────────
     function _customerCard(c, loans) {
         const activeLoans = loans.filter(l =>
-            ((c.mobile && l.mobile === c.mobile) ||
-             l.customerName.toLowerCase() === c.name.toLowerCase()) &&
+            (l.customerId === c.id ||
+             (c.mobile && c.mobile.length === 10 && l.mobile === c.mobile)) &&
             l.status !== 'closed'
         );
         const hasSettlements = c.settlements && c.settlements.length > 0;
@@ -204,22 +204,58 @@ const CustomersPage = (() => {
 
     function villageSearch(village, query) {
         _state.searches[village] = query.toLowerCase().trim();
-        render(document.getElementById('page-container'));
+        const q = _state.searches[village];
+
+        // Fast path: update cards in-place without full re-render
+        const slug = _slugify(village);
+        const section = document.getElementById('vs-' + slug);
+        if (!section) { render(document.getElementById('page-container')); return; }
+
+        const cards = section.querySelectorAll('.vc-card');
+        let visibleCount = 0;
+        cards.forEach(card => {
+            const id   = card.dataset.id;
+            const cust = DB.getCustomer(id);
+            if (!cust) return;
+            const match = !q ||
+                (cust.name    || '').toLowerCase().includes(q) ||
+                (cust.mobile  || '').includes(q) ||
+                (cust.address || '').toLowerCase().includes(q) ||
+                (cust.caste   || '').toLowerCase().includes(q);
+            card.style.display = match ? '' : 'none';
+            if (match) visibleCount++;
+        });
+
+        // Show/hide empty message
+        let emptyMsg = section.querySelector('.village-empty-msg');
+        const grid   = section.querySelector('.village-cards-grid');
+        if (visibleCount === 0 && grid) {
+            if (!emptyMsg) {
+                emptyMsg = document.createElement('p');
+                emptyMsg.className = 'village-empty-msg text-muted';
+                emptyMsg.style.padding = '12px 0';
+                grid.appendChild(emptyMsg);
+            }
+            emptyMsg.textContent = 'No customers match the search.';
+        } else if (emptyMsg) {
+            emptyMsg.remove();
+        }
     }
 
     function globalSearch(query) {
-        // Highlight / hide village sections based on global query
         const q = query.toLowerCase().trim();
         document.querySelectorAll('.vc-card').forEach(card => {
             const id   = card.dataset.id;
             const cust = DB.getCustomer(id);
             if (!cust) return;
             const match = !q ||
-                cust.name.toLowerCase().includes(q) ||
-                (cust.mobile || '').includes(q);
+                (cust.name    || '').toLowerCase().includes(q) ||
+                (cust.mobile  || '').includes(q) ||
+                (cust.address || '').toLowerCase().includes(q) ||
+                (cust.caste   || '').toLowerCase().includes(q);
             card.style.display = match ? '' : 'none';
         });
-        // Hide empty village sections
+        // Hide village sections where all cards are hidden
         document.querySelectorAll('.village-section').forEach(sec => {
             const visible = [...sec.querySelectorAll('.vc-card')].some(
                 c => c.style.display !== 'none'
@@ -236,8 +272,8 @@ const CustomersPage = (() => {
         if (!customer) return;
 
         const custLoans = DB.getLoans().filter(l =>
-            ((customer.mobile && l.mobile === customer.mobile) ||
-             l.customerName.toLowerCase() === customer.name.toLowerCase()) &&
+            (l.customerId === customer.id ||
+             (customer.mobile && customer.mobile.length === 10 && l.mobile === customer.mobile)) &&
             l.status !== 'closed'
         );
 
@@ -319,8 +355,8 @@ const CustomersPage = (() => {
         if (!customer) return;
 
         const loans = DB.getLoans().filter(l =>
-            ((customer.mobile && l.mobile === customer.mobile) ||
-             l.customerName.toLowerCase() === customer.name.toLowerCase()) &&
+            (l.customerId === customer.id ||
+             (customer.mobile && customer.mobile.length === 10 && l.mobile === customer.mobile)) &&
             l.status !== 'closed'
         );
 
