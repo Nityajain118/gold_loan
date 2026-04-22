@@ -89,12 +89,73 @@ const Calculator = (() => {
     }
 
     /**
-     * Simple Interest
+     * Simple Interest — month-based (kept for compound fallback + legacy)
      * SI = P × R × T where T is in years, R is annual rate as fraction
      */
     function calcSimpleInterest(principal, annualRate, months) {
         const timeYears = months / 12;
         return principal * (annualRate / 100) * timeYears;
+    }
+
+    /**
+     * Simple Interest — Day-wise (accurate, primary method)
+     * Legacy thin wrapper kept for any external callers.
+     */
+    function calcSimpleInterestByDays(principal, annualRate, days, basis) {
+        basis = basis || 360;
+        if (!principal || !annualRate || !days || days < 0) return 0;
+        return principal * (annualRate / 100) * (days / basis);
+    }
+
+    // ── Jewellery-standard utility functions (360-day basis default) ───────────
+
+    /**
+     * Get exact calendar days between two dates (safe, never negative).
+     */
+    function getExactDays(startDate, endDate) {
+        try {
+            const oneDay = 1000 * 60 * 60 * 24;
+            const start = new Date(startDate);
+            const end   = new Date(endDate);
+            if (isNaN(start) || isNaN(end)) return 0;
+            start.setHours(0, 0, 0, 0);
+            end.setHours(0, 0, 0, 0);
+            return Math.max(0, Math.floor((end - start) / oneDay));
+        } catch (e) { return 0; }
+    }
+
+    /**
+     * Day-wise interest using jewellery standard (default 360-day basis).
+     * Interest = (Principal × Annual Rate × Days) / Basis
+     * @param {number} principal
+     * @param {number} monthlyRate — monthly rate % (e.g. 2 for 2%)
+     * @param {*} startDate
+     * @param {*} endDate
+     * @param {number} basis — 360 (default) or 365
+     * @returns {{ days: number, interest: number }}
+     */
+    function calculateDayWiseInterest(principal, monthlyRate, startDate, endDate, basis) {
+        basis = basis || 360;
+        try {
+            if (!principal || !monthlyRate) return { days: 0, interest: 0 };
+            const days       = getExactDays(startDate, endDate);
+            const annualRate = monthlyRate * 12;
+            const interest   = (principal * annualRate / 100) * (days / basis);
+            return { days, interest: parseFloat(interest.toFixed(2)) };
+        } catch (e) { return { days: 0, interest: 0 }; }
+    }
+
+    /**
+     * One full month's interest (mode-independent reference).
+     * @param {number} principal
+     * @param {number} monthlyRate — monthly rate % (e.g. 2)
+     * @returns {number}
+     */
+    function calculateMonthlyInterest(principal, monthlyRate) {
+        try {
+            if (!principal || !monthlyRate) return 0;
+            return parseFloat((principal * (monthlyRate / 100)).toFixed(2));
+        } catch (e) { return 0; }
     }
 
     /**
@@ -131,8 +192,13 @@ const Calculator = (() => {
 
     /**
      * Calculate full loan details
+     * @param {object} loan
+     * @param {number} currentMarketRate
+     * @param {object} [options]         — { basis: 360|365 }
      */
-    function calcLoanDetails(loan, currentMarketRate) {
+    function calcLoanDetails(loan, currentMarketRate, options) {
+        options = options || {};
+        const basis = options.basis || 360; // 360 = jewellery standard (default)
         const settings = DB.getSettings();
         const timeMode = loan.timeMode || settings.timeMode || 'normal';
 
@@ -178,14 +244,30 @@ const Calculator = (() => {
         const durationMonths = loan.loanDuration || monthsElapsed;
         const monthsForCalc = Math.max(monthsElapsed, 1);
 
-        // Interest calculation — support compounding frequency
+        // ── Exact day count ────────────────────────────────────────────────────
+        const daysElapsed = getExactDays(loan.loanStartDate, new Date());
+
+        // ── Interest calculation ──────────────────────────────────────────────
         let totalInterest;
+        let dayInterest    = 0;   // accurate day-wise SI
+        let monthlyInterest = 0;  // 1 full month's interest (reference / monthly mode)
         const compFreq = loan.compoundingFrequency || 12;
+        // monthlyRatePct: monthly rate as a percent (e.g. 2 for 2% per month)
+        const monthlyRatePct = annualRate / 12;
+
         if (loan.interestType === 'compound') {
-            totalInterest = calcCompoundInterestWithFreq(loan.loanAmount, annualRate, monthsForCalc, compFreq);
+            // Compound stays month-based (mathematically correct)
+            totalInterest    = calcCompoundInterestWithFreq(loan.loanAmount, annualRate, monthsForCalc, compFreq);
+            dayInterest      = totalInterest;
+            monthlyInterest  = calculateMonthlyInterest(loan.loanAmount, monthlyRatePct);
         } else {
-            totalInterest = calcSimpleInterest(loan.loanAmount, annualRate, monthsForCalc);
+            // Simple Interest — day-wise with selected basis (360 or 365)
+            const dwResult   = calculateDayWiseInterest(loan.loanAmount, monthlyRatePct, loan.loanStartDate, new Date(), basis);
+            dayInterest      = dwResult.interest;
+            totalInterest    = dayInterest;   // day-wise is authoritative
+            monthlyInterest  = calculateMonthlyInterest(loan.loanAmount, monthlyRatePct);
         }
+        const monthlyInterestRef = monthlyInterest; // backward-compat alias
 
         // Adjustments for old loans
         const paidInterest = loan.paidInterest || 0;
@@ -251,6 +333,11 @@ const Calculator = (() => {
         return {
             metalValue,
             totalInterest,
+            dayInterest,
+            monthlyInterest,
+            monthlyInterestRef,  // alias kept for compat
+            daysElapsed,
+            basis,               // pass through so UI can display it
             paidInterest,
             remainingInterest,
             partialRepayment,
@@ -390,7 +477,9 @@ const Calculator = (() => {
         PURITY, GOLD_TYPES, SILVER_TYPES, JEWELRY_TYPES,
         getPurityFactor, getMetalSubTypes, getJewelryTypes, buildItemPurityOptions,
         calcMetalValue, calcItemsMetalValue,
-        calcSimpleInterest, calcCompoundInterest, calcCompoundInterestWithFreq,
+        calcSimpleInterest, calcSimpleInterestByDays,
+        calcCompoundInterest, calcCompoundInterestWithFreq,
+        getExactDays, calculateDayWiseInterest, calculateMonthlyInterest,
         toAnnualRate, calcLoanDetails, quickCalc, calcGoldRiskAnalysis
     };
 })();

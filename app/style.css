@@ -3297,3 +3297,244 @@ html, body {
     }
 }
 
+/* ============================================
+   Loan Detail v2 — Premium Dashboard UI
+   All classes prefixed "ld-" to avoid conflicts
+   ============================================ */
+
+/* --- Page wrapper --- */
+.ld-page { display: flex; flex-direction: column; gap: 14px; }
+
+/* --- Header Card --- */
+.ld-header {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 16px 20px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.ld-header-left { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; }
+.ld-avatar {
+    width: 46px; height: 46px; border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: #fff; font-size: 1rem; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; letter-spacing: 0.5px;
+}
+.ld-name { font-size: 1.05rem; font-weight: 700; color: var(--text-primary); }
+.ld-meta { font-size: 0.82rem; color: var(--text-secondary); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 3px; }
+.ld-address { font-size: 0.8rem; color: var(--text-muted); margin-top: 3px; }
+.ld-header-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Status badges */
+.ld-badge {
+    padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;
+    display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+}
+.ld-badge-active  { background: var(--safe-bg); color: var(--safe); border: 1px solid var(--safe-border); }
+.ld-badge-closed  { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
+.ld-badge-monitor { background: var(--monitor-bg); color: var(--monitor); border: 1px solid var(--monitor-border); }
+.ld-badge-migrated{ background: var(--primary-light); color: var(--primary); border: 1px solid #c7d2fe; }
+
+/* Header action buttons */
+.ld-hdr-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: var(--radius-sm);
+    font-size: 0.8rem; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--border-color); background: var(--bg-card);
+    color: var(--text-secondary); transition: var(--transition);
+}
+.ld-hdr-btn:hover { background: var(--bg-input); color: var(--text-primary); transform: translateY(-1px); }
+
+/* --- Section Cards --- */
+.ld-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 18px 20px;
+    box-shadow: var(--shadow-sm);
+}
+.ld-section-title {
+    font-size: 0.88rem; font-weight: 700; color: var(--primary);
+    display: flex; align-items: center; gap: 7px; margin-bottom: 16px;
+}
+
+/* --- Loan Overview Grid --- */
+.ld-overview-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+.ld-overview-item {
+    padding: 12px 14px;
+    border-right: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+}
+.ld-overview-item:nth-child(4n)  { border-right: none; }
+.ld-overview-label { font-size: 0.74rem; color: var(--text-muted); font-weight: 500; margin-bottom: 4px; }
+.ld-overview-value { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 5px; }
+.ld-overview-value.accent { color: var(--primary); }
+.ld-overview-value.gold   { color: var(--gold-dark); }
+.ld-overview-value.safe   { color: var(--safe); }
+
+/* --- Dates Grid --- */
+.ld-dates-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 160px;
+    gap: 12px;
+}
+.ld-date-panel {
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+}
+.ld-date-panel-label { font-size: 0.75rem; color: var(--primary); font-weight: 700; display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
+.ld-date-big { font-size: 1.05rem; font-weight: 800; color: var(--text-primary); }
+.ld-date-tithi { font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; line-height: 1.6; }
+.ld-days-panel {
+    background: linear-gradient(135deg, #f0f4ff, #e8eeff);
+    border: 1px solid #c7d2fe;
+    border-radius: var(--radius-sm);
+    padding: 14px 12px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+}
+[data-theme="dark"] .ld-days-panel { background: rgba(79,70,229,0.12); border-color: rgba(99,102,241,0.3); }
+.ld-days-label { font-size: 0.74rem; color: var(--primary); font-weight: 700; display: flex; align-items: center; gap: 5px; margin-bottom: 4px; }
+.ld-days-number { font-size: 2rem; font-weight: 900; color: var(--primary); line-height: 1.1; }
+.ld-days-sub { font-size: 0.74rem; color: var(--text-secondary); margin-top: 4px; }
+.ld-days-overdue .ld-days-number { color: var(--danger); }
+
+/* --- Hisaab Action Buttons --- */
+.ld-hisaab-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+.ld-action-btn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; padding: 14px 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    background: var(--bg-card); cursor: pointer;
+    transition: var(--transition); text-align: center;
+}
+.ld-action-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.ld-action-btn.red   { border-color: #fca5a5; background: #fff5f5; }
+.ld-action-btn.blue  { border-color: #bfdbfe; background: #eff6ff; }
+.ld-action-btn.amber { border-color: #fcd34d; background: #fffbeb; }
+.ld-action-btn.purple{ border-color: #c4b5fd; background: #f5f3ff; }
+[data-theme="dark"] .ld-action-btn { background: var(--bg-input); }
+[data-theme="dark"] .ld-action-btn.red    { background: rgba(220,38,38,0.1); }
+[data-theme="dark"] .ld-action-btn.blue   { background: rgba(59,130,246,0.1); }
+[data-theme="dark"] .ld-action-btn.amber  { background: rgba(245,158,11,0.1); }
+[data-theme="dark"] .ld-action-btn.purple { background: rgba(139,92,246,0.1); }
+.ld-action-btn-icon  { font-size: 1.2rem; }
+.ld-action-btn-label { font-size: 0.82rem; font-weight: 700; color: var(--text-primary); }
+.ld-action-btn-sub   { font-size: 0.7rem; color: var(--text-muted); }
+
+/* --- Table utility --- */
+.ld-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--radius-sm); border: 1px solid var(--border-color); }
+.ld-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; min-width: 480px; }
+.ld-table thead tr { background: var(--bg-input); }
+.ld-table th { padding: 10px 12px; text-align: left; font-size: 0.76rem; font-weight: 700; color: var(--text-secondary); white-space: nowrap; border-bottom: 1px solid var(--border-color); }
+.ld-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-light); color: var(--text-primary); white-space: nowrap; }
+.ld-table tbody tr:last-child td { border-bottom: none; }
+.ld-table tbody tr:hover { background: var(--bg-input); }
+.ld-tfoot-row td { background: var(--bg-input); font-weight: 700; border-top: 2px solid var(--border-color); }
+
+/* Jewelry total footer */
+.ld-items-footer {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; background: var(--bg-input);
+    border-top: 2px solid var(--border-color);
+    font-size: 0.83rem; font-weight: 700; color: var(--text-secondary);
+    flex-wrap: wrap; gap: 8px;
+}
+
+/* --- Summary Grid (3 cards) --- */
+.ld-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+}
+.ld-summary-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 16px 18px;
+    box-shadow: var(--shadow-sm);
+}
+.ld-summary-title { font-size: 0.82rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 6px; margin-bottom: 12px; }
+.ld-summary-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 0.82rem; border-top: 1px solid var(--border-light); }
+.ld-summary-row:first-of-type { border-top: none; }
+.ld-summary-key { color: var(--text-secondary); }
+.ld-summary-val { font-weight: 600; color: var(--text-primary); }
+.ld-net-payable-row {
+    margin-top: 10px; padding: 10px 12px;
+    background: #fff5f5; border: 1px solid #fca5a5; border-radius: var(--radius-sm);
+    display: flex; justify-content: space-between; align-items: center;
+}
+[data-theme="dark"] .ld-net-payable-row { background: rgba(220,38,38,0.1); border-color: rgba(220,38,38,0.3); }
+.ld-net-payable-row .ld-summary-key { color: var(--danger); font-weight: 700; font-size: 0.85rem; }
+.ld-net-payable-row .ld-summary-val { color: var(--danger); font-weight: 800; font-size: 1rem; }
+.ld-total-interest-row {
+    margin-top: 10px; padding: 8px 12px;
+    background: var(--primary-light); border: 1px solid #c7d2fe; border-radius: var(--radius-sm);
+    display: flex; justify-content: space-between; align-items: center;
+}
+.ld-total-interest-row .ld-summary-key { color: var(--primary); font-weight: 700; }
+.ld-total-interest-row .ld-summary-val { color: var(--primary); font-weight: 800; font-size: 0.95rem; }
+.ld-risk-status {
+    margin-top: 10px; padding: 8px 12px; border-radius: var(--radius-sm);
+    font-size: 0.78rem; font-weight: 700; text-align: center;
+}
+.ld-risk-status.safe   { background: var(--safe-bg);    color: var(--safe);    border: 1px solid var(--safe-border); }
+.ld-risk-status.monitor{ background: var(--monitor-bg); color: var(--monitor); border: 1px solid var(--monitor-border); }
+.ld-risk-status.danger { background: var(--danger-bg);  color: var(--danger);  border: 1px solid var(--danger-border); }
+
+/* --- Risk Toggle row --- */
+.ld-risk-toggle-row { display: flex; align-items: center; gap: 10px; margin: 2px 0; }
+.ld-risk-toggle-label { font-size: 0.83rem; color: var(--text-secondary); font-weight: 600; }
+
+/* --- Action Bar (bottom) --- */
+.ld-action-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+.ld-action-bar .btn { width: 100%; justify-content: center; font-size: 0.85rem; padding: 12px 10px; }
+
+/* --- Settlement Card --- */
+.ld-settlement-card {
+    background: rgba(16,185,129,0.05);
+    border: 1px solid rgba(16,185,129,0.3);
+    border-radius: var(--radius-md);
+    padding: 16px 18px;
+}
+
+/* ── Responsive Breakpoints ─────────────────────────── */
+@media (max-width: 768px) {
+    .ld-overview-grid { grid-template-columns: repeat(2, 1fr); }
+    .ld-overview-item:nth-child(4n)  { border-right: 1px solid var(--border-color); }
+    .ld-overview-item:nth-child(2n)  { border-right: none; }
+    .ld-dates-grid { grid-template-columns: 1fr 1fr; }
+    .ld-days-panel { grid-column: span 2; }
+    .ld-hisaab-grid { grid-template-columns: repeat(2, 1fr); }
+    .ld-summary-grid { grid-template-columns: 1fr; }
+    .ld-action-bar { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+    .ld-header { flex-direction: column; align-items: flex-start; }
+    .ld-header-right { width: 100%; justify-content: flex-end; }
+    .ld-dates-grid { grid-template-columns: 1fr; }
+    .ld-days-panel { grid-column: span 1; }
+}
