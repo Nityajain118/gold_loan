@@ -9,7 +9,7 @@ const KhataPage = (() => {
             <div class="khata-container animate-in" style="max-width: 1000px;">
                 <div class="flex-between mb-3">
                     <div>
-                        <h2 class="page-title" id="khata-header-title">💰 Modern Khata</h2>
+                        <h2 class="page-title" id="khata-header-title" data-i18n="nav_khata">💰 ${I18n.t('nav_khata')}</h2>
                         <p class="text-muted" id="khata-header-subtitle">Select a customer to view ledger</p>
                     </div>
                     <div class="bg-card" style="padding: 10px 16px; border-radius: var(--radius-md); border: 1px solid var(--monitor-border); background: var(--monitor-bg);">
@@ -21,7 +21,7 @@ const KhataPage = (() => {
                 <!-- Customer Selection / Add New -->
                 <div class="card mb-3">
                     <div class="flex-between mb-2">
-                        <h3 class="card-title">👥 Customers</h3>
+                        <h3 class="card-title" data-i18n="nav_customers">👥 ${I18n.t('nav_customers')}</h3>
                         <button class="btn btn-primary btn-sm" onclick="KhataPage.showAddEntryModal()">➕ Add Entry</button>
                     </div>
                     <div id="customerList" style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px;">

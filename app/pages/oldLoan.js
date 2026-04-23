@@ -12,31 +12,34 @@ const OldLoanPage = (() => {
 
     function render(container) {
         _state.items = [defaultItem()];
-
+        
         container.innerHTML = `
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">🕰️ Add Old Loan Entry</h3>
-                    <span class="status-badge migrated">Migrated Loan</span>
+                    <h3 class="card-title" data-i18n="nav_old_loan">${I18n.t('nav_old_loan')}</h3>
+                    <span class="status-badge closed">Past Record</span>
                 </div>
-                <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:20px;">Migrate existing physical records. Past dates are allowed.</p>
                 <form id="old-loan-form" onsubmit="return false;">
-                    <h4 class="mb-1" style="color:var(--primary);font-size:0.9rem;">👤 Customer Information</h4>
-                    <div class="form-grid mb-3">
-                        ${UI.formGroup('Customer Name *', '<input type="text" class="form-input" id="ol-customer" required placeholder="Customer name" autocomplete="off">')}
-                        ${UI.formGroup('Mobile Number (10 digits)', `<input type="tel" class="form-input" id="ol-mobile" placeholder="10-digit number" maxlength="10" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/\\D/g,'').slice(0,10)">
-                            <span id="ol-mobile-err" class="form-hint" style="color:var(--danger);display:none;">Enter a valid 10-digit mobile number</span>`)}
-                        ${UI.formGroup('Locker Name', '<input type="text" class="form-input" id="ol-locker" placeholder="e.g., Locker B-05">')}
-                        ${UI.formGroup('Customer Caste', '<input type="text" class="form-input" id="ol-caste" placeholder="Optional Caste">')}
-                    </div>
-                    <div class="form-group mb-3">
-                        ${UI.formGroup('Customer Address *', '<textarea class="form-input" id="ol-address" required placeholder="Enter full address" style="height:70px;resize:vertical;"></textarea>')}
+                    <div class="alert alert-warning mb-3">
+                        Use this form to enter existing loans that started in the past. Interest will be calculated from the original start date.
                     </div>
 
-                    <h4 class="mb-1" style="color:var(--primary);font-size:0.9rem;">💍 Jewelry Items (up to ${MAX_ITEMS})</h4>
+                    <h4 class="mb-1" style="color:var(--primary);font-size:0.9rem;" data-i18n="customer_info">${I18n.t('customer_info')}</h4>
+                    <div class="form-grid mb-2">
+                        ${UI.formGroup(I18n.t('customer_name') + ' *', '<input type="text" class="form-input" id="ol-customer" required placeholder="' + I18n.t('customer_name') + '" autocomplete="off">')}
+                        ${UI.formGroup(I18n.t('mobile_number'), `<input type="tel" class="form-input" id="ol-mobile" placeholder="10-digit number" maxlength="10" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/\\D/g,'').slice(0,10)">
+                            <span id="ol-mobile-err" class="form-hint" style="color:var(--danger);display:none;">Enter a valid 10-digit mobile number</span>`)}
+                        ${UI.formGroup(I18n.t('locker_name'), '<input type="text" class="form-input" id="ol-locker" placeholder="e.g., Locker A-12">')}
+                        ${UI.formGroup(I18n.t('caste'), '<input type="text" class="form-input" id="ol-caste" placeholder="Optional Caste">')}
+                    </div>
+                    <div class="form-group mb-3">
+                        ${UI.formGroup(I18n.t('address') + ' *', '<textarea class="form-input" id="ol-address" required placeholder="Enter full address" style="height:70px;resize:vertical;"></textarea>')}
+                    </div>
+
+                    <h4 class="mb-1" style="color:var(--primary);font-size:0.9rem;"><span data-i18n="jewelry_items">${I18n.t('jewelry_items')}</span> (up to ${MAX_ITEMS})</h4>
                     <div class="jewelry-items-list" id="ol-items-list"></div>
                     <div class="flex gap-1 mt-1 mb-2">
-                        <button type="button" class="btn btn-outline btn-sm" id="ol-add-item-btn" onclick="OldLoanPage.addItem()">➕ Add Item</button>
+                        <button type="button" class="btn btn-outline btn-sm" id="ol-add-item-btn" onclick="OldLoanPage.addItem()" data-i18n="add_another_item">${I18n.t('add_another_item')}</button>
                     </div>
                     <div class="items-summary" id="ol-items-summary">
                         <div class="items-summary-item"><div class="items-summary-label">Total Items</div><div class="items-summary-value" id="ol-total-items">0</div></div>
@@ -46,21 +49,21 @@ const OldLoanPage = (() => {
                         <div class="items-summary-item"><div class="items-summary-label">Total Value</div><div class="items-summary-value" id="ol-total-value">₹0</div></div>
                     </div>
 
-                    <h4 class="mb-1 mt-3" style="color:var(--primary);font-size:0.9rem;">💰 Loan Details</h4>
+                    <h4 class="mb-1 mt-3" style="color:var(--primary);font-size:0.9rem;" data-i18n="loan_details">${I18n.t('loan_details')}</h4>
                     <div class="form-grid mb-2">
-                        ${UI.formGroup('Loan Amount (₹) *', '<input type="number" class="form-input" id="ol-amount" required placeholder="Loan amount" min="1" onkeydown="OldLoanPage.blockInvalidKey(event)" oninput="OldLoanPage.recalc()">')}
-                        ${UI.formGroup('Interest Rate (%) *', '<input type="number" class="form-input" id="ol-rate" required placeholder="e.g., 2" step="0.01" min="0.01" onkeydown="OldLoanPage.blockInvalidKey(event)" oninput="OldLoanPage.recalc()">')}
-                        ${UI.formGroup('Interest Period', `<div class="segment-control" id="ol-period-group">
-                            <button type="button" class="segment-btn active" data-value="monthly" onclick="OldLoanPage.setPeriod('monthly')">Monthly</button>
-                            <button type="button" class="segment-btn" data-value="yearly" onclick="OldLoanPage.setPeriod('yearly')">Yearly</button>
+                        ${UI.formGroup(I18n.t('loan_amount') + ' *', '<input type="number" class="form-input" id="ol-amount" required placeholder="' + I18n.t('loan_amount') + '" min="1" onkeydown="OldLoanPage.blockInvalidKey(event)" oninput="OldLoanPage.recalc()">')}
+                        ${UI.formGroup(I18n.t('interest_rate') + ' *', '<input type="number" class="form-input" id="ol-rate" required placeholder="e.g., 2" step="0.01" min="0.01" onkeydown="OldLoanPage.blockInvalidKey(event)" oninput="OldLoanPage.recalc()">')}
+                        ${UI.formGroup(I18n.t('interest_period'), `<div class="segment-control" id="ol-period-group">
+                            <button type="button" class="segment-btn active" data-value="monthly" onclick="OldLoanPage.setPeriod('monthly')" data-i18n="monthly">${I18n.t('monthly')}</button>
+                            <button type="button" class="segment-btn" data-value="yearly" onclick="OldLoanPage.setPeriod('yearly')" data-i18n="yearly">${I18n.t('yearly')}</button>
                         </div>`)}
-                        ${UI.formGroup('Interest Type', `<div class="segment-control" id="ol-type-group">
-                            <button type="button" class="segment-btn active" data-value="simple" onclick="OldLoanPage.setType('simple')">Simple</button>
-                            <button type="button" class="segment-btn" data-value="compound" onclick="OldLoanPage.setType('compound')">Compound</button>
+                        ${UI.formGroup(I18n.t('interest_type'), `<div class="segment-control" id="ol-type-group">
+                            <button type="button" class="segment-btn active" data-value="simple" onclick="OldLoanPage.setType('simple')" data-i18n="simple">${I18n.t('simple')}</button>
+                            <button type="button" class="segment-btn" data-value="compound" onclick="OldLoanPage.setType('compound')" data-i18n="compound">${I18n.t('compound')}</button>
                         </div>`)}
                     </div>
                     <div class="form-group mb-2" id="ol-compound-freq-wrap" style="display:none;">
-                        <label class="form-label">🔁 Compounding Frequency</label>
+                        <label class="form-label" data-i18n="compounding_freq">${I18n.t('compounding_freq')}</label>
                         <div class="segment-control" id="ol-freq-group">
                             <button type="button" class="segment-btn active" data-value="12" onclick="OldLoanPage.setFreq(12)">Monthly</button>
                             <button type="button" class="segment-btn" data-value="4" onclick="OldLoanPage.setFreq(4)">Quarterly</button>
@@ -103,7 +106,7 @@ const OldLoanPage = (() => {
                                 </div>
                             </div>
                         `, 'Original loan start date')}
-                        ${UI.formGroup('Loan Duration', `<div class="form-row"><input type="number" class="form-input" id="ol-duration" placeholder="12" min="1" value="12" onkeydown="OldLoanPage.blockInvalidKey(event)" oninput="OldLoanPage.recalc()" style="flex:1;"><span style="color:var(--text-muted);font-size:0.85rem;">months</span></div>`)}
+                        ${UI.formGroup('Loan Duration', `<div class="form-row"><input type="number" class="form-input" id="ol-duration" placeholder="12" min="1" value="12" onkeydown="OldLoanPage.blockInvalidKey(event)" oninput="OldLoanPage.recalc()" style="flex:1;"><span style="color:var(--text-muted);font-size:0.85rem;" data-i18n="months">${I18n.t('months')}</span></div>`)}
                         ${UI.formGroup('Historical Rate (₹/g)', '<input type="number" class="form-input" id="ol-historical-rate" placeholder="Optional" step="1" min="0" onkeydown="OldLoanPage.blockInvalidKey(event)">')}
                         ${UI.formGroup('Paid Interest (₹)', '<input type="number" class="form-input" id="ol-paid-interest" placeholder="0" min="0" value="0" onkeydown="OldLoanPage.blockInvalidKey(event)" oninput="OldLoanPage.recalc()">')}
                         ${UI.formGroup('Partial Repayment (₹)', '<input type="number" class="form-input" id="ol-partial" placeholder="0" min="0" value="0" onkeydown="OldLoanPage.blockInvalidKey(event)" oninput="OldLoanPage.recalc()">')}
@@ -123,16 +126,16 @@ const OldLoanPage = (() => {
                     <div class="calc-panel">
                         <h4 style="font-size:0.9rem;margin-bottom:16px;color:var(--primary);">📊 Accumulated Calculation</h4>
                         <div class="calc-grid">
-                            <div class="calc-item"><div class="calc-item-label">Accumulated Interest</div><div class="calc-item-value" id="ol-calc-interest">₹0</div></div>
+                            <div class="calc-item"><div class="calc-item-label" data-i18n="total_interest">${I18n.t('total_interest')}</div><div class="calc-item-value" id="ol-calc-interest">₹0</div></div>
                             <div class="calc-item"><div class="calc-item-label">Remaining Interest</div><div class="calc-item-value" id="ol-calc-remaining">₹0</div></div>
-                            <div class="calc-item"><div class="calc-item-label">Total Payable</div><div class="calc-item-value" id="ol-calc-payable">₹0</div></div>
+                            <div class="calc-item"><div class="calc-item-label" data-i18n="total_payable">${I18n.t('total_payable')}</div><div class="calc-item-value" id="ol-calc-payable">₹0</div></div>
                             <div class="calc-item"><div class="calc-item-label">Months Elapsed</div><div class="calc-item-value" id="ol-calc-months">0</div></div>
-                            <div class="calc-item"><div class="calc-item-label">LTV</div><div class="calc-item-value" id="ol-calc-ltv">0%</div></div>
+                            <div class="calc-item"><div class="calc-item-label" data-i18n="ltv">${I18n.t('ltv')}</div><div class="calc-item-value" id="ol-calc-ltv">0%</div></div>
                             <div class="calc-item"><div class="calc-item-label">Profit/Loss</div><div class="calc-item-value" id="ol-calc-pl">₹0</div></div>
                         </div>
                     </div>
                     <div class="flex gap-2 mt-3">
-                        <button type="button" class="btn btn-gold btn-lg" onclick="OldLoanPage.save()">💾 Save Old Loan</button>
+                        <button type="button" class="btn btn-gold btn-lg" onclick="OldLoanPage.save()" data-i18n="save_loan">${I18n.t('save_loan')}</button>
                     </div>
                     <!-- Risk Analysis Panel -->
                     <div id="ol-risk-panel"></div>

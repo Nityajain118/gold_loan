@@ -17,13 +17,13 @@ const CustomersPage = (() => {
         if (customers.length === 0) {
             container.innerHTML = `
             <div class="flex justify-between align-center mb-3">
-                <div class="page-title">Customers</div>
-                <button class="btn btn-primary btn-sm" onclick="CustomersPage.showAdd()">➕ Add Customer</button>
+                <div class="page-title" data-i18n="customers">${I18n.t('customers')}</div>
+                <button class="btn btn-primary btn-sm" onclick="CustomersPage.showAdd()" data-i18n="add_customer">${I18n.t('add_customer')}</button>
             </div>
             <div class="empty-state">
                 <div class="empty-state-icon">👥</div>
-                <h3>No Customers Yet</h3>
-                <p>Customers are auto-created when you add loans.</p>
+                <h3 data-i18n="no_customers">${I18n.t('no_customers')}</h3>
+                <p data-i18n="no_customers_desc">${I18n.t('no_customers_desc')}</p>
             </div>`;
             return;
         }
@@ -41,14 +41,14 @@ const CustomersPage = (() => {
         // ── Global header + global search ────────────────────────────────────
         let html = `
         <div class="flex justify-between align-center mb-3">
-            <div class="page-title">Customers
+            <div class="page-title" data-i18n="customers">${I18n.t('customers')}
                 <span class="text-muted font-normal" style="font-size:0.9rem;margin-left:6px;">(${customers.length})</span>
             </div>
-            <button class="btn btn-primary btn-sm" onclick="CustomersPage.showAdd()">➕ Add Customer</button>
+            <button class="btn btn-primary btn-sm" onclick="CustomersPage.showAdd()" data-i18n="add_customer">${I18n.t('add_customer')}</button>
         </div>
         <div class="filter-bar mb-3">
             <input type="text" class="search-input full-width" id="cust-global-search"
-                placeholder="🔍 Search all customers by name or mobile…"
+                placeholder="${I18n.t('search_customers')}"
                 oninput="CustomersPage.globalSearch(this.value)">
         </div>
         <div id="village-sections">`;

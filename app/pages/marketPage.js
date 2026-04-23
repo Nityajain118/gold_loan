@@ -22,7 +22,7 @@ const MarketPage = (() => {
             </div>
 
             <div class="card mb-2">
-                <h3 class="card-title mb-2">📝 Update Rates Manually</h3>
+                <h3 class="card-title mb-2" data-i18n="nav_market">📝 ${I18n.t('nav_market')}</h3>
                 <div class="form-grid">
                     ${UI.formGroup('Gold Rate (₹/gram)', `<input type="number" class="form-input" id="mkt-gold" value="${rates.gold}" min="1">`)}
                     ${UI.formGroup('Silver Rate (₹/gram)', `<input type="number" class="form-input" id="mkt-silver" value="${rates.silver}" min="1">`)}

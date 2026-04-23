@@ -114,12 +114,34 @@ html {
 }
 
 body {
-    font-family: var(--font);
+    font-family: 'Inter', 'Noto Sans Devanagari', sans-serif;
     background: var(--bg-primary);
     color: var(--text-primary);
     line-height: 1.6;
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
+}
+
+/* Base Form Elements */
+
+.lang-toggle {
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, rgba(246, 211, 101, 0.15), rgba(253, 160, 133, 0.15));
+    border: 1px solid rgba(212, 175, 55, 0.4);
+    color: var(--gold-dark);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+}
+
+.lang-toggle:hover {
+    background: linear-gradient(135deg, rgba(246, 211, 101, 0.25), rgba(253, 160, 133, 0.25));
+    border-color: var(--gold);
+    transform: translateY(-1px);
 }
 
 /* --- Login Screen --- */

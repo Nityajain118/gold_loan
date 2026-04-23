@@ -219,7 +219,7 @@ const CommonCustomersPage = (() => {
       <!-- Header -->
       <div class="cc-header">
         <div class="cc-header-left">
-          <h2 class="cc-title">🔗 Common Customers</h2>
+          <h2 class="cc-title" data-i18n="nav_common">🔗 ${I18n.t('nav_common')}</h2>
           <p class="cc-subtitle">Customers shared across modules — Read Only View</p>
         </div>
         <div class="cc-header-right">

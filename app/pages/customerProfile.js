@@ -45,7 +45,7 @@ const CustomerProfilePage = (() => {
         });
 
         container.innerHTML = `
-            <button class="btn btn-ghost mb-2" onclick="UI.navigateTo('loans')">← Back to Loans</button>
+            <button class="btn btn-ghost mb-2" onclick="UI.navigateTo('loans')" data-i18n="back_to_loans">← Back to Loans</button>
             
             <div class="card mb-2">
                 <div class="card-header">
@@ -86,7 +86,7 @@ const CustomerProfilePage = (() => {
             </div>
 
             <div class="card mb-2">
-                <h3 style="margin-top:0;color:var(--primary);">📋 All Loans</h3>
+                <h3 style="margin-top:0;color:var(--primary);" data-i18n="nav_all_loans">📋 ${I18n.t('nav_all_loans')}</h3>
                 <div id="customer-loans-list"></div>
             </div>
 

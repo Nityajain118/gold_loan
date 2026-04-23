@@ -8,6 +8,9 @@
     document.addEventListener('DOMContentLoaded', init);
 
     function init() {
+        // Init Localization
+        if (typeof I18n !== 'undefined') I18n.init();
+
         // Check if PIN is set
         if (!DB.hasPin()) {
             showPinSetup();
@@ -38,11 +41,11 @@
             const err = document.getElementById('pin-setup-error');
 
             if (!pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
-                err.textContent = 'PIN must be exactly 4 digits';
+                err.textContent = I18n.t('error') + ': PIN must be exactly 4 digits';
                 return;
             }
             if (pin !== confirm) {
-                err.textContent = 'PINs do not match';
+                err.textContent = I18n.t('pin_mismatch') || 'PINs do not match';
                 return;
             }
 
@@ -69,7 +72,7 @@
             const err = document.getElementById('pin-login-error');
 
             if (!pin || pin.length !== 4) {
-                err.textContent = 'Enter your 4-digit PIN';
+                err.textContent = I18n.t('enter_pin');
                 return;
             }
 
@@ -78,7 +81,7 @@
                 DB.setSession();
                 showApp();
             } else {
-                err.textContent = 'Incorrect PIN. Try again.';
+                err.textContent = I18n.t('error') + ': Incorrect PIN';
                 pinInput.value = '';
             }
         };
@@ -97,6 +100,9 @@
         // Apply theme (FH_theme takes priority for hub consistency)
         const savedTheme = localStorage.getItem('FH_theme') || 'dark';
         document.documentElement.setAttribute('data-theme', savedTheme);
+
+        // Update toggle text
+        if (typeof I18n !== 'undefined') I18n.init();
 
         const settings = DB.getSettings();
         if (settings.darkMode) {
@@ -241,7 +247,7 @@
                     document.getElementById('app').style.display = 'none';
                     document.getElementById('pin-login').style.display = 'block';
                     document.getElementById('pin-setup').style.display = 'none';
-                    UI.toast('Session expired. Please log in again.', 'warning');
+                    UI.toast(I18n.t('session_expired') || 'Session expired. Please log in again.', 'warning');
                 }
             }
         }, 60000);

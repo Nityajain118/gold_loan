@@ -44,66 +44,66 @@ const DashboardPage = (() => {
         container.innerHTML = `
             <!-- MONEY LENDING DASHBOARD -->
             <div class="section-header mt-2 mb-3">
-                <h3 class="section-title">💰 Money Lending Dashboard</h3>
+                <h3 class="section-title" data-i18n="money_lending_dashboard">${I18n.t('money_lending_dashboard')}</h3>
             </div>
             
             <div class="kpi-grid">
                 <div class="kpi-card blue">
                     <div class="kpi-icon">💰</div>
-                    <div class="kpi-value">₹${UI.currency(mlData.totalGiven)}</div>
-                    <div class="kpi-label">Total Principal Given</div>
+                    <div class="kpi-value">₹${UI.currency(mlData.totalGiven).replace('₹', '')}</div>
+                    <div class="kpi-label" data-i18n="total_principal">${I18n.t('total_principal')}</div>
                 </div>
                 <div class="kpi-card green">
                     <div class="kpi-icon">📈</div>
-                    <div class="kpi-value">₹${UI.currency(Math.floor(mlData.totalInterest))}</div>
-                    <div class="kpi-label">Total Earned Interest</div>
+                    <div class="kpi-value">₹${UI.currency(Math.floor(mlData.totalInterest)).replace('₹', '')}</div>
+                    <div class="kpi-label" data-i18n="earned_interest">${I18n.t('earned_interest')}</div>
                 </div>
                 <div class="kpi-card gold">
                     <div class="kpi-icon">📋</div>
                     <div class="kpi-value">${mlData.activeLoans}</div>
-                    <div class="kpi-label">Active Loans</div>
+                    <div class="kpi-label" data-i18n="active_loans">${I18n.t('active_loans')}</div>
                 </div>
                 <div class="kpi-card red">
                     <div class="kpi-icon">⚠️</div>
                     <div class="kpi-value">${mlData.overdueLoans}</div>
-                    <div class="kpi-label">Overdue (>90 days)</div>
+                    <div class="kpi-label" data-i18n="overdue">${I18n.t('overdue')}</div>
                 </div>
             </div>
 
             <div class="section-header mt-4 mb-3">
-                <h3 class="section-title">📊 Portfolio Summary</h3>
+                <h3 class="section-title" data-i18n="portfolio_summary">${I18n.t('portfolio_summary')}</h3>
             </div>
             <!-- KPI Cards (Original) -->
             <div class="kpi-grid">
                 <div class="kpi-card">
                     <div class="kpi-icon">💰</div>
                     <div class="kpi-value">${summary.totalLoans}</div>
-                    <div class="kpi-label">Active Loans</div>
+                    <div class="kpi-label" data-i18n="active_loans">${I18n.t('active_loans')}</div>
                 </div>
                 <div class="kpi-card blue">
                     <div class="kpi-icon">💵</div>
                     <div class="kpi-value">${UI.currency(summary.totalLoanAmount)}</div>
-                    <div class="kpi-label">Total Loan Amount</div>
+                    <div class="kpi-label" data-i18n="total_loan_amount">${I18n.t('total_loan_amount')}</div>
                 </div>
                 <div class="kpi-card green">
                     <div class="kpi-icon">🏆</div>
                     <div class="kpi-value">${UI.currency(summary.totalMetalValue)}</div>
-                    <div class="kpi-label">Current Metal Value</div>
+                    <div class="kpi-label" data-i18n="current_metal_value">${I18n.t('current_metal_value')}</div>
                 </div>
                 <div class="kpi-card purple">
                     <div class="kpi-icon">📈</div>
                     <div class="kpi-value">${UI.currency(summary.expectedInterest)}</div>
-                    <div class="kpi-label">Expected Interest Income</div>
+                    <div class="kpi-label" data-i18n="expected_interest">${I18n.t('expected_interest')}</div>
                 </div>
                 <div class="kpi-card orange">
                     <div class="kpi-icon">⏰</div>
                     <div class="kpi-value">${summary.nearMaturity}</div>
-                    <div class="kpi-label">Near Maturity</div>
+                    <div class="kpi-label" data-i18n="near_maturity">${I18n.t('near_maturity')}</div>
                 </div>
                 <div class="kpi-card red">
                     <div class="kpi-icon">🔴</div>
                     <div class="kpi-value">${summary.lossZone}</div>
-                    <div class="kpi-label">In Risk/Loss Zone</div>
+                    <div class="kpi-label" data-i18n="risk_loss_zone">${I18n.t('risk_loss_zone')}</div>
                 </div>
             </div>
 
@@ -112,25 +112,25 @@ const DashboardPage = (() => {
                 <div class="kpi-card ${summary.portfolioProfitLoss >= 0 ? 'green' : 'red'}">
                     <div class="kpi-icon">${summary.portfolioProfitLoss >= 0 ? '📈' : '📉'}</div>
                     <div class="kpi-value ${summary.portfolioProfitLoss >= 0 ? 'text-safe' : 'text-danger'}">${UI.currency(summary.portfolioProfitLoss)}</div>
-                    <div class="kpi-label">Portfolio Profit/Loss</div>
+                    <div class="kpi-label" data-i18n="portfolio_pl">${I18n.t('portfolio_pl')}</div>
                 </div>
                 <div class="kpi-card blue">
                     <div class="kpi-icon">📊</div>
                     <div class="kpi-value">${UI.pct(summary.overallLTV)}</div>
-                    <div class="kpi-label">Overall LTV</div>
+                    <div class="kpi-label" data-i18n="overall_ltv">${I18n.t('overall_ltv')}</div>
                 </div>
             </div>
 
             <!-- Charts -->
             <div class="charts-grid">
                 <div class="chart-card">
-                    <h3>📊 Risk Distribution</h3>
+                    <h3 data-i18n="risk_dist">${I18n.t('risk_dist')}</h3>
                     <div class="chart-wrapper">
                         <canvas id="risk-chart"></canvas>
                     </div>
                 </div>
                 <div class="chart-card">
-                    <h3>💰 Loan Portfolio Overview</h3>
+                    <h3 data-i18n="portfolio_overview">${I18n.t('portfolio_overview')}</h3>
                     <div class="chart-wrapper">
                         <canvas id="portfolio-chart"></canvas>
                     </div>
@@ -139,7 +139,7 @@ const DashboardPage = (() => {
 
             <!-- Alerts -->
             <div class="section-header mt-2">
-                <h3 class="section-title">🔔 Alerts & Warnings</h3>
+                <h3 class="section-title" data-i18n="alerts_warnings">${I18n.t('alerts_warnings')}</h3>
             </div>
             <div class="alert-panel" id="alert-panel">
                 ${renderAlerts(summary.alerts)}
@@ -147,13 +147,13 @@ const DashboardPage = (() => {
 
             <!-- Quick Actions -->
             <div class="section-header mt-3">
-                <h3 class="section-title">⚡ Quick Actions</h3>
+                <h3 class="section-title" data-i18n="quick_actions">${I18n.t('quick_actions')}</h3>
             </div>
             <div class="flex gap-2" style="flex-wrap: wrap;">
-                <button class="btn btn-gold" onclick="UI.navigateTo('new-loan')">➕ New Loan</button>
-                <button class="btn btn-primary" onclick="UI.navigateTo('old-loan')">🕰️ Add Old Loan</button>
-                <button class="btn btn-outline" onclick="Export.exportLoansCSV()">📥 Export CSV</button>
-                <button class="btn btn-outline" onclick="Export.exportBackup()">💾 Backup Data</button>
+                <button class="btn btn-gold" onclick="UI.navigateTo('new-loan')" data-i18n="new_loan">${I18n.t('new_loan')}</button>
+                <button class="btn btn-primary" onclick="UI.navigateTo('old-loan')" data-i18n="add_old_loan">${I18n.t('add_old_loan')}</button>
+                <button class="btn btn-outline" onclick="Export.exportLoansCSV()" data-i18n="export_csv">${I18n.t('export_csv')}</button>
+                <button class="btn btn-outline" onclick="Export.exportBackup()" data-i18n="backup">${I18n.t('backup')}</button>
             </div>
         `;
 
@@ -164,8 +164,8 @@ const DashboardPage = (() => {
         if (!alerts || alerts.length === 0) {
             return `<div class="empty-state" style="padding: 30px;">
                 <div class="empty-state-icon">✅</div>
-                <h3>All Clear!</h3>
-                <p>No warnings or alerts at this time.</p>
+                <h3 data-i18n="all_clear">${I18n.t('all_clear')}</h3>
+                <p data-i18n="no_warnings">${I18n.t('no_warnings')}</p>
             </div>`;
         }
 

@@ -82,6 +82,7 @@ const UI = (() => {
             container.innerHTML = '';
             container.className = 'page-container animate-in';
             renderers[page]();
+            if (typeof I18n !== 'undefined') I18n.apply(container);
         }
 
         // Update session

@@ -14,7 +14,7 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap"
         rel="stylesheet">
 
     <!-- Chart.js -->
@@ -56,7 +56,7 @@
 
             <!-- PIN Setup (First Time) -->
             <div id="pin-setup" class="pin-section" style="display:none;">
-                <h2>Set Your PIN</h2>
+                <h2 data-i18n="set_pin">Set Your PIN</h2>
                 <p>Create a 4-digit PIN to secure your data</p>
                 <div class="pin-input-group">
                     <input type="password" id="new-pin" maxlength="4" pattern="[0-9]*" inputmode="numeric"
@@ -66,18 +66,18 @@
                     <input type="password" id="confirm-pin" maxlength="4" pattern="[0-9]*" inputmode="numeric"
                         placeholder="Confirm PIN" autocomplete="off">
                 </div>
-                <button id="set-pin-btn" class="btn btn-primary btn-lg">Set PIN & Enter</button>
+                <button id="set-pin-btn" class="btn btn-primary btn-lg" data-i18n="set_pin">Set PIN & Enter</button>
                 <p id="pin-setup-error" class="error-text"></p>
             </div>
 
             <!-- PIN Login (Returning User) -->
             <div id="pin-login" class="pin-section">
-                <h2>Enter PIN</h2>
+                <h2 data-i18n="enter_pin">Enter PIN</h2>
                 <div class="pin-input-group">
                     <input type="password" id="login-pin" maxlength="4" pattern="[0-9]*" inputmode="numeric"
                         placeholder="••••" autocomplete="off">
                 </div>
-                <button id="login-btn" class="btn btn-primary btn-lg">Unlock</button>
+                <button id="login-btn" class="btn btn-primary btn-lg" data-i18n="unlock">Unlock</button>
                 <p id="pin-login-error" class="error-text"></p>
             </div>
         </div>
@@ -109,93 +109,93 @@
                 <button id="sidebar-close" class="sidebar-close">&times;</button>
             </div>
 
-            <div class="sidebar-back" id="sidebarBackBtn" onclick="window.location.href='../../apps.html'" title="Back to Choose App">
+            <div class="sidebar-back" id="sidebarBackBtn" onclick="window.location.href='../../apps.html'" title="Back to Choose App" data-i18n="back_to_apps">
                 ← Back to Apps
             </div>
 
             <ul class="nav-list">
                 <li>
-                    <a href="#" class="nav-item active" data-page="dashboard">
+                    <a href="#" class="nav-item active" data-page="dashboard" data-i18n="nav_dashboard">
                         <span class="nav-icon">📊</span> Dashboard
                     </a>
                 </li>
                 <li>
-                    <a href="#" class="nav-item" data-page="new-loan">
+                    <a href="#" class="nav-item" data-page="new-loan" data-i18n="nav_new_loan">
                         <span class="nav-icon">➕</span> New Loan
                     </a>
                 </li>
                 <li>
-                    <a href="#" class="nav-item" data-page="old-loan">
+                    <a href="#" class="nav-item" data-page="old-loan" data-i18n="nav_old_loan">
                         <span class="nav-icon">🕰️</span> Old Loan Entry
                     </a>
                 </li>
                 <li>
-                    <a href="#" class="nav-item" data-page="loans">
+                    <a href="#" class="nav-item" data-page="loans" data-i18n="nav_all_loans">
                         <span class="nav-icon">📋</span> All Loans
                     </a>
                 </li>
                 <li>
-                    <a href="#" class="nav-item" data-page="customers">
+                    <a href="#" class="nav-item" data-page="customers" data-i18n="nav_customers">
                         <span class="nav-icon">👥</span> Customers
                     </a>
                 </li>
                 <li>
-                    <a href="#" class="nav-item" data-page="khata">
+                    <a href="#" class="nav-item" data-page="khata" data-i18n="nav_khata">
                         <span class="nav-icon">📒</span> Khata Ledger
                     </a>
                 </li>
                 <li>
-                    <a href="#" class="nav-item" data-page="inventory">
+                    <a href="#" class="nav-item" data-page="inventory" data-i18n="nav_inventory">
                         <span class="nav-icon">📦</span> Inventory
                     </a>
                 </li>
                 <li>
-                    <a href="#" class="nav-item" data-page="market">
+                    <a href="#" class="nav-item" data-page="market" data-i18n="nav_market">
                         <span class="nav-icon">📈</span> Market Rates
                     </a>
                 </li>
                 <li>
-                    <a href="#" class="nav-item" data-page="settings">
+                    <a href="#" class="nav-item" data-page="settings" data-i18n="nav_settings">
                         <span class="nav-icon">⚙️</span> Settings
                     </a>
                 </li>
                 <li>
-                    <a href="#" class="nav-item" data-page="common-customers" id="nav-common-customers">
+                    <a href="#" class="nav-item" data-page="common-customers" id="nav-common-customers" data-i18n="nav_common">
                         <span class="nav-icon">🔗</span> Common Customers
                     </a>
                 </li>
             </ul>
 
             <div class="sidebar-footer">
-                <button id="logout-btn" class="btn btn-outline btn-sm">🔒 Lock App</button>
+                <button id="logout-btn" class="btn btn-outline btn-sm" data-i18n="lock_app">🔒 Lock App</button>
             </div>
         </nav>
 
         <!-- ---- Bottom Nav (Mobile) ---- -->
         <nav class="bottom-nav">
             <a href="#" class="bottom-nav-item active" data-page="dashboard">
-                <span>📊</span><small>Dashboard</small>
+                <span>📊</span><small data-i18n="nav_dashboard">Dashboard</small>
             </a>
             <a href="#" class="bottom-nav-item" data-page="new-loan">
-                <span>➕</span><small>New Loan</small>
+                <span>➕</span><small data-i18n="nav_new_loan">New Loan</small>
             </a>
             <a href="#" class="bottom-nav-item" data-page="loans">
-                <span>📋</span><small>Loans</small>
+                <span>📋</span><small data-i18n="nav_all_loans">Loans</small>
             </a>
             <a href="#" class="bottom-nav-item" data-page="customers">
-                <span>👥</span><small>Customers</small>
+                <span>👥</span><small data-i18n="nav_customers">Customers</small>
             </a>
             <a href="#" class="bottom-nav-item" data-page="khata">
-                <span>📒</span><small>Khata</small>
+                <span>📒</span><small data-i18n="nav_khata">Khata</small>
             </a>
             <a href="#" class="bottom-nav-item" data-page="inventory">
-                <span>📦</span><small>Inventory</small>
+                <span>📦</span><small data-i18n="nav_inventory">Inventory</small>
             </a>
             <a href="#" class="bottom-nav-item" data-page="settings">
-                <span>⚙️</span><small>More</small>
+                <span>⚙️</span><small data-i18n="nav_settings">More</small>
             </a>
             <a href="#" class="bottom-nav-item" data-page="common-customers">
-                <span>🔗</span><small>Common</small>
+                <span>🔗</span><small data-i18n="nav_common">Common</small>
             </a>
         </nav>
 
@@ -214,6 +214,7 @@
                             🥈 Silver: <strong id="ticker-silver">—</strong>/g
                         </span>
                     </div>
+                    <button id="lang-toggle" class="icon-btn lang-toggle" title="Switch Language" onclick="I18n.toggle()">🌐 EN</button>
                     <button id="time-mode-toggle" class="icon-btn" title="Toggle Time Mode (Normal / Tithi)" onclick="window._toggleTimeMode && window._toggleTimeMode()">📅</button>
                     <button id="dark-mode-toggle" class="icon-btn" title="Toggle Dark Mode">🌙</button>
                 </div>
@@ -235,6 +236,7 @@
     <!--          SCRIPTS               -->
     <!-- ============================== -->
     <!-- Modules (load first — no dependencies on pages) -->
+    <script src="modules/i18n.js"></script>
     <script src="modules/db.js"></script>
     <script src="modules/tithi.js"></script>
     <script src="modules/imageUpload.js"></script>

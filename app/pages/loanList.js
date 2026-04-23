@@ -104,19 +104,19 @@ const LoanListPage = (() => {
         <div class="flex-between mb-2" style="flex-wrap:wrap;gap:8px;">
             <span style="font-size:0.88rem;color:var(--text-secondary);">${keys.length} customer${keys.length !== 1 ? 's' : ''} · ${DB.getLoans().length} loans</span>
             <div class="flex gap-1">
-                <button class="btn btn-gold btn-sm" onclick="UI.navigateTo('new-loan')">➕ New Loan</button>
-                <button class="btn btn-primary btn-sm" onclick="UI.navigateTo('old-loan')">🕰️ Old Entry</button>
+                <button class="btn btn-gold btn-sm" onclick="UI.navigateTo('new-loan')" data-i18n="new_loan">${I18n.t('new_loan')}</button>
+                <button class="btn btn-primary btn-sm" onclick="UI.navigateTo('old-loan')" data-i18n="nav_old_loan">${I18n.t('nav_old_loan')}</button>
             </div>
         </div>
         <div class="filter-bar mb-3" style="gap:8px;flex-wrap:wrap;">
-            <input type="text" class="search-input" id="loan-search" placeholder="🔍 Search by name, mobile, village or address…"
+            <input type="text" class="search-input" id="loan-search" placeholder="${I18n.t('search_placeholder')}"
                 value="${_state.search}" oninput="LoanListPage.filter()">
             <select class="form-select" id="loan-filter-status" onchange="LoanListPage.filter()" style="width:auto;">
-                <option value="all"   ${_state.status==='all'    ?'selected':''}>All Status</option>
-                <option value="active"  ${_state.status==='active'  ?'selected':''}>Active</option>
-                <option value="closed"  ${_state.status==='closed'  ?'selected':''}>Closed</option>
-                <option value="mixed"   ${_state.status==='mixed'   ?'selected':''}>Mixed</option>
-                <option value="migrated"${_state.status==='migrated'?'selected':''}>Migrated</option>
+                <option value="all"   ${_state.status==='all'    ?'selected':''}>${I18n.t('all_status')}</option>
+                <option value="active"  ${_state.status==='active'  ?'selected':''}>${I18n.t('active')}</option>
+                <option value="closed"  ${_state.status==='closed'  ?'selected':''}>${I18n.t('closed')}</option>
+                <option value="mixed"   ${_state.status==='mixed'   ?'selected':''}>${I18n.t('mixed')}</option>
+                <option value="migrated"${_state.status==='migrated'?'selected':''}>${I18n.t('migrated')}</option>
             </select>
         </div>
         <div id="loans-container"></div>`;
@@ -125,7 +125,7 @@ const LoanListPage = (() => {
         if (!loansContainer) return;
 
         if (filtered.length === 0) {
-            loansContainer.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📋</div><h3>${keys.length===0?'No Loans Yet':'No matches found'}</h3>${keys.length===0?'<button class="btn btn-gold" onclick="UI.navigateTo(\'new-loan\')">➕ Create Loan</button>':''}</div>`;
+            loansContainer.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📋</div><h3>${keys.length===0?I18n.t('no_loans_yet'):I18n.t('no_matches')}</h3>${keys.length===0?'<button class="btn btn-gold" onclick="UI.navigateTo(\'new-loan\')">➕ ' + I18n.t('new_loan') + '</button>':''}</div>`;
             return;
         }
 
@@ -169,7 +169,7 @@ const LoanListPage = (() => {
                 </div>
                 <div class="loan-card-body">
                     <div class="loan-stat">
-                        <span class="label">Active Amount:</span>
+                        <span class="label" data-i18n="active_amount">${I18n.t('active_amount')}</span>
                         <span class="value" style="color:var(--gold);font-weight:700;">${UI.currency(totalActive)}</span>
                     </div>
                     <div class="loan-stat">
@@ -181,13 +181,13 @@ const LoanListPage = (() => {
                         <span class="value">${silverCount} loan${silverCount!==1?'s':''}</span>
                     </div>
                     <div class="loan-stat">
-                        <span class="label">Total Loans:</span>
+                        <span class="label" data-i18n="total_loans">${I18n.t('total_loans')}</span>
                         <span class="value">${loans.length}</span>
                     </div>
                 </div>
                 <div class="loan-card-footer">
-                    <span style="font-size:0.78rem;color:var(--text-secondary);">Click to view loans →</span>
-                    <button class="btn btn-ghost btn-xs text-danger" onclick="event.stopPropagation();LoanListPage.delCustomer('${_esc(key)}')">🗑️ Delete All</button>
+                    <span style="font-size:0.78rem;color:var(--text-secondary);" data-i18n="view_loans">${I18n.t('view_loans')}</span>
+                    <button class="btn btn-ghost btn-xs text-danger" onclick="event.stopPropagation();LoanListPage.delCustomer('${_esc(key)}')" data-i18n="delete_all">${I18n.t('delete_all')}</button>
                 </div>
             </div>`;
         }).join('');
@@ -202,7 +202,7 @@ const LoanListPage = (() => {
         const silverLoans = loans.filter(l => l.metalType === 'silver');
 
         container.innerHTML = `
-        <button class="btn btn-ghost mb-2" onclick="LoanListPage.goBack()">← Back to Customers</button>
+        <button class="btn btn-ghost mb-2" onclick="LoanListPage.goBack()">${I18n.t('back_to_customers')}</button>
         <div class="card mb-3" style="background:linear-gradient(135deg,var(--bg) 0%,rgba(246,211,101,0.05) 100%);">
             <div class="card-header pb-2" style="border-bottom:1px solid var(--border);">
                 <div>
@@ -213,7 +213,7 @@ const LoanListPage = (() => {
             </div>
         </div>
 
-        <h4 style="color:var(--primary);font-size:0.9rem;margin-bottom:12px;">📂 Loan Types — Select to view</h4>
+        <h4 style="color:var(--primary);font-size:0.9rem;margin-bottom:12px;">${I18n.t('loan_types')}</h4>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px;">
             ${goldLoans.length > 0 ? `
             <div onclick="LoanListPage.drillMetal('gold')"
@@ -221,7 +221,7 @@ const LoanListPage = (() => {
                 onmouseenter="this.style.transform='translateY(-3px)';this.style.borderColor='var(--gold)'"
                 onmouseleave="this.style.transform='';this.style.borderColor='rgba(212,175,55,0.35)'">
                 <div style="font-size:2rem;margin-bottom:8px;">🥇</div>
-                <div style="font-weight:700;font-size:1.1rem;color:var(--gold);">Gold Loans</div>
+                <div style="font-weight:700;font-size:1.1rem;color:var(--gold);">${I18n.t('gold_loans')}</div>
                 <div style="font-size:1.8rem;font-weight:800;color:var(--text-primary);margin:4px 0;">${goldLoans.length}</div>
                 <div style="font-size:0.8rem;color:var(--text-secondary);">${goldLoans.filter(l=>(l.status||'active')==='active').length} Active · ${goldLoans.filter(l=>l.status==='closed').length} Closed</div>
                 <div style="font-size:0.78rem;color:var(--text-secondary);margin-top:4px;">Total: ${UI.currency(goldLoans.reduce((s,l)=>s+(l.loanAmount||0),0))}</div>
@@ -232,12 +232,12 @@ const LoanListPage = (() => {
                 onmouseenter="this.style.transform='translateY(-3px)';this.style.borderColor='#94a3b8'"
                 onmouseleave="this.style.transform='';this.style.borderColor='rgba(148,163,184,0.3)'">
                 <div style="font-size:2rem;margin-bottom:8px;">🥈</div>
-                <div style="font-weight:700;font-size:1.1rem;color:#94a3b8;">Silver Loans</div>
+                <div style="font-weight:700;font-size:1.1rem;color:#94a3b8;">${I18n.t('silver_loans')}</div>
                 <div style="font-size:1.8rem;font-weight:800;color:var(--text-primary);margin:4px 0;">${silverLoans.length}</div>
                 <div style="font-size:0.8rem;color:var(--text-secondary);">${silverLoans.filter(l=>(l.status||'active')==='active').length} Active · ${silverLoans.filter(l=>l.status==='closed').length} Closed</div>
                 <div style="font-size:0.78rem;color:var(--text-secondary);margin-top:4px;">Total: ${UI.currency(silverLoans.reduce((s,l)=>s+(l.loanAmount||0),0))}</div>
             </div>` : ''}
-            ${goldLoans.length===0&&silverLoans.length===0?'<p class="text-muted">No loans found.</p>':''}
+            ${goldLoans.length===0&&silverLoans.length===0?'<p class="text-muted">' + I18n.t('no_matches') + '</p>':''}
         </div>`;
     }
 
@@ -276,10 +276,10 @@ const LoanListPage = (() => {
                         <span class="status-badge ${loan.status||'active'}">${statusIcon} ${(loan.status||'active').toUpperCase()}</span>
                     </div>
                     <div class="loan-card-body">
-                        <div class="loan-stat"><span class="label">Payable:</span><span class="value" style="color:var(--gold);font-weight:700;">${UI.currency(d.totalPayable)}</span></div>
-                        <div class="loan-stat"><span class="label">Weight:</span><span class="value">${loan.weightGrams||0}g</span></div>
-                        <div class="loan-stat ${d.ltv>80?'danger':d.ltv>60?'monitor':'safe'}"><span class="label">LTV:</span><span class="value">${UI.pct(d.ltv)}</span></div>
-                        <div class="loan-stat"><span class="label">Locker:</span><span class="value">${loan.lockerName||'—'}</span></div>
+                        <div class="loan-stat"><span class="label" data-i18n="payable">${I18n.t('payable')}</span><span class="value" style="color:var(--gold);font-weight:700;">${UI.currency(d.totalPayable)}</span></div>
+                        <div class="loan-stat"><span class="label" data-i18n="weight">${I18n.t('weight')}</span><span class="value">${loan.weightGrams||0}g</span></div>
+                        <div class="loan-stat ${d.ltv>80?'danger':d.ltv>60?'monitor':'safe'}"><span class="label" data-i18n="ltv">${I18n.t('ltv')}</span><span class="value">${UI.pct(d.ltv)}</span></div>
+                        <div class="loan-stat"><span class="label" data-i18n="locker">${I18n.t('locker')}</span><span class="value">${loan.lockerName||'—'}</span></div>
                     </div>
                     ${loan.status==='closed'&&loan.settlement?`
                     <div style="background:rgba(16,185,129,0.06);padding:8px 12px;border-radius:6px;margin:8px 0;font-size:0.83rem;">
@@ -287,9 +287,9 @@ const LoanListPage = (() => {
                         ${loan.settlement.discount>0?` · Discount: <strong>${UI.currency(loan.settlement.discount)}</strong>`:''}
                     </div>`:''}
                     <div class="loan-card-footer">
-                        <button class="btn btn-gold btn-sm" onclick="UI.navigateTo('loan-detail','${loan.id}')">👁️ View Details</button>
+                        <button class="btn btn-gold btn-sm" onclick="UI.navigateTo('loan-detail','${loan.id}')" data-i18n="view_details">${I18n.t('view_details')}</button>
                         <button class="btn btn-ghost btn-xs" onclick="Export.exportLoanPDF(DB.getLoan('${loan.id}'))">📄 PDF</button>
-                        <button class="btn btn-ghost btn-xs text-danger" onclick="LoanListPage.del('${loan.id}')">🗑️</button>
+                        <button class="btn btn-ghost btn-xs text-danger" onclick="LoanListPage.del('${loan.id}')" data-i18n="delete_loan">${I18n.t('delete_loan')}</button>
                     </div>
                 </div>`;
             }).join('')

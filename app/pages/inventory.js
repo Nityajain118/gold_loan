@@ -20,7 +20,7 @@ const InventoryPage = (() => {
                 <!-- ---- Add / Edit Form ---- -->
                 <div class="card inv-form-card">
                     <div class="card-header">
-                        <h3 class="card-title" id="inv-form-title">📦 Add Gold Item</h3>
+                        <h3 class="card-title" id="inv-form-title" data-i18n="nav_inventory">📦 ${I18n.t('nav_inventory')}</h3>
                         <span class="status-badge active" id="inv-form-badge">New</span>
                     </div>
                     <form id="inv-form" onsubmit="return false;">
@@ -81,7 +81,7 @@ const InventoryPage = (() => {
                 <!-- ---- Filter Bar ---- -->
                 <div class="card inv-list-card">
                     <div class="card-header">
-                        <h3 class="card-title">📋 Inventory Items</h3>
+                        <h3 class="card-title" data-i18n="nav_inventory">📋 ${I18n.t('nav_inventory')}</h3>
                     </div>
                     <div class="inv-filter-bar">
                         <input type="text" class="form-input inv-search" id="inv-search"
@@ -215,7 +215,7 @@ const InventoryPage = (() => {
         document.getElementById('inv-form').reset();
         setMetal('gold');
         document.getElementById('inv-custom-purity-group').style.display = 'none';
-        document.getElementById('inv-form-title').textContent = '📦 Add Gold Item';
+        document.getElementById('inv-form-title').innerHTML = `📦 ${I18n.t('nav_inventory')}`;
         document.getElementById('inv-form-badge').textContent = 'New';
         document.getElementById('inv-form-badge').className = 'status-badge active';
         document.getElementById('inv-cancel-btn').style.display = 'none';

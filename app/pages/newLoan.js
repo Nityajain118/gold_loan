@@ -14,31 +14,31 @@ const NewLoanPage = (() => {
         container.innerHTML = `
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">📝 Create New Loan</h3>
-                    <span class="status-badge active">New Loan</span>
+                    <h3 class="card-title" data-i18n="create_new_loan">${I18n.t('create_new_loan')}</h3>
+                    <span class="status-badge active" data-i18n="new_loan">${I18n.t('new_loan')}</span>
                 </div>
                 <form id="new-loan-form" onsubmit="return false;">
-                    <h4 class="mb-1" style="color:var(--primary);font-size:0.9rem;">👤 Customer Information</h4>
+                    <h4 class="mb-1" style="color:var(--primary);font-size:0.9rem;" data-i18n="customer_info">${I18n.t('customer_info')}</h4>
                     <div class="form-grid mb-2">
-                        ${UI.formGroup('Customer Name *', '<input type="text" class="form-input" id="nl-customer" required placeholder="Enter customer name" autocomplete="off">')}
-                        ${UI.formGroup('Mobile Number (10 digits)', `<input type="tel" class="form-input" id="nl-mobile" placeholder="10-digit number" maxlength="10" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/\\D/g,'').slice(0,10)">
+                        ${UI.formGroup(I18n.t('customer_name') + ' *', '<input type="text" class="form-input" id="nl-customer" required placeholder="' + I18n.t('customer_name') + '" autocomplete="off">')}
+                        ${UI.formGroup(I18n.t('mobile_number'), `<input type="tel" class="form-input" id="nl-mobile" placeholder="10-digit number" maxlength="10" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/\\D/g,'').slice(0,10)">
                             <span id="nl-mobile-err" class="form-hint" style="color:var(--danger);display:none;">Enter a valid 10-digit mobile number</span>`)}
-                        ${UI.formGroup('Locker Name', '<input type="text" class="form-input" id="nl-locker" placeholder="e.g., Locker A-12">')}
-                        ${UI.formGroup('Customer Caste', '<input type="text" class="form-input" id="nl-caste" placeholder="Optional Caste">')}
+                        ${UI.formGroup(I18n.t('locker_name'), '<input type="text" class="form-input" id="nl-locker" placeholder="e.g., Locker A-12">')}
+                        ${UI.formGroup(I18n.t('caste'), '<input type="text" class="form-input" id="nl-caste" placeholder="Optional Caste">')}
                     </div>
                     <div class="form-group mb-3">
-                        ${UI.formGroup('Customer Address', '<textarea class="form-input" id="nl-address" placeholder="Enter full address (optional)" style="height:70px;resize:vertical;"></textarea>')}
+                        ${UI.formGroup(I18n.t('address'), '<textarea class="form-input" id="nl-address" placeholder="Enter full address (optional)" style="height:70px;resize:vertical;"></textarea>')}
                     </div>
                     <div class="form-group mb-3">
-                        <label class="form-label">📸 Customer Photo</label>
+                        <label class="form-label" data-i18n="customer_photo">${I18n.t('customer_photo')}</label>
                         <div id="nl-customer-photo-wrap">${ImageUpload.renderUploader('nl-customer-photo', null, { label: 'Upload Customer Photo', compact: true, type: 'customer' })}</div>
                     </div>
 
-                    <h4 class="mb-1" style="color:var(--primary);font-size:0.9rem;">💍 Jewelry Items (up to ${MAX_ITEMS})</h4>
+                    <h4 class="mb-1" style="color:var(--primary);font-size:0.9rem;"><span data-i18n="jewelry_items">${I18n.t('jewelry_items')}</span> (up to ${MAX_ITEMS})</h4>
                     <p style="color:var(--text-muted);font-size:0.78rem;margin-bottom:12px;">Add each jewelry item separately. One person can pledge up to ${MAX_ITEMS} items.</p>
                     <div class="jewelry-items-list" id="nl-items-list"></div>
                     <div class="flex gap-1 mt-1 mb-2">
-                        <button type="button" class="btn btn-outline btn-sm" id="nl-add-item-btn" onclick="NewLoanPage.addItem()">➕ Add Another Item</button>
+                        <button type="button" class="btn btn-outline btn-sm" id="nl-add-item-btn" onclick="NewLoanPage.addItem()" data-i18n="add_another_item">${I18n.t('add_another_item')}</button>
                     </div>
 
                     <!-- Items Summary -->
@@ -52,19 +52,19 @@ const NewLoanPage = (() => {
                         <div class="items-summary-item"><div class="items-summary-label">Safe Loan (<span id="nl-ltv-label">75</span>% LTV)</div><div class="items-summary-value safe" id="nl-safe-loan">₹0</div></div>
                     </div>
 
-                    <h4 class="mb-1 mt-3" style="color:var(--primary);font-size:0.9rem;">💰 Loan Details</h4>
+                    <h4 class="mb-1 mt-3" style="color:var(--primary);font-size:0.9rem;" data-i18n="loan_details">${I18n.t('loan_details')}</h4>
                     <div class="form-grid mb-2">
-                        ${UI.formGroup('Loan Amount (₹) *', '<input type="number" class="form-input" id="nl-amount" required placeholder="Enter loan amount" min="1" onkeydown="NewLoanPage.blockInvalidKey(event)" oninput="NewLoanPage.recalc()">')}
-                        ${UI.formGroup('Interest Rate (%) *', '<input type="number" class="form-input" id="nl-rate" required placeholder="e.g., 2" step="0.01" min="0.01" onkeydown="NewLoanPage.blockInvalidKey(event)" oninput="NewLoanPage.recalc()">')}
-                        ${UI.formGroup('Interest Period', `
+                        ${UI.formGroup(I18n.t('loan_amount'), '<input type="number" class="form-input" id="nl-amount" required placeholder="' + I18n.t('loan_amount') + '" min="1" onkeydown="NewLoanPage.blockInvalidKey(event)" oninput="NewLoanPage.recalc()">')}
+                        ${UI.formGroup(I18n.t('interest_rate'), '<input type="number" class="form-input" id="nl-rate" required placeholder="e.g., 2" step="0.01" min="0.01" onkeydown="NewLoanPage.blockInvalidKey(event)" oninput="NewLoanPage.recalc()">')}
+                        ${UI.formGroup(I18n.t('interest_period'), `
                             <div class="segment-control" id="nl-period-group">
-                                <button type="button" class="segment-btn active" data-value="monthly" onclick="NewLoanPage.setPeriod('monthly')">Monthly</button>
-                                <button type="button" class="segment-btn" data-value="yearly" onclick="NewLoanPage.setPeriod('yearly')">Yearly</button>
+                                <button type="button" class="segment-btn active" data-value="monthly" onclick="NewLoanPage.setPeriod('monthly')" data-i18n="monthly">${I18n.t('monthly')}</button>
+                                <button type="button" class="segment-btn" data-value="yearly" onclick="NewLoanPage.setPeriod('yearly')" data-i18n="yearly">${I18n.t('yearly')}</button>
                             </div>`)}
-                        ${UI.formGroup('Interest Type', `
+                        ${UI.formGroup(I18n.t('interest_type'), `
                             <div class="segment-control" id="nl-type-group">
-                                <button type="button" class="segment-btn active" data-value="simple" onclick="NewLoanPage.setType('simple')">Simple</button>
-                                <button type="button" class="segment-btn" data-value="compound" onclick="NewLoanPage.setType('compound')">Compound</button>
+                                <button type="button" class="segment-btn active" data-value="simple" onclick="NewLoanPage.setType('simple')" data-i18n="simple">${I18n.t('simple')}</button>
+                                <button type="button" class="segment-btn" data-value="compound" onclick="NewLoanPage.setType('compound')" data-i18n="compound">${I18n.t('compound')}</button>
                             </div>`)}
                     </div>
                     <!-- Compounding Frequency (shown only for compound) -->
@@ -114,12 +114,12 @@ const NewLoanPage = (() => {
                     </div>
 
                     <div class="calc-panel" id="nl-calc-panel">
-                        <h4 style="font-size:0.9rem;margin-bottom:16px;color:var(--primary);">📊 Calculation Preview</h4>
+                        <h4 style="font-size:0.9rem;margin-bottom:16px;color:var(--primary);" data-i18n="calc_preview">${I18n.t('calc_preview')}</h4>
                         <div class="calc-grid">
-                            <div class="calc-item"><div class="calc-item-label">Total Interest</div><div class="calc-item-value" id="nl-calc-interest">₹0</div></div>
-                            <div class="calc-item"><div class="calc-item-label">Total Payable</div><div class="calc-item-value" id="nl-calc-payable">₹0</div></div>
-                            <div class="calc-item"><div class="calc-item-label">LTV</div><div class="calc-item-value" id="nl-calc-ltv">0%</div></div>
-                            <div class="calc-item"><div class="calc-item-label">Maturity Date</div><div class="calc-item-value" id="nl-calc-maturity" style="font-size:0.95rem;">—</div></div>
+                            <div class="calc-item"><div class="calc-item-label" data-i18n="total_interest">${I18n.t('total_interest')}</div><div class="calc-item-value" id="nl-calc-interest">₹0</div></div>
+                            <div class="calc-item"><div class="calc-item-label" data-i18n="total_payable">${I18n.t('total_payable')}</div><div class="calc-item-value" id="nl-calc-payable">₹0</div></div>
+                            <div class="calc-item"><div class="calc-item-label" data-i18n="ltv">${I18n.t('ltv')}</div><div class="calc-item-value" id="nl-calc-ltv">0%</div></div>
+                            <div class="calc-item"><div class="calc-item-label" data-i18n="maturity_date">${I18n.t('maturity_date')}</div><div class="calc-item-value" id="nl-calc-maturity" style="font-size:0.95rem;">—</div></div>
                             <div class="calc-item"><div class="calc-item-label">Maturity Tithi</div><div class="calc-item-value" id="nl-calc-maturity-tithi" style="font-size:0.8rem;">—</div></div>
                             <div class="calc-item"><div class="calc-item-label">Effective Annual Rate</div><div class="calc-item-value" id="nl-calc-ear">0%</div></div>
                             <div class="calc-item"><div class="calc-item-label">Break-even Price</div><div class="calc-item-value" id="nl-calc-breakeven">₹0/g</div></div>
@@ -128,7 +128,7 @@ const NewLoanPage = (() => {
                     </div>
 
                     <div class="flex gap-2 mt-3">
-                        <button type="button" class="btn btn-gold btn-lg" onclick="NewLoanPage.save()">💾 Save Loan</button>
+                        <button type="button" class="btn btn-gold btn-lg" onclick="NewLoanPage.save()" data-i18n="save_loan">${I18n.t('save_loan')}</button>
                     </div>
 
                     <!-- Risk Analysis Panel (auto-populated by recalc) -->
@@ -176,20 +176,20 @@ const NewLoanPage = (() => {
                 </div>
                 <div class="form-grid">
                     <div class="form-group">
-                        <label class="form-label">Metal</label>
+                        <label class="form-label" data-i18n="metal">${I18n.t('metal')}</label>
                         <select class="form-select" onchange="NewLoanPage.updateItem(${i},'metalType',this.value)">
                             <option value="gold" ${item.metalType === 'gold' ? 'selected' : ''}>🥇 Gold</option>
                             <option value="silver" ${item.metalType === 'silver' ? 'selected' : ''}>🥈 Silver</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Item Type</label>
+                        <label class="form-label" data-i18n="item_type">${I18n.t('item_type')}</label>
                         <select class="form-select" onchange="NewLoanPage.updateItem(${i},'itemType',this.value)">
                             ${types.map(t => `<option value="${t}" ${item.itemType === t ? 'selected' : ''}>${t}</option>`).join('')}
                         </select>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Purity</label>
+                        <label class="form-label" data-i18n="purity">${I18n.t('purity')}</label>
                         <select class="form-select" onchange="NewLoanPage.updateItem(${i},'purity',this.value)">
                             ${Calculator.buildItemPurityOptions(item.metalType, item.purity)}
                         </select>
@@ -204,14 +204,14 @@ const NewLoanPage = (() => {
                         <span class="form-hint">Enter purity as % (1–100)</span>
                     </div>` : ''}
                     <div class="form-group">
-                        <label class="form-label">Weight (g)</label>
+                        <label class="form-label" data-i18n="weight_g">${I18n.t('weight_g')}</label>
                         <input type="number" class="form-input" value="${item.weightGrams}" step="0.01" min="0.01" placeholder="0.00"
                             onkeydown="NewLoanPage.blockInvalidKey(event)"
                             oninput="NewLoanPage.updateItem(${i},'weightGrams',this.value)">
                     </div>
                 </div>
                 <div class="form-group mt-1">
-                    <label class="form-label">📸 Item Photo</label>
+                    <label class="form-label" data-i18n="item_photo">${I18n.t('item_photo')}</label>
                     ${ImageUpload.renderUploader('nl-item-photo-' + i, item.photo || null, { label: 'Upload Gold Item Photo', compact: true, type: 'gold' })}
                 </div>
                 ${weight > 0 ? `<div class="jewelry-item-value">Value: ${UI.currency(val)} (@ ₹${rate.toLocaleString('en-IN')}/g · ${(purityFactor * 100).toFixed(1)}% purity)</div>` : ''}
