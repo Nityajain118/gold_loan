@@ -125,7 +125,35 @@
 
         // Navigate to dashboard
         UI.navigateTo('dashboard');
+
+        // Load shop logo into sidebar
+        _loadSidebarLogo();
     }
+
+    function _loadSidebarLogo() {
+        try {
+            const settings = DB.getSettings();
+            const logoEl   = document.getElementById('sidebar-shop-logo');
+            const imgEl    = document.getElementById('sidebar-shop-logo-img');
+            const nameEl   = document.getElementById('sidebar-shop-name');
+            if (!logoEl || !imgEl) return;
+
+            const hasLogo = settings.logoUrl && settings.logoUrl.trim();
+            const hasName = settings.shopName && settings.shopName.trim();
+
+            if (hasLogo || hasName) {
+                logoEl.style.display = 'block';
+                if (hasLogo) imgEl.src = settings.logoUrl.trim();
+                else imgEl.style.display = 'none';
+                if (nameEl) nameEl.textContent = settings.shopName || '';
+            } else {
+                logoEl.style.display = 'none';
+            }
+        } catch(e) {}
+    }
+
+    // Expose so Settings page can refresh it after save
+    window._reloadSidebarLogo = function() { _loadSidebarLogo(); };
 
 
     // --- Navigation ---

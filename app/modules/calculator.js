@@ -217,7 +217,8 @@ const Calculator = (() => {
 
         // Calculate months elapsed — support Tithi mode
         const startDate = new Date(loan.loanStartDate);
-        const now = new Date();
+        const endDate = options.endDate ? new Date(options.endDate) : new Date();
+        const now = endDate;
         let monthsElapsed;
         let tithiDuration = null;
 
@@ -245,7 +246,7 @@ const Calculator = (() => {
         const monthsForCalc = Math.max(monthsElapsed, 1);
 
         // ── Exact day count ────────────────────────────────────────────────────
-        const daysElapsed = getExactDays(loan.loanStartDate, new Date());
+        const daysElapsed = getExactDays(loan.loanStartDate, endDate);
 
         // ── Interest calculation ──────────────────────────────────────────────
         let totalInterest;
@@ -262,7 +263,7 @@ const Calculator = (() => {
             monthlyInterest  = calculateMonthlyInterest(loan.loanAmount, monthlyRatePct);
         } else {
             // Simple Interest — day-wise with selected basis (360 or 365)
-            const dwResult   = calculateDayWiseInterest(loan.loanAmount, monthlyRatePct, loan.loanStartDate, new Date(), basis);
+            const dwResult   = calculateDayWiseInterest(loan.loanAmount, monthlyRatePct, loan.loanStartDate, endDate, basis);
             dayInterest      = dwResult.interest;
             totalInterest    = dayInterest;   // day-wise is authoritative
             monthlyInterest  = calculateMonthlyInterest(loan.loanAmount, monthlyRatePct);

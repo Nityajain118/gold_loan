@@ -98,8 +98,8 @@ const LoanDetailPage = (() => {
                 </div>
                 <div class="ld-header-right">
                     <span class="ld-badge ${badgeClass}">${badgeLabel}</span>
-                    <button class="ld-hdr-btn" onclick="Export.exportLoanPDF(DB.getLoan('${loan.id}'))">📄 Export PDF</button>
-                    <button class="ld-hdr-btn" onclick="LoanDetailPage.sendWhatsApp('${loan.id}')">💬 Send WhatsApp</button>
+                    <button class="ld-hdr-btn" onclick="Export.exportLoanPDF(DB.getLoan('${loan.id}'))">${I18n.t('export_pdf')}</button>
+                    <button class="ld-hdr-btn" onclick="LoanDetailPage.sendWhatsApp('${loan.id}')">${I18n.t('send_whatsapp')}</button>
                 </div>
             </div>
 
@@ -374,7 +374,8 @@ const LoanDetailPage = (() => {
         const principal = loan.originalLoanAmount || loan.loanAmount || 0;
         const startDate = loan.originalStartDate || loan.loanStartDate || new Date().toISOString().split('T')[0];
         let balance = principal;
-        loan.loanLedger.push({ date: startDate, particulars: `${loan.metalType === 'gold' ? '🥇' : '🥈'} Gold Loan Issued`, debit: principal, credit: 0, balance, type: 'loan' });
+        const loanIssuedLabel = `${loan.metalType === 'gold' ? '🥇' : '🥈'} Gold Loan Issued`;
+        loan.loanLedger.push({ date: startDate, particulars: loanIssuedLabel, debit: principal, credit: 0, balance, type: 'loan' });
         // Seed from payment history
         (loan.paymentHistory || []).slice().sort((a,b) => new Date(a.date)-new Date(b.date)).forEach(p => {
             balance = Math.max(0, balance - (p.paidAmount || 0));
@@ -411,6 +412,59 @@ const LoanDetailPage = (() => {
         render(document.getElementById('page-container'), loanId);
     }
 
+    // ── Ledger Translation Helper ─────────────────────────────────────────────
+    function _ledgerT() {
+        const isHi = (typeof I18n !== 'undefined') && I18n.getLang() === 'hi';
+        if (isHi) {
+            return {
+                ledger_title: '📒 ऋण बही',
+                day_wise:     '📅 दिनवार',
+                monthly:      '📆 मासिक',
+                date:         'दिनांक',
+                particulars:  'विवरण',
+                debit:        'डेबिट (₹)',
+                interest:     'ब्याज (₹)',
+                credit:       'क्रेडिट (₹)',
+                net_payable:  'कुल बकाया (₹)',
+                net_payable_footer: 'कुल बकाया (वित्तीय सारांश से मिलान)',
+                days_inline:  '({d} दिन)'
+            };
+        }
+        return {
+            ledger_title: '📒 Loan Ledger',
+            day_wise:     '📅 Day-wise',
+            monthly:      '📆 Monthly',
+            date:         'Date',
+            particulars:  'Particulars',
+            debit:        'Debit (₹)',
+            interest:     'Interest (₹)',
+            credit:       'Credit (₹)',
+            net_payable:  'Net Payable (₹)',
+            net_payable_footer: 'Net Payable (matches Financial Summary)',
+            days_inline:  '({d} days)'
+        };
+    }
+
+    // Translate stored particulars text (English) into the current language
+    function _translateParticulars(text, tl) {
+        const isHi = (typeof I18n !== 'undefined') && I18n.getLang() === 'hi';
+        if (!isHi) return text;
+        const map = {
+            'Gold Loan Issued':  'गोल्ड लोन जारी',
+            'Silver Loan Issued':'सिल्वर लोन जारी',
+            'Payment Received':  'भुगतान प्राप्त',
+            'Partial Payment':   'आंशिक भुगतान',
+            'Interest Applied':  'ब्याज जोड़ा गया',
+            'Discount Given':    'छूट दी गई',
+            'Loan Settled':      'ऋण निपटान',
+        };
+        // Check map keys (partial match for emoji-prefixed strings)
+        for (const [en, hi] of Object.entries(map)) {
+            if (text.includes(en)) return text.replace(en, hi);
+        }
+        return text;
+    }
+
     function _buildLedgerCardInner(loan, loanId) {
         const mode  = _ledgerMode;
         const basis = _interestBasis;
@@ -418,13 +472,14 @@ const LoanDetailPage = (() => {
         const btnMonthly = mode  === 'monthly' ? 'background:var(--primary);color:#fff;'  : 'background:var(--bg-input);color:var(--text-secondary);';
         const btn360     = basis === 360        ? 'background:var(--gold-dark);color:#fff;': 'background:var(--bg-input);color:var(--text-secondary);';
         const btn365     = basis === 365        ? 'background:var(--gold-dark);color:#fff;': 'background:var(--bg-input);color:var(--text-secondary);';
+        const tl = _ledgerT();
         return `
-            <div class="ld-section-title">📒 Loan Ledger
+            <div class="ld-section-title">${tl.ledger_title}
                 <span style="margin-left:auto;display:inline-flex;flex-wrap:wrap;gap:5px;">
                     <button onclick="LoanDetailPage.toggleLedgerMode('${loanId}')"
-                        style="${btnDaily}border:1px solid var(--border-color);padding:3px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;">📅 Day-wise</button>
+                        style="${btnDaily}border:1px solid var(--border-color);padding:3px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;">${tl.day_wise}</button>
                     <button onclick="LoanDetailPage.toggleLedgerMode('${loanId}')"
-                        style="${btnMonthly}border:1px solid var(--border-color);padding:3px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;">📆 Monthly</button>
+                        style="${btnMonthly}border:1px solid var(--border-color);padding:3px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;">${tl.monthly}</button>
                     <button onclick="LoanDetailPage.toggleInterestBasis('${loanId}')"
                         style="${btn360}border:1px solid var(--border-color);padding:3px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;">360d</button>
                     <button onclick="LoanDetailPage.toggleInterestBasis('${loanId}')"
@@ -514,13 +569,36 @@ const LoanDetailPage = (() => {
                     }
                 } catch(err) { displayBal = runningBal; }
 
+                // ── Compute running days ──────────────────────────────────────
+                let days = 0;
+                if (idx > 0 && e.date && ledger[idx-1].date) {
+                    const start = new Date(ledger[idx-1].date);
+                    const end = new Date(e.date);
+                    start.setHours(0,0,0,0);
+                    end.setHours(0,0,0,0);
+                    days = Math.max(0, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
+                }
+
+                const tl2 = _ledgerT();
+                let interestDisplay = '—';
+                if (rowInterest > 0) {
+                    // Reverse calculate days from actual interest to ensure 100% match with historical data
+                    const principal = idx > 0 ? (ledger[idx - 1].balance || origPrincipal) : origPrincipal;
+                    if (principal > 0 && annualRate > 0) {
+                        days = Math.round((rowInterest * basis) / (principal * (annualRate / 100)));
+                    }
+                    const daysLabel = tl2.days_inline.replace('{d}', days);
+                    interestDisplay = `${UI.currency(rowInterest)} <span style="font-size:0.65rem;color:var(--text-muted);margin-left:4px;font-weight:600;">${daysLabel}</span>`;
+                }
+
                 const interestColor = rowInterest > 0 ? 'color:var(--monitor);' : 'color:var(--text-secondary);';
                 const balColor      = idx === ledger.length - 1 ? 'color:var(--primary);' : 'color:var(--gold-dark);';
+                const translatedParticulars = _translateParticulars(e.particulars, tl2);
                 return `<tr>
                     <td style="font-size:0.82rem;">${UI.formatDate(e.date)}</td>
-                    <td style="font-size:0.85rem;font-weight:600;">${e.particulars}</td>
+                    <td style="font-size:0.85rem;font-weight:600;font-family:'Noto Sans Devanagari','Inter',sans-serif;">${translatedParticulars}</td>
                     <td style="${debitColor}font-weight:700;">${e.debit > 0 ? UI.currency(e.debit) : '—'}</td>
-                    <td style="${interestColor}font-weight:700;">${rowInterest > 0 ? UI.currency(rowInterest) : '—'}</td>
+                    <td style="${interestColor}font-weight:700;white-space:nowrap;">${interestDisplay}</td>
                     <td style="${creditColor}font-weight:700;">${e.credit > 0 ? UI.currency(e.credit) : '—'}</td>
                     <td style="${balColor}font-weight:800;">${UI.currency(displayBal)}</td>
                 </tr>`;
@@ -531,14 +609,15 @@ const LoanDetailPage = (() => {
                 ? UI.currency(netPayable)
                 : '₹0';
 
+            const tl = _ledgerT();
             return `<div class="ld-table-wrap"><table class="ld-table">
                 <thead><tr>
-                    <th>Date</th><th>Particulars</th><th>Debit (₹)</th>
-                    <th>Interest (₹)</th><th>Credit (₹)</th><th>Net Payable (₹)</th>
+                    <th>${tl.date}</th><th>${tl.particulars}</th><th>${tl.debit}</th>
+                    <th>${tl.interest}</th><th>${tl.credit}</th><th>${tl.net_payable}</th>
                 </tr></thead>
                 <tbody>${rows}
                 <tr class="ld-tfoot-row">
-                    <td colspan="5" style="font-weight:700;">Net Payable (matches Financial Summary)</td>
+                    <td colspan="5" style="font-weight:700;">${tl.net_payable_footer}</td>
                     <td style="font-weight:800;color:var(--primary);">${closingFmt}</td>
                 </tr>
                 </tbody>
@@ -897,7 +976,7 @@ const LoanDetailPage = (() => {
 
         const settings = DB.getSettings();
         const rate = loan.metalType === 'gold' ? settings.currentGoldRate : settings.currentSilverRate;
-        const d = Calculator.calcLoanDetails(loan, rate);
+        const d = Calculator.calcLoanDetails(loan, rate, { endDate: dateStr });
 
         if (amount > d.totalPayable) { UI.toast('Payment exceeds total payable', 'error'); return; }
 

@@ -91,9 +91,11 @@ const SettingsPage = (() => {
         const shopName = document.getElementById('set-shop-name').value.trim();
         const shopPhone = document.getElementById('set-shop-phone').value.trim();
         const shopAddress = document.getElementById('set-shop-address').value.trim();
-        const shopLogo = document.getElementById('set-shop-logo').value.trim();
-        DB.saveSettings({ shopName, shopPhone, shopAddress, shopLogo });
+        const logoUrl = document.getElementById('set-shop-logo').value.trim();
+        DB.saveSettings({ shopName, shopPhone, shopAddress, shopLogo: logoUrl, logoUrl });
         UI.toast('Shop branding saved', 'success');
+        // Refresh sidebar logo immediately
+        if (typeof window._reloadSidebarLogo === 'function') window._reloadSidebarLogo();
     }
 
     async function changePin() {
