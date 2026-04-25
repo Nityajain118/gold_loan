@@ -214,7 +214,9 @@ const NewLoanPage = (() => {
                     <label class="form-label" data-i18n="item_photo">${I18n.t('item_photo')}</label>
                     ${ImageUpload.renderUploader('nl-item-photo-' + i, item.photo || null, { label: 'Upload Gold Item Photo', compact: true, type: 'gold' })}
                 </div>
-                ${weight > 0 ? `<div class="jewelry-item-value">Value: ${UI.currency(val)} (@ ₹${rate.toLocaleString('en-IN')}/g · ${(purityFactor * 100).toFixed(1)}% purity)</div>` : ''}
+                <div id="nl-item-value-${i}">
+                    ${weight > 0 ? `<div class="jewelry-item-value">Value: ${UI.currency(val)} (@ ₹${rate.toLocaleString('en-IN')}/g · ${(purityFactor * 100).toFixed(1)}% purity)</div>` : ''}
+                </div>
             </div>`;
         }).join('');
 
@@ -241,12 +243,25 @@ const NewLoanPage = (() => {
             _state.items[index].itemType = types[0];
             _state.items[index].purity = value === 'gold' ? '22K' : '999';
             _state.items[index].customPurity = '';
+            renderItems();
+            return;
         }
-        if (field === 'purity' && value !== 'custom') {
-            _state.items[index].customPurity = '';
+        if (field === 'purity') {
+            if (value !== 'custom') {
+                _state.items[index].customPurity = '';
+            }
+            renderItems();
+            return;
+        }
+        if (field === 'itemType') {
+            renderItems();
+            return;
+        }
+        if (field === 'weightGrams') {
+            updateSummary();
+            return;
         }
         renderItems();
-        recalc();
     }
 
     function updateCustomPurity(index, value) {
@@ -257,13 +272,24 @@ const NewLoanPage = (() => {
 
     function updateSummary() {
         const rates = Market.getCurrentRates();
-        const items = _state.items.map(i => {
+        const items = _state.items.map((i, idx) => {
             const purityFactor = i.purity === 'custom'
                 ? (parseFloat(i.customPurity) || 0) / 100
                 : Calculator.getPurityFactor(i.purity);
             const w = parseFloat(i.weightGrams) || 0;
             const rate = i.metalType === 'gold' ? rates.gold : rates.silver;
-            return { ...i, weightGrams: w, purityFactor, _value: w * purityFactor * rate };
+            const val = w * purityFactor * rate;
+
+            const valEl = document.getElementById(`nl-item-value-${idx}`);
+            if (valEl) {
+                if (w > 0) {
+                    valEl.innerHTML = `<div class="jewelry-item-value">Value: ${UI.currency(val)} (@ ₹${rate.toLocaleString('en-IN')}/g · ${(purityFactor * 100).toFixed(1)}% purity)</div>`;
+                } else {
+                    valEl.innerHTML = '';
+                }
+            }
+
+            return { ...i, weightGrams: w, purityFactor, _value: val };
         });
 
         const totalItems = items.filter(i => i.weightGrams > 0).length;
@@ -281,10 +307,10 @@ const NewLoanPage = (() => {
         // Actual Gold Value = pureGoldWeight × gold market rate
         const actualGoldValue = pureGoldWeight * rates.gold;
 
-        // Safe Loan Amount = Gold Value × LTV percentage
+        // Safe Loan Amount = Total Metal Value × LTV percentage (covers gold + silver)
         const settings = DB.getSettings();
         const ltvPercentage = settings.ltvPercentage || 75;
-        const safeLoanAmount = actualGoldValue * (ltvPercentage / 100);
+        const safeLoanAmount = totalValue * (ltvPercentage / 100);
 
         const el = (id) => document.getElementById(id);
         if (el('nl-total-items')) el('nl-total-items').textContent = totalItems;
@@ -415,7 +441,8 @@ const NewLoanPage = (() => {
         actualGoldValue = pureGoldWeight * rates.gold;
         const settings = DB.getSettings();
         const ltvPercentage = settings.ltvPercentage || 75;
-        const safeLoanAmount = actualGoldValue * (ltvPercentage / 100);
+        // Use totalValue (all metals) so silver loans also show a safe loan amount
+        const safeLoanAmount = totalValue * (ltvPercentage / 100);
         const totalWeight = totalGoldWeight + totalSilverWeight;
 
         const annualRate = Calculator.toAnnualRate(rate, _state.interestPeriod);

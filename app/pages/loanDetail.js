@@ -374,7 +374,7 @@ const LoanDetailPage = (() => {
         const principal = loan.originalLoanAmount || loan.loanAmount || 0;
         const startDate = loan.originalStartDate || loan.loanStartDate || new Date().toISOString().split('T')[0];
         let balance = principal;
-        const loanIssuedLabel = `${loan.metalType === 'gold' ? '🥇' : '🥈'} Gold Loan Issued`;
+        const loanIssuedLabel = `${loan.metalType === 'gold' ? '🥇' : '🥈'} ${loan.metalType === 'gold' ? 'Gold' : 'Silver'} Loan Issued`;
         loan.loanLedger.push({ date: startDate, particulars: loanIssuedLabel, debit: principal, credit: 0, balance, type: 'loan' });
         // Seed from payment history
         (loan.paymentHistory || []).slice().sort((a,b) => new Date(a.date)-new Date(b.date)).forEach(p => {
@@ -423,6 +423,7 @@ const LoanDetailPage = (() => {
                 date:         'दिनांक',
                 particulars:  'विवरण',
                 debit:        'डेबिट (₹)',
+                calc_type:    'गणना प्रकार',
                 interest:     'ब्याज (₹)',
                 credit:       'क्रेडिट (₹)',
                 net_payable:  'कुल बकाया (₹)',
@@ -437,6 +438,7 @@ const LoanDetailPage = (() => {
             date:         'Date',
             particulars:  'Particulars',
             debit:        'Debit (₹)',
+            calc_type:    'Calc. Type',
             interest:     'Interest (₹)',
             credit:       'Credit (₹)',
             net_payable:  'Net Payable (₹)',
@@ -532,15 +534,12 @@ const LoanDetailPage = (() => {
                 const creditColor = e.credit > 0 ? 'color:var(--safe);'    : 'color:var(--text-secondary);';
 
                 // ── Compute display interest per row ──────────────────────────
+                // IMMUTABLE: Always use the stored interest value — frozen at save time.
+                // Changing the global mode selector never rewrites past entries.
                 let rowInterest = 0;
                 try {
                     if (e.type === 'payment' || e.type === 'interest') {
-                        if (mode === 'daily') {
-                            rowInterest = isFinite(e.interest) ? (e.interest || 0) : 0;
-                        } else {
-                            const prevBal = idx > 0 ? (ledger[idx - 1].balance || 0) : (e.balance || 0);
-                            rowInterest = Calculator.calculateMonthlyInterest(prevBal, monthlyRatePct);
-                        }
+                        rowInterest = isFinite(e.interest) ? (e.interest || 0) : 0;
                     }
                     if (!isFinite(rowInterest)) rowInterest = 0;
                 } catch(err) { rowInterest = 0; }
@@ -580,15 +579,30 @@ const LoanDetailPage = (() => {
                 }
 
                 const tl2 = _ledgerT();
+                // Badge showing how this entry's interest was calculated (frozen at save time)
+                const _badge = (() => {
+                    const s = 'font-size:0.62rem;padding:2px 6px;border-radius:8px;font-weight:600;white-space:nowrap;';
+                    const ct = e.calculationType;
+                    if (!ct) return `<span style="${s}color:var(--text-muted);">—</span>`;
+                    if (ct === 'DAY_WISE')     return `<span style="${s}background:rgba(99,102,241,0.15);color:#818cf8;">📅 360d</span>`;
+                    if (ct === 'DAY_WISE_365') return `<span style="${s}background:rgba(99,102,241,0.15);color:#818cf8;">📅 365d</span>`;
+                    if (ct === 'MONTHLY' || ct === 'MONTHLY_365') return `<span style="${s}background:rgba(251,146,60,0.15);color:#fb923c;">📆 Monthly</span>`;
+                    return `<span style="${s}background:var(--bg-input);color:var(--text-muted);">${ct}</span>`;
+                })();
                 let interestDisplay = '—';
                 if (rowInterest > 0) {
-                    // Reverse calculate days from actual interest to ensure 100% match with historical data
-                    const principal = idx > 0 ? (ledger[idx - 1].balance || origPrincipal) : origPrincipal;
-                    if (principal > 0 && annualRate > 0) {
-                        days = Math.round((rowInterest * basis) / (principal * (annualRate / 100)));
+                    const isMonthly = (e.calculationType === 'MONTHLY' || e.calculationType === 'MONTHLY_365');
+                    if (isMonthly) {
+                        interestDisplay = `${UI.currency(rowInterest)} <span style="font-size:0.65rem;color:var(--text-muted);margin-left:4px;font-weight:600;">Monthly</span>`;
+                    } else {
+                        // Reverse-calculate days from stored interest for transparency
+                        const principal = idx > 0 ? (ledger[idx - 1].balance || origPrincipal) : origPrincipal;
+                        if (principal > 0 && annualRate > 0) {
+                            days = Math.round((rowInterest * basis) / (principal * (annualRate / 100)));
+                        }
+                        const daysLabel = tl2.days_inline.replace('{d}', days);
+                        interestDisplay = `${UI.currency(rowInterest)} <span style="font-size:0.65rem;color:var(--text-muted);margin-left:4px;font-weight:600;">${daysLabel}</span>`;
                     }
-                    const daysLabel = tl2.days_inline.replace('{d}', days);
-                    interestDisplay = `${UI.currency(rowInterest)} <span style="font-size:0.65rem;color:var(--text-muted);margin-left:4px;font-weight:600;">${daysLabel}</span>`;
                 }
 
                 const interestColor = rowInterest > 0 ? 'color:var(--monitor);' : 'color:var(--text-secondary);';
@@ -598,6 +612,7 @@ const LoanDetailPage = (() => {
                     <td style="font-size:0.82rem;">${UI.formatDate(e.date)}</td>
                     <td style="font-size:0.85rem;font-weight:600;font-family:'Noto Sans Devanagari','Inter',sans-serif;">${translatedParticulars}</td>
                     <td style="${debitColor}font-weight:700;">${e.debit > 0 ? UI.currency(e.debit) : '—'}</td>
+                    <td style="text-align:center;">${_badge}</td>
                     <td style="${interestColor}font-weight:700;white-space:nowrap;">${interestDisplay}</td>
                     <td style="${creditColor}font-weight:700;">${e.credit > 0 ? UI.currency(e.credit) : '—'}</td>
                     <td style="${balColor}font-weight:800;">${UI.currency(displayBal)}</td>
@@ -613,11 +628,12 @@ const LoanDetailPage = (() => {
             return `<div class="ld-table-wrap"><table class="ld-table">
                 <thead><tr>
                     <th>${tl.date}</th><th>${tl.particulars}</th><th>${tl.debit}</th>
+                    <th style="text-align:center;">${tl.calc_type}</th>
                     <th>${tl.interest}</th><th>${tl.credit}</th><th>${tl.net_payable}</th>
                 </tr></thead>
                 <tbody>${rows}
                 <tr class="ld-tfoot-row">
-                    <td colspan="5" style="font-weight:700;">${tl.net_payable_footer}</td>
+                    <td colspan="6" style="font-weight:700;">${tl.net_payable_footer}</td>
                     <td style="font-weight:800;color:var(--primary);">${closingFmt}</td>
                 </tr>
                 </tbody>
@@ -688,10 +704,17 @@ const LoanDetailPage = (() => {
     // ── Modal: Partial Payment (action panel button) ──────────────────────────
     function showPartialPaymentModal2(loanId, totalPayable, remainingInterest) {
         document.getElementById('hisaab-modal')?.remove();
+        const modeLabel = _ledgerMode === 'monthly' ? '📆 Monthly' : '📅 Day-wise';
+        const basisLabel = _interestBasis === 365 ? '365 Days' : '360 Days';
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay'; overlay.id = 'hisaab-modal';
         overlay.innerHTML = `<div class="modal"><h3 class="modal-title">💵 Partial Payment</h3>
             <p class="text-muted mb-2" style="font-size:0.85rem;">Total Due: <strong>${UI.currency(totalPayable)}</strong></p>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px 12px;border-radius:8px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);">
+                <span style="font-size:0.75rem;color:var(--text-muted);">Interest calculated using:</span>
+                <span style="font-size:0.75rem;font-weight:700;color:#818cf8;">${modeLabel} · ${basisLabel}</span>
+                <span style="font-size:0.68rem;color:var(--text-muted);margin-left:auto;">🔒 Frozen on save</span>
+            </div>
             <div class="form-group mb-2"><label class="form-label">Payment Amount (₹) *</label>
                 <input type="number" class="form-input" id="pay-amount" placeholder="Enter amount" min="1"></div>
             <div class="form-group mb-2"><label class="form-label">Payment Date *</label>
@@ -1030,7 +1053,19 @@ const LoanDetailPage = (() => {
         const particulars = note
             ? `💵 Payment Received 📝 ${note}`
             : '💵 Payment Received';
-        _saveLedgerEntry(loan, { date: dateStr, particulars, debit: 0, interest: interestDeducted, credit: amount, type: 'payment' });
+        // Stamp the entry with the active calculation type so it is immutable.
+        // Switching the global mode later will NEVER recalculate this stored interest.
+        const _calcType = _ledgerMode === 'monthly'
+            ? (_interestBasis === 365 ? 'MONTHLY_365' : 'MONTHLY')
+            : (_interestBasis === 365 ? 'DAY_WISE_365' : 'DAY_WISE');
+        const _daysForEntry = Calculator.getExactDays(loan.loanStartDate, dateStr);
+        _saveLedgerEntry(loan, {
+            date: dateStr, particulars, debit: 0,
+            interest: interestDeducted, credit: amount,
+            type: 'payment',
+            calculationType: _calcType,
+            daysCount: _daysForEntry
+        });
         DB.saveLoan(loan);
         document.querySelector('.modal-overlay')?.remove();
         document.getElementById('hisaab-modal')?.remove();

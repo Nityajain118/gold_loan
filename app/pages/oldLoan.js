@@ -196,7 +196,9 @@ const OldLoanPage = (() => {
                             onkeydown="OldLoanPage.blockInvalidKey(event)"
                             oninput="OldLoanPage.updateItem(${i},'weightGrams',this.value)"></div>
                 </div>
-                ${w > 0 ? `<div class="jewelry-item-value">Value: ${UI.currency(val)} (@ ₹${rate.toLocaleString('en-IN')}/g · ${(pf * 100).toFixed(1)}% purity)</div>` : ''}
+                <div id="ol-item-value-${i}">
+                    ${w > 0 ? `<div class="jewelry-item-value">Value: ${UI.currency(val)} (@ ₹${rate.toLocaleString('en-IN')}/g · ${(pf * 100).toFixed(1)}% purity)</div>` : ''}
+                </div>
             </div>`;
         }).join('');
         updateSummary();
@@ -213,9 +215,23 @@ const OldLoanPage = (() => {
             _state.items[i].itemType = Calculator.getJewelryTypes(v)[0];
             _state.items[i].purity = v === 'gold' ? '22K' : '999';
             _state.items[i].customPurity = '';
+            renderItems();
+            return;
         }
-        if (f === 'purity' && v !== 'custom') {
-            _state.items[i].customPurity = '';
+        if (f === 'purity') {
+            if (v !== 'custom') {
+                _state.items[i].customPurity = '';
+            }
+            renderItems();
+            return;
+        }
+        if (f === 'itemType') {
+            renderItems();
+            return;
+        }
+        if (f === 'weightGrams') {
+            updateSummary();
+            return;
         }
         renderItems(); recalc();
     }
@@ -228,12 +244,23 @@ const OldLoanPage = (() => {
     function updateSummary() {
         const rates = Market.getCurrentRates();
         let totalGoldWeight = 0, totalSilverWeight = 0, totalValue = 0, goldItems = 0, silverItems = 0;
-        _state.items.forEach(i => {
+        _state.items.forEach((i, idx) => {
             const w = parseFloat(i.weightGrams) || 0;
-            if (w <= 0) return;
             const pf = i.purity === 'custom' ? (parseFloat(i.customPurity) || 0) / 100 : Calculator.getPurityFactor(i.purity);
             const r = i.metalType === 'gold' ? rates.gold : rates.silver;
-            totalValue += w * pf * r;
+            const val = w * pf * r;
+
+            const valEl = document.getElementById(`ol-item-value-${idx}`);
+            if (valEl) {
+                if (w > 0) {
+                    valEl.innerHTML = `<div class="jewelry-item-value">Value: ${UI.currency(val)} (@ ₹${r.toLocaleString('en-IN')}/g · ${(pf * 100).toFixed(1)}% purity)</div>`;
+                } else {
+                    valEl.innerHTML = '';
+                }
+            }
+
+            if (w <= 0) return;
+            totalValue += val;
             if (i.metalType === 'gold') { totalGoldWeight += w; goldItems++; } else { totalSilverWeight += w; silverItems++; }
         });
         const totalItems = goldItems + silverItems;

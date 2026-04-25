@@ -29,7 +29,7 @@ const SettingsPage = (() => {
                 <h3 class="card-title mb-2" data-i18n="shop_branding">${I18n.t('shop_branding')}</h3>
                 <div class="form-grid">
                     ${UI.formGroup(I18n.t('shop_name'), `<input type="text" class="form-input" id="set-shop-name" value="${settings.shopName || ''}">`)}
-                    ${UI.formGroup(I18n.t('phone'), `<input type="text" class="form-input" id="set-shop-phone" value="${settings.shopPhone || ''}">`)}
+                    ${UI.formGroup(I18n.t('phone'), `<input type="text" class="form-input" id="set-shop-phone" value="${settings.shopPhone || ''}" maxlength="10" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">`)}
                 </div>
                 ${UI.formGroup(I18n.t('shop_address'), `<textarea class="form-textarea mt-1" id="set-shop-address">${settings.shopAddress || ''}</textarea>`)}
                 ${UI.formGroup(I18n.t('logo_url'), `<input type="text" class="form-input mt-1" id="set-shop-logo" value="${settings.shopLogo || ''}" placeholder="https://example.com/logo.png">`)}
