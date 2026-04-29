@@ -100,8 +100,83 @@ const Market = (() => {
         return getCurrentRates();
     }
 
+    /**
+     * Show modal to update market rates manually from the ticker
+     */
+    function showUpdateModal() {
+        document.getElementById('market-rate-modal')?.remove();
+        
+        const rates = getCurrentRates();
+        const isHi = (typeof I18n !== 'undefined') && I18n.getLang() === 'hi';
+        const t = {
+            title: isHi ? '📈 मार्केट रेट अपडेट करें' : '📈 Update Market Rates',
+            gold: isHi ? 'गोल्ड रेट (₹/ग्राम)' : 'Gold Rate (₹/gram)',
+            silver: isHi ? 'सिल्वर रेट (₹/ग्राम)' : 'Silver Rate (₹/gram)',
+            cancel: isHi ? 'रद्द करें' : 'Cancel',
+            save: isHi ? 'सेव करें' : 'Save Rates',
+            success: isHi ? 'मार्केट रेट अपडेट हो गए!' : 'Market rates updated successfully!'
+        };
+
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.id = 'market-rate-modal';
+        overlay.innerHTML = `
+            <div class="modal" style="max-width: 400px;">
+                <h3 class="modal-title">${t.title}</h3>
+                
+                <div class="form-group mb-2">
+                    <label class="form-label">🥇 ${t.gold}</label>
+                    <input type="number" class="form-input" id="modal-gold-rate" value="${rates.gold}" min="1">
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label class="form-label">🥈 ${t.silver}</label>
+                    <input type="number" class="form-input" id="modal-silver-rate" value="${rates.silver}" min="1">
+                </div>
+                
+                <div class="modal-actions">
+                    <button class="btn btn-outline" onclick="document.getElementById('market-rate-modal').remove()">${t.cancel}</button>
+                    <button class="btn btn-primary" id="modal-save-rates">${t.save}</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        // Click outside to close
+        overlay.onclick = (e) => {
+            if (e.target === overlay) overlay.remove();
+        };
+
+        // Save action
+        document.getElementById('modal-save-rates').onclick = () => {
+            const newGold = parseFloat(document.getElementById('modal-gold-rate').value);
+            const newSilver = parseFloat(document.getElementById('modal-silver-rate').value);
+            
+            if (!newGold || !newSilver || newGold <= 0 || newSilver <= 0) {
+                if (typeof UI !== 'undefined') UI.toast('Please enter valid rates', 'error');
+                return;
+            }
+
+            setManualRates(newGold, newSilver);
+            updateTicker();
+            overlay.remove();
+            
+            if (typeof UI !== 'undefined') UI.toast(t.success, 'success');
+            
+            // If we are on the Market page, refresh it
+            const pageTitle = document.getElementById('page-title');
+            if (pageTitle && (pageTitle.textContent === 'Market Rates' || pageTitle.textContent === 'मार्केट रेट')) {
+                const container = document.getElementById('page-container');
+                if (typeof MarketPage !== 'undefined' && container) {
+                    MarketPage.render(container);
+                }
+            }
+        };
+    }
+
     return {
         fetchLiveRates, getCurrentRates, setManualRates,
-        getRate, updateTicker, autoRefresh
+        getRate, updateTicker, autoRefresh, showUpdateModal
     };
 })();

@@ -243,7 +243,11 @@ const I18n = (() => {
             "normal_mode": "📅 Normal",
             "tithi_mode_label": "🌙 Tithi",
             "gold_label": "Gold",
-            "silver_label": "Silver"
+            "silver_label": "Silver",
+            "active_khata_summary": "ACTIVE KHATA SUMMARY",
+            "net_principal": "Net Principal",
+            "interest_till_today": "Interest (Till Today)",
+            "final_payable": "Final Payable"
         },
         hi: {
             "nav_dashboard": "डैशबोर्ड",
@@ -483,7 +487,11 @@ const I18n = (() => {
             "normal_mode": "📅 सामान्य",
             "tithi_mode_label": "🌙 तिथि",
             "gold_label": "सोना",
-            "silver_label": "चांदी"
+            "silver_label": "चांदी",
+            "active_khata_summary": "सक्रिय खाता सारांश",
+            "net_principal": "शुद्ध मूलधन",
+            "interest_till_today": "ब्याज (आज तक)",
+            "final_payable": "अंतिम देय"
         }
     };
 

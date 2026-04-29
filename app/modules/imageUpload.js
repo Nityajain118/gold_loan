@@ -9,21 +9,21 @@ const ImageUpload = (() => {
     // Compression profiles for different image types
     const COMPRESSION_PROFILES = {
         'customer': {
-            maxSizeKB: 120,
-            maxDimension: 800,
-            qualityRange: [0.70, 0.60], // Start at 70%, go down to 60%
+            maxSizeKB: 250,
+            maxDimension: 1024,
+            qualityRange: [0.90, 0.60],
             description: '👤 Customer Photo'
         },
         'gold': {
-            maxSizeKB: 400,
-            maxDimension: 1400,
-            qualityRange: [0.85, 0.70], // Start at 85%, go down to 70%
+            maxSizeKB: 250,
+            maxDimension: 1024,
+            qualityRange: [0.90, 0.60],
             description: '🪙 Gold Item Photo'
         },
         'default': {
-            maxSizeKB: 500,
-            maxDimension: 800,
-            qualityRange: [0.80, 0.60],
+            maxSizeKB: 250,
+            maxDimension: 1024,
+            qualityRange: [0.90, 0.60],
             description: 'Photo'
         }
     };

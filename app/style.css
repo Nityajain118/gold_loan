@@ -4251,6 +4251,21 @@ html, body {
     box-shadow: none;
     margin-top: 16px;
 }
+.hk-khata-summary .hk-live-label {
+    color: var(--text-secondary);
+}
+.hk-khata-summary .hk-live-val {
+    color: var(--text-primary);
+}
+.hk-khata-summary .hk-live-net {
+    border-color: var(--border-light);
+}
+.hk-khata-summary .hk-live-net .hk-live-label {
+    color: var(--text-primary);
+}
+.hk-khata-summary .hk-live-net .hk-live-val {
+    color: var(--primary);
+}
 .hk-khata-summary-title {
     font-size: 0.95rem;
     font-weight: 800;

@@ -201,8 +201,125 @@ const UI = (() => {
         return `${Math.round(months)} month${months !== 1 ? 's' : ''}`;
     }
 
+    /**
+     * Enlarge an image in a fullscreen modal
+     */
+    function enlargeImage(src) {
+        if (!src) return;
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.style.zIndex = '9999';
+        overlay.style.backgroundColor = 'rgba(0,0,0,0.85)';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.style.cursor = 'pointer';
+        overlay.innerHTML = `
+            <div style="position:relative; max-width:90%; max-height:90%; cursor:default;" onclick="event.stopPropagation()">
+                <img src="${src}" style="max-width:100%; max-height:90vh; border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.5);" />
+                <button onclick="this.parentElement.parentElement.remove()" style="position:absolute; top:-15px; right:-15px; width:30px; height:30px; border-radius:50%; background:var(--danger); color:white; border:none; cursor:pointer; font-weight:bold; font-size:16px; box-shadow:0 2px 10px rgba(0,0,0,0.3);">✕</button>
+            </div>
+        `;
+        overlay.onclick = (e) => {
+            if (e.target === overlay) overlay.remove();
+        };
+        document.body.appendChild(overlay);
+    }
+
+    /**
+     * Show image interaction options (Bottom Sheet style)
+     */
+    function showImageOptions(hasImage) {
+        return new Promise((resolve) => {
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.style.alignItems = 'flex-end'; // bottom sheet
+            
+            const optionsHtml = hasImage ? `
+                <button class="btn btn-outline full-width mb-2" id="img-opt-view" style="justify-content:flex-start;">🖼️ View Full Image</button>
+                <button class="btn btn-outline full-width mb-2" id="img-opt-change" style="justify-content:flex-start;">📸 Change Photo</button>
+                <button class="btn btn-outline full-width mb-3 text-danger" id="img-opt-remove" style="justify-content:flex-start;border-color:var(--danger);color:var(--danger);">🗑️ Remove Photo</button>
+            ` : `
+                <button class="btn btn-outline full-width mb-3" id="img-opt-upload" style="justify-content:flex-start;">📸 Upload / Capture Photo</button>
+            `;
+
+            overlay.innerHTML = `
+                <div class="modal-content" style="margin-bottom:0; border-bottom-left-radius:0; border-bottom-right-radius:0; animation: slideUp 0.3s ease-out;">
+                    <h3 class="mb-3">Photo Options</h3>
+                    ${optionsHtml}
+                    <button class="btn btn-ghost full-width" id="img-opt-cancel">Cancel</button>
+                </div>
+            `;
+            
+            // Add keyframes for slideUp if not exists
+            if (!document.getElementById('slideUp-keyframe')) {
+                const style = document.createElement('style');
+                style.id = 'slideUp-keyframe';
+                style.innerHTML = '@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }';
+                document.head.appendChild(style);
+            }
+
+            document.body.appendChild(overlay);
+
+            const close = (action) => { overlay.remove(); resolve(action); };
+
+            if (hasImage) {
+                overlay.querySelector('#img-opt-view').onclick = () => close('view');
+                overlay.querySelector('#img-opt-change').onclick = () => close('change');
+                overlay.querySelector('#img-opt-remove').onclick = () => close('remove');
+            } else {
+                overlay.querySelector('#img-opt-upload').onclick = () => close('upload');
+            }
+            overlay.querySelector('#img-opt-cancel').onclick = () => close(null);
+            overlay.onclick = (e) => { if (e.target === overlay) close(null); };
+        });
+    }
+
+    /**
+     * Prompt for image upload and return compressed base64
+     */
+    function promptImageUpload(profile = 'default') {
+        return new Promise((resolve) => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/jpeg,image/png,image/webp';
+            input.style.display = 'none';
+            document.body.appendChild(input);
+
+            input.onchange = () => {
+                const file = input.files[0];
+                if (!file) { input.remove(); return resolve(null); }
+                
+                if (file.size > 5 * 1024 * 1024) {
+                    toast('Image too large. Max 5MB allowed.', 'error');
+                    input.remove();
+                    return resolve(null);
+                }
+
+                if (typeof ImageUpload !== 'undefined') {
+                    ImageUpload.compressImage(file, profile, (result) => {
+                        input.remove();
+                        resolve(result ? result.base64 : null);
+                    });
+                } else {
+                    toast('ImageUpload module not loaded', 'error');
+                    input.remove();
+                    resolve(null);
+                }
+            };
+            
+            // Handle cancellation (not perfectly supported in all browsers, but cleans up)
+            window.addEventListener('focus', function onFocus() {
+                setTimeout(() => { if (!input.files.length) input.remove(); }, 1000);
+                window.removeEventListener('focus', onFocus);
+            });
+
+            input.click();
+        });
+    }
+
     return {
         toast, navigateTo, currency, formatDate, pct, html, confirm, formGroup,
-        formatTithi, formatDuration
+        formatTithi, formatDuration, enlargeImage, showImageOptions, promptImageUpload
     };
 })();

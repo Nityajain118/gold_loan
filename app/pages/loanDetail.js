@@ -37,7 +37,7 @@ const LoanDetailPage = (() => {
         const silverItemsCount = items.filter(it => it.metalType === 'silver').length;
         const origPrincipal    = loan.originalLoanAmount || loan.loanAmount || 0;
         const totalPaid        = _getTotalPaid(loan);
-        const netPayable       = _netPayable(loan, d);
+        const netPayable       = _hkNetPayable(loan);
         const loanStatus       = loan.status || 'active';
         const badgeClass       = loan.isMigrated ? 'ld-badge-migrated' : (loanStatus === 'closed' ? 'ld-badge-closed' : 'ld-badge-active');
         const badgeLabel       = loan.isMigrated ? '📥 Migrated' : (loanStatus === 'closed' ? '🔴 CLOSED' : '🟢 ACTIVE LOAN');
@@ -53,7 +53,7 @@ const LoanDetailPage = (() => {
             const v = Calculator.calcMetalValue(it.weightGrams || 0, it.purity, r);
             return `<tr>
                 <td>${i + 1}</td>
-                <td>${it.photo ? `<img src="${it.photo}" style="width:28px;height:28px;border-radius:4px;margin-right:6px;vertical-align:middle;"/>` : ''}<strong>${it.itemType || '—'}</strong></td>
+                <td>${it.photo ? `<img src="${it.photo}" onclick="LoanDetailPage.handleImageTap('${loan.id}', 'item', ${i})" style="width:28px;height:28px;border-radius:4px;margin-right:6px;vertical-align:middle;cursor:pointer;" title="Tap to view options"/>` : `<div onclick="LoanDetailPage.handleImageTap('${loan.id}', 'item', ${i})" style="width:28px;height:28px;border-radius:4px;margin-right:6px;background:var(--bg-hover);color:var(--text-muted);display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;cursor:pointer;font-size:12px;" title="Tap to add photo">📷</div>`}<strong>${it.itemType || '—'}</strong></td>
                 <td>${it.metalType === 'gold' ? '🥇 Gold' : '🥈 Silver'}</td>
                 <td>${it.purity || '—'}</td>
                 <td>${(it.weightGrams || 0).toFixed(2)} g</td>
@@ -85,7 +85,7 @@ const LoanDetailPage = (() => {
             <!-- A. Header Card -->
             <div class="ld-header">
                 <div class="ld-header-left">
-                    <div class="ld-avatar">${initials}</div>
+                    ${loan.customerPhoto ? `<img src="${loan.customerPhoto}" onclick="LoanDetailPage.handleImageTap('${loan.id}', 'customer')" class="ld-avatar" style="object-fit:cover; border: 2px solid var(--border-color); background: var(--bg-card); cursor:pointer;" title="Tap to view options" alt="Customer Photo">` : `<div class="ld-avatar" onclick="LoanDetailPage.handleImageTap('${loan.id}', 'customer')" style="cursor:pointer;" title="Tap to upload photo">${initials}</div>`}
                     <div>
                         <div class="ld-name">${loan.customerName || '—'}</div>
                         <div class="ld-meta">
@@ -244,7 +244,7 @@ const LoanDetailPage = (() => {
                         <span class="ld-action-btn-label">Add Adjustment</span>
                         <span class="ld-action-btn-sub">Add manual adjustment</span>
                     </button>
-                    <button class="ld-action-btn blue" onclick="LoanDetailPage.showPartialPaymentModal2('${loan.id}',${d.totalPayable},${d.remainingInterest})">
+                    <button class="ld-action-btn blue" onclick="LoanDetailPage.showPartialPaymentModal2('${loan.id}')">
                         <span class="ld-action-btn-icon">💵</span>
                         <span class="ld-action-btn-label">Payment</span>
                         <span class="ld-action-btn-sub">Record payment</span>
@@ -254,7 +254,7 @@ const LoanDetailPage = (() => {
                         <span class="ld-action-btn-label">Discount</span>
                         <span class="ld-action-btn-sub">Apply discount</span>
                     </button>
-                    <button class="ld-action-btn purple" onclick="LoanDetailPage.showSettleModal2('${loan.id}',${d.totalPayable})">
+                    <button class="ld-action-btn purple" onclick="LoanDetailPage.showSettleModal2('${loan.id}')">
                         <span class="ld-action-btn-icon">✅</span>
                         <span class="ld-action-btn-label">Settle Loan</span>
                         <span class="ld-action-btn-sub">Settle the loan</span>
@@ -277,40 +277,13 @@ const LoanDetailPage = (() => {
                 <div class="ld-summary-row"><span class="ld-summary-key">Status</span><span class="ld-summary-val" style="color:var(--safe);">${loan.settlement.status}</span></div>
             </div>` : ''}
 
-            <!-- G. Bottom Summary: 3 Cards -->
-            <div class="ld-summary-grid">
-
-                <!-- Interest Summary -->
-                <div class="ld-summary-card" id="interest-summary-${loan.id}">
-                    <div class="ld-summary-title">% Interest Summary</div>
-
-                    <!-- Mode + Basis Controls -->
-                    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
-                        <button onclick="LoanDetailPage.toggleLedgerMode('${loan.id}')" style="${_ledgerMode==='daily'?'background:var(--primary);color:#fff;':'background:var(--bg-input);color:var(--text-secondary);'}border:1px solid var(--border-color);padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;">📅 Day-wise</button>
-                        <button onclick="LoanDetailPage.toggleLedgerMode('${loan.id}')" style="${_ledgerMode==='monthly'?'background:var(--primary);color:#fff;':'background:var(--bg-input);color:var(--text-secondary);'}border:1px solid var(--border-color);padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;">📆 Monthly</button>
-                        <button onclick="LoanDetailPage.toggleInterestBasis('${loan.id}')" style="${_interestBasis===360?'background:var(--gold-dark);color:#fff;':'background:var(--bg-input);color:var(--text-secondary);'}border:1px solid var(--border-color);padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;">360 Days</button>
-                        <button onclick="LoanDetailPage.toggleInterestBasis('${loan.id}')" style="${_interestBasis===365?'background:var(--gold-dark);color:#fff;':'background:var(--bg-input);color:var(--text-secondary);'}border:1px solid var(--border-color);padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;">365 Days</button>
-                    </div>
-
-                    <div class="ld-summary-row"><span class="ld-summary-key">Interest Type</span><span class="ld-summary-val">${loan.interestType === 'compound' ? 'Compound' : 'Simple Interest'}</span></div>
-                    <div class="ld-summary-row"><span class="ld-summary-key">Monthly Rate</span><span class="ld-summary-val">${loan.interestPeriod === 'yearly' ? (loan.interestRate/12).toFixed(2) : loan.interestRate}%</span></div>
-                    <div class="ld-summary-row"><span class="ld-summary-key">Days Passed</span><span class="ld-summary-val" style="color:var(--primary);font-weight:700;">${d.daysElapsed} days</span></div>
-                    <div class="ld-summary-row"><span class="ld-summary-key">Basis Used</span><span class="ld-summary-val" style="color:var(--gold-dark);font-weight:700;">${_interestBasis} Days</span></div>
-                    <div class="ld-summary-row"><span class="ld-summary-key">Interest till last entry</span><span class="ld-summary-val">${UI.currency(_interestTillLastPayment(loan))}</span></div>
-                    <div class="ld-summary-row"><span class="ld-summary-key">Current Interest (Today)</span><span class="ld-summary-val" style="color:var(--monitor);font-weight:700;">${UI.currency(_ledgerMode === 'monthly' ? d.monthlyInterest : d.dayInterest)}</span></div>
-                    <div class="ld-summary-row" style="opacity:0.7;"><span class="ld-summary-key">Monthly Interest (Ref.)</span><span class="ld-summary-val">${UI.currency(d.monthlyInterest)}</span></div>
-                    <div class="ld-total-interest-row">
-                        <span class="ld-summary-key">Total Interest</span>
-                        <span class="ld-summary-val">${UI.currency(_ledgerMode === 'monthly' ? d.monthlyInterest : d.dayInterest)}</span>
-                    </div>
-                </div>
-
-                <!-- Financial Summary -->
+            <!-- G. Bottom Summary: 2 Cards -->
+            <div class="ld-summary-grid">                <!-- Financial Summary -->
                 <div class="ld-summary-card">
                     <div class="ld-summary-title">💰 Financial Summary</div>
                     <div class="ld-summary-row"><span class="ld-summary-key">Principal Amount</span><span class="ld-summary-val">${UI.currency(origPrincipal)}</span></div>
                     <div class="ld-summary-row"><span class="ld-summary-key">Total Paid</span><span class="ld-summary-val">${UI.currency(totalPaid)}</span></div>
-                    <div class="ld-summary-row"><span class="ld-summary-key">Total Interest</span><span class="ld-summary-val">${UI.currency(d.totalInterest)}</span></div>
+                    <div class="ld-summary-row"><span class="ld-summary-key">Total Interest</span><span class="ld-summary-val">${UI.currency(_hkTotalInterest(loan))}</span></div>
                     <div class="ld-summary-row"><span class="ld-summary-key">Total Discount</span><span class="ld-summary-val">${UI.currency(loan.totalDiscount || 0)}</span></div>
                     <div class="ld-summary-row"><span class="ld-summary-key">Adjustments</span><span class="ld-summary-val">${UI.currency(loan.totalAdjustment || 0)}</span></div>
                     <div class="ld-net-payable-row">
@@ -367,55 +340,89 @@ const LoanDetailPage = (() => {
     }
 
     // ── Calculation Helpers ───────────────────────────────────────────────────
-    function _netPayable(loan, d) {
-        if (!loan || !d) return 0;
-        const base = d.totalPayable || 0;
-        return Math.max(0, base - (loan.totalDiscount || 0) + (loan.totalAdjustment || 0));
+
+    // ── Centralized delegate — all values from ONE call to calculateSummary ──────────
+    function _hkSummary(loan) {
+        if (!loan) return { totalDebit: 0, totalCredit: 0, totalInterest: 0, netPayable: 0, entries: [] };
+        try { return HisabKitaabPage.calculateSummary(loan); }
+        catch(e) { console.error('_hkSummary', e); return { totalDebit: 0, totalCredit: 0, totalInterest: 0, netPayable: 0, entries: [] }; }
     }
+    function _hkNetPayable(loan)    { return _hkSummary(loan).netPayable; }
+    function _hkTotalInterest(loan) { return _hkSummary(loan).totalInterest; }
+    /** Kept for callers that pass (loan, d) — ignores d, derives from HK */
+    function _netPayable(loan, _d)  { return _hkNetPayable(loan); }
 
     function _getTotalPaid(loan) {
         if (!loan) return 0;
-        const fromHistory = (loan.paymentHistory || []).reduce((s, p) => s + (p.paidAmount || 0), 0);
-        const fromLedger  = (loan.loanLedger || []).filter(e => e.type === 'payment').reduce((s, e) => s + (e.credit || 0), 0);
-        return Math.max(fromHistory, fromLedger);
-    }
-
-    function _interestTillLastPayment(loan) {
-        if (!loan) return 0;
         try {
-            const ph = (loan.paymentHistory || []);
-            if (ph.length === 0) return 0;
-            return ph.reduce((s, p) => s + (p.interestDeducted || 0), 0);
+            HisabKitaabPage.initHK(loan);
+            const hk = loan.hisabKitaab || [];
+            return hk
+                .filter(e => e.type === 'payment' || e.type === 'settle')
+                .reduce((s, e) => s + (parseFloat(e.paid) || parseFloat(e.amount) || 0), 0);
         } catch(e) { return 0; }
     }
 
-    function _initLedger(loan) {
-        if (loan.loanLedger && loan.loanLedger.length > 0) return;
-        loan.loanLedger = [];
-        // Seed from original disbursement
-        const principal = loan.originalLoanAmount || loan.loanAmount || 0;
-        const startDate = loan.originalStartDate || loan.loanStartDate || new Date().toISOString().split('T')[0];
-        let balance = principal;
-        const loanIssuedLabel = `${loan.metalType === 'gold' ? '🥇' : '🥈'} ${loan.metalType === 'gold' ? 'Gold' : 'Silver'} Loan Issued`;
-        loan.loanLedger.push({ date: startDate, particulars: loanIssuedLabel, debit: principal, credit: 0, balance, type: 'loan' });
-        // Seed from payment history
-        (loan.paymentHistory || []).slice().sort((a,b) => new Date(a.date)-new Date(b.date)).forEach(p => {
-            balance = Math.max(0, balance - (p.paidAmount || 0));
-            loan.loanLedger.push({ date: p.date, particulars: 'Payment Received', debit: 0, interest: p.interestDeducted || 0, credit: p.paidAmount || 0, balance, type: 'payment' });
-        });
+    function _interestTillLastPayment(loan) {
+        // Legacy: kept for callers; computes total frozen interest from HK
+        if (!loan) return 0;
+        try {
+            const hk = loan.hisabKitaab || [];
+            return hk.filter(e => e.type === 'interest').reduce((s, e) => s + (e.interest || 0), 0);
+        } catch(e) { return 0; }
     }
 
     // ── Deduplicate ledger (fix old corrupted data in localStorage) ───────────
-    function _dedupLedger(loan) {
-        if (!loan || !loan.loanLedger || loan.loanLedger.length <= 1) return;
-        const seen = new Set();
-        loan.loanLedger = loan.loanLedger.filter(e => {
-            // key = date + type + credit amount; duplicates share all three
-            const key = `${e.date}|${e.type}|${e.credit}|${e.debit}`;
-            if (seen.has(key) && e.type === 'payment') return false;
-            seen.add(key);
-            return true;
-        });
+
+    // ── Simple rate helpers ───────────────────────────────────────────────────
+    function _monthlyRate(loan) {
+        const r = parseFloat(loan.interestRate) || 0;
+        return loan.interestPeriod === 'yearly' ? r / 12 : r;
+    }
+
+    function _addOneMonth(date) {
+        const d = new Date(date);
+        d.setMonth(d.getMonth() + 1);
+        return d;
+    }
+
+    // ── Builds the full Ledger Card inner HTML (title + toggle buttons + table) ─
+    function _buildLedgerCardInner(loan, loanId) {
+        try {
+            const tl  = _ledgerT();
+            const isHi = (typeof I18n !== 'undefined') && I18n.getLang() === 'hi';
+            const modeLabel  = _ledgerMode === 'daily'
+                ? (isHi ? '📅 दिनवार' : tl.day_wise)
+                : (isHi ? '📆 मासिक'  : tl.monthly);
+            const basisLabel = _interestBasis === 360 ? '360-Day' : '365-Day';
+
+            const ledgerHtml = _buildEventLedgerHTML(loan, _ledgerMode, loanId);
+
+            return `
+            <div class="ld-section-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                ${tl.ledger_title}
+                <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">
+                    <button onclick="LoanDetailPage.toggleLedgerMode('${loanId}')"
+                        style="padding:4px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;
+                               border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-secondary);transition:all .2s;"
+                        onmouseover="this.style.background='var(--primary)';this.style.color='#fff';"
+                        onmouseout="this.style.background='var(--bg-input)';this.style.color='var(--text-secondary)';">
+                        ${modeLabel}
+                    </button>
+                    <button onclick="LoanDetailPage.toggleInterestBasis('${loanId}')"
+                        style="padding:4px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;
+                               border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-secondary);transition:all .2s;"
+                        onmouseover="this.style.background='var(--primary)';this.style.color='#fff';"
+                        onmouseout="this.style.background='var(--bg-input)';this.style.color='var(--text-secondary)';">
+                        ${basisLabel}
+                    </button>
+                </div>
+            </div>
+            ${ledgerHtml}`;
+        } catch(err) {
+            console.error('_buildLedgerCardInner', err);
+            return '<p class="text-muted">Ledger unavailable.</p>';
+        }
     }
 
     // ── Interest Mode + Basis State ───────────────────────────────────────────
@@ -489,201 +496,88 @@ const LoanDetailPage = (() => {
         return text;
     }
 
-    function _buildLedgerCardInner(loan, loanId) {
-        const mode  = _ledgerMode;
-        const basis = _interestBasis;
-        const btnDaily   = mode  === 'daily'   ? 'background:var(--primary);color:#fff;'  : 'background:var(--bg-input);color:var(--text-secondary);';
-        const btnMonthly = mode  === 'monthly' ? 'background:var(--primary);color:#fff;'  : 'background:var(--bg-input);color:var(--text-secondary);';
-        const btn360     = basis === 360        ? 'background:var(--gold-dark);color:#fff;': 'background:var(--bg-input);color:var(--text-secondary);';
-        const btn365     = basis === 365        ? 'background:var(--gold-dark);color:#fff;': 'background:var(--bg-input);color:var(--text-secondary);';
-        const tl = _ledgerT();
-        return `
-            <div class="ld-section-title">${tl.ledger_title}
-                <span style="margin-left:auto;display:inline-flex;flex-wrap:wrap;gap:5px;">
-                    <button onclick="LoanDetailPage.toggleLedgerMode('${loanId}')"
-                        style="${btnDaily}border:1px solid var(--border-color);padding:3px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;">${tl.day_wise}</button>
-                    <button onclick="LoanDetailPage.toggleLedgerMode('${loanId}')"
-                        style="${btnMonthly}border:1px solid var(--border-color);padding:3px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;">${tl.monthly}</button>
-                    <button onclick="LoanDetailPage.toggleInterestBasis('${loanId}')"
-                        style="${btn360}border:1px solid var(--border-color);padding:3px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;">360d</button>
-                    <button onclick="LoanDetailPage.toggleInterestBasis('${loanId}')"
-                        style="${btn365}border:1px solid var(--border-color);padding:3px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;">365d</button>
-                </span>
-            </div>
-            ${_buildEventLedgerHTML(loan, mode, basis, loanId)}`;
-    }
-
-    // ── Event-Based Ledger HTML ───────────────────────────────────────────────
-    function _buildEventLedgerHTML(loan, mode, basis, loanId) {
-        if (!loan) return '<p class="text-muted">No data.</p>';
-        mode  = mode  || 'daily';
-        basis = basis || _interestBasis || 360;
+    // ── Event-Based Ledger HTML — strict mirror of calculateSummary() output ────
+    function _buildEventLedgerHTML(loan, _mode, _loanId) {
         try {
-            _initLedger(loan);
-            // Auto-fix any duplicate entries already in localStorage (one-time heal)
-            const beforeCount = (loan.loanLedger || []).length;
-            _dedupLedger(loan);
-            if ((loan.loanLedger || []).length < beforeCount) {
-                DB.saveLoan(loan);
-            }
-            const ledger = loan.loanLedger || [];
-            if (ledger.length === 0) return '<p class="text-muted" style="font-size:0.85rem;">No ledger entries yet.</p>';
+            const tl       = _ledgerT();
+            const isHi     = (typeof I18n !== 'undefined') && I18n.getLang() === 'hi';
+            const summary  = _hkSummary(loan);
+            const entries  = summary.entries || [];
+            const netPayable = summary.netPayable || 0;
 
-            // Rate info for interest computation
-            const annualRate     = (loan.interestPeriod === 'yearly'
-                ? parseFloat(loan.interestRate)
-                : parseFloat(loan.interestRate) * 12) || 0;
-            const monthlyRatePct = annualRate / 12; // e.g. 2 for 2%
+            const catLabel = {
+                loan:       isHi ? '🏦 गोल्ड लोन जारी' : `🏦 ${(loan.metalType === 'gold' ? 'Gold' : 'Silver')} Loan Issued`,
+                payment:    isHi ? '💵 भुगतान प्राप्त'  : '💵 Payment Received',
+                interest:   isHi ? '📈 ब्याज जोड़ा गया' : '📈 Interest Applied',
+                discount:   isHi ? '🏷️ छूट दी गई'       : '🏷️ Discount Given',
+                settle:     isHi ? '✅ ऋण निपटान'        : '✅ Loan Settled',
+                add_money:  isHi ? '➕ राशि जोड़ी'        : '➕ Amount Added',
+            };
 
-            // ── Net Payable from Financial Summary (ground truth) ─────────────
-            let netPayable = 0;
-            try {
-                const settings = DB.getSettings();
-                const mktRate  = loan.metalType === 'gold' ? settings.currentGoldRate : settings.currentSilverRate;
-                const d        = Calculator.calcLoanDetails(loan, mktRate, { basis });
-                const basePayable = d.totalPayable || 0;
-                netPayable = Math.max(0, basePayable
-                    - (loan.totalDiscount   || 0)
-                    + (loan.totalAdjustment || 0));
-            } catch(e) { netPayable = 0; }
+            let runningBal = 0;
+            const rows = entries.map((e, idx) => {
+                // Read pre-computed values — NO recalculation here
+                const isDebit   = !!e._isDebit;
+                const isCredit  = !isDebit;
+                const amt       = HisabKitaabPage.safeNumber(e._amount);
+                const interest  = HisabKitaabPage.safeNumber(e._interest);
+                const days      = e._days || 0;
 
-            // ── Row-wise running balance (includes interest before payment) ────
-            const origPrincipal = loan.originalLoanAmount || loan.loanAmount || 0;
-            let   runningBal    = origPrincipal;
-
-            const rows = ledger.map((e, idx) => {
-                const debitColor  = e.debit  > 0 ? 'color:var(--danger);'  : 'color:var(--text-secondary);';
-                const creditColor = e.credit > 0 ? 'color:var(--safe);'    : 'color:var(--text-secondary);';
-
-                // ── Compute display interest per row ──────────────────────────
-                // IMMUTABLE: Always use the stored interest value — frozen at save time.
-                // Changing the global mode selector never rewrites past entries.
-                let rowInterest = 0;
-                try {
-                    if (e.type === 'payment' || e.type === 'interest') {
-                        rowInterest = isFinite(e.interest) ? (e.interest || 0) : 0;
-                    }
-                    if (!isFinite(rowInterest)) rowInterest = 0;
-                } catch(err) { rowInterest = 0; }
-
-                // ── Running balance: interest first, then subtract payment ────
-                let displayBal = 0;
-                try {
-                    if (e.type === 'loan') {
-                        // Loan issued row — starting balance = principal
-                        runningBal = isFinite(e.debit) ? e.debit : origPrincipal;
-                        displayBal = runningBal;
-                    } else if (e.type === 'payment' || e.type === 'settle') {
-                        // Balance = prevBal + interest − payment
-                        runningBal = runningBal + rowInterest - (isFinite(e.credit) ? e.credit : 0);
-                        runningBal = Math.max(0, runningBal);
-                        if (!isFinite(runningBal)) runningBal = 0;
-                        displayBal = parseFloat(runningBal.toFixed(2));
-                    } else if (e.type === 'discount') {
-                        runningBal = Math.max(0, runningBal - (isFinite(e.credit) ? e.credit : 0));
-                        if (!isFinite(runningBal)) runningBal = 0;
-                        displayBal = parseFloat(runningBal.toFixed(2));
-                    } else {
-                        // adjustment or unknown — use stored balance
-                        runningBal = isFinite(e.balance) ? e.balance : runningBal;
-                        displayBal = runningBal;
-                    }
-                } catch(err) { displayBal = runningBal; }
-
-                // ── Compute running days ──────────────────────────────────────
-                let days = 0;
-                if (idx > 0 && e.date && ledger[idx-1].date) {
-                    const start = new Date(ledger[idx-1].date);
-                    const end = new Date(e.date);
-                    start.setHours(0,0,0,0);
-                    end.setHours(0,0,0,0);
-                    days = Math.max(0, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
+                // Running balance: DEBIT adds (amount + interest), CREDIT subtracts amount
+                if (isDebit) {
+                    runningBal = parseFloat((runningBal + amt + interest).toFixed(2));
+                } else {
+                    runningBal = parseFloat(Math.max(0, runningBal - amt).toFixed(2));
                 }
 
-                const tl2 = _ledgerT();
-                // Badge showing how this entry's interest was calculated (frozen at save time)
-                const _badge = (() => {
-                    const s = 'font-size:0.62rem;padding:2px 6px;border-radius:8px;font-weight:600;white-space:nowrap;';
-                    const ct = e.calculationType;
-                    if (!ct) return `<span style="${s}color:var(--text-muted);">—</span>`;
-                    if (ct === 'DAY_WISE')     return `<span style="${s}background:rgba(99,102,241,0.15);color:#818cf8;">📅 360d</span>`;
-                    if (ct === 'DAY_WISE_365') return `<span style="${s}background:rgba(99,102,241,0.15);color:#818cf8;">📅 365d</span>`;
-                    if (ct === 'MONTHLY' || ct === 'MONTHLY_365') return `<span style="${s}background:rgba(251,146,60,0.15);color:#fb923c;">📆 Monthly</span>`;
-                    return `<span style="${s}background:var(--bg-input);color:var(--text-muted);">${ct}</span>`;
-                })();
-                let interestDisplay = '—';
-                if (rowInterest > 0) {
-                    const isMonthly = (e.calculationType === 'MONTHLY' || e.calculationType === 'MONTHLY_365');
-                    if (isMonthly) {
-                        interestDisplay = `${UI.currency(rowInterest)} <span style="font-size:0.65rem;color:var(--text-muted);margin-left:4px;font-weight:600;">Monthly</span>`;
-                    } else {
-                        // Reverse-calculate days from stored interest for transparency
-                        const principal = idx > 0 ? (ledger[idx - 1].balance || origPrincipal) : origPrincipal;
-                        if (principal > 0 && annualRate > 0) {
-                            days = Math.round((rowInterest * basis) / (principal * (annualRate / 100)));
-                        }
-                        const daysLabel = tl2.days_inline.replace('{d}', days);
-                        interestDisplay = `${UI.currency(rowInterest)} <span style="font-size:0.65rem;color:var(--text-muted);margin-left:4px;font-weight:600;">${daysLabel}</span>`;
-                    }
+                const debitColor  = isDebit  ? 'color:var(--danger);'      : 'color:var(--text-secondary);';
+                const creditColor = isCredit ? 'color:var(--safe);'        : 'color:var(--text-secondary);';
+                const intColor    = interest > 0 ? 'color:var(--monitor);' : 'color:var(--text-secondary);';
+                const balColor    = idx === entries.length - 1 ? 'color:var(--primary);' : 'color:var(--gold-dark);';
+
+                // Interest display — 2 decimal places, with days annotation
+                let intDisplay = '—';
+                if (interest > 0) {
+                    const daysLabel = tl.days_inline ? tl.days_inline.replace('{d}', days) : `${days}d`;
+                    intDisplay = `₹${Number(interest).toFixed(2)} <span style="font-size:0.65rem;color:var(--text-muted);margin-left:4px;font-weight:600;">${daysLabel}</span>`;
                 }
 
-                const interestColor = rowInterest > 0 ? 'color:var(--monitor);' : 'color:var(--text-secondary);';
-                const balColor      = idx === ledger.length - 1 ? 'color:var(--primary);' : 'color:var(--gold-dark);';
-                const translatedParticulars = _translateParticulars(e.particulars, tl2);
+                const baseLabel   = catLabel[e.type] || e.type;
+                const particulars = e.note
+                    ? `${baseLabel} <span style="font-size:0.72rem;opacity:0.7;">— ${e.note}</span>`
+                    : baseLabel;
+
                 return `<tr>
                     <td style="font-size:0.82rem;">${UI.formatDate(e.date)}</td>
-                    <td style="font-size:0.85rem;font-weight:600;font-family:'Noto Sans Devanagari','Inter',sans-serif;">${translatedParticulars}</td>
-                    <td style="${debitColor}font-weight:700;">${e.debit > 0 ? UI.currency(e.debit) : '—'}</td>
-                    <td style="text-align:center;">${_badge}</td>
-                    <td style="${interestColor}font-weight:700;white-space:nowrap;">${interestDisplay}</td>
-                    <td style="${creditColor}font-weight:700;">${e.credit > 0 ? UI.currency(e.credit) : '—'}</td>
-                    <td style="${balColor}font-weight:800;">${UI.currency(displayBal)}</td>
+                    <td style="font-size:0.85rem;font-weight:600;font-family:'Noto Sans Devanagari','Inter',sans-serif;">${particulars}</td>
+                    <td style="${debitColor}font-weight:700;">${isDebit  ? `₹${Number(amt).toFixed(2)}` : '—'}</td>
+                    <td style="${intColor}font-weight:700;white-space:nowrap;">${intDisplay}</td>
+                    <td style="${creditColor}font-weight:700;">${isCredit ? `₹${Number(amt).toFixed(2)}` : '—'}</td>
+                    <td style="${balColor}font-weight:800;">₹${runningBal.toFixed(2)}</td>
                 </tr>`;
             }).join('');
 
-            // ── Closing Balance = Net Payable (always matches Financial Summary)
-            const closingFmt = netPayable > 0
-                ? UI.currency(netPayable)
-                : '₹0';
+            // Footer: use summary.netPayable — GUARANTEED to match Financial Summary
+            const footerLabel = isHi
+                ? 'कुल बकाया (वित्तीय सारांश से मिलान)'
+                : 'Net Payable (matches Financial Summary)';
 
-            const tl = _ledgerT();
             return `<div class="ld-table-wrap"><table class="ld-table">
                 <thead><tr>
-                    <th>${tl.date}</th><th>${tl.particulars}</th><th>${tl.debit}</th>
-                    <th style="text-align:center;">${tl.calc_type}</th>
-                    <th>${tl.interest}</th><th>${tl.credit}</th><th>${tl.net_payable}</th>
+                    <th>${tl.date}</th><th>${tl.particulars}</th>
+                    <th>${tl.debit}</th><th>${tl.interest}</th>
+                    <th>${tl.credit}</th><th>${tl.net_payable}</th>
                 </tr></thead>
                 <tbody>${rows}
                 <tr class="ld-tfoot-row">
-                    <td colspan="6" style="font-weight:700;">${tl.net_payable_footer}</td>
-                    <td style="font-weight:800;color:var(--primary);">${closingFmt}</td>
+                    <td colspan="5" style="font-weight:700;">${footerLabel}</td>
+                    <td style="font-weight:800;color:var(--primary);">₹${Number(netPayable).toFixed(2)}</td>
                 </tr>
                 </tbody>
             </table></div>`;
-        } catch(err) { console.error(err); return '<p class="text-muted">Ledger error.</p>'; }
+        } catch(err) { console.error('_buildEventLedgerHTML', err); return '<p class="text-muted">Ledger error.</p>'; }
     }
 
-    function _saveLedgerEntry(loan, entry) {
-        _initLedger(loan);
-        const last = loan.loanLedger[loan.loanLedger.length - 1];
-        const prevBalance = last ? last.balance : (loan.originalLoanAmount || loan.loanAmount || 0);
-        try {
-            if (entry.type === 'payment' || entry.type === 'settle') {
-                // Correct balance: prevBal + interest accrued − total payment
-                // This equals the new remaining principal after the payment
-                const interest = isFinite(entry.interest) ? (entry.interest || 0) : 0;
-                entry.balance = Math.max(0, prevBalance + interest - (entry.credit || 0));
-            } else if (entry.type === 'discount') {
-                entry.balance = Math.max(0, prevBalance - (entry.credit || 0));
-            } else {
-                // adjustment, loan-issued, etc.
-                entry.balance = prevBalance + (entry.debit || 0);
-            }
-            if (!isFinite(entry.balance)) entry.balance = 0;
-            entry.balance = parseFloat(entry.balance.toFixed(2));
-        } catch(e) { entry.balance = prevBalance; }
-        loan.loanLedger.push(entry);
-    }
 
     // ── Modal: Adjust Amount ──────────────────────────────────────────────────
     function showAdjustModal(loanId) {
@@ -712,10 +606,10 @@ const LoanDetailPage = (() => {
         const note   = document.getElementById('adj-note')?.value.trim() || 'Manual Adjustment';
         const date   = document.getElementById('adj-date')?.value;
         if (!amount || !date) { UI.toast('Enter amount and date', 'error'); return; }
-        _initLedger(loan);
-        const isPositive = amount > 0;
-        const entry = { date, particulars: `🔧 Adjustment — ${note}`, debit: isPositive ? Math.abs(amount) : 0, credit: isPositive ? 0 : Math.abs(amount), type: 'adjustment' };
-        _saveLedgerEntry(loan, entry);
+        HisabKitaabPage.initHK(loan);
+        // Positive = add money (debit), negative = reduce balance (treat as discount)
+        const type = amount > 0 ? 'add_money' : 'discount';
+        HisabKitaabPage.addEntry(loan, date, type, Math.abs(amount), note);
         loan.totalAdjustment = (loan.totalAdjustment || 0) + amount;
         DB.saveLoan(loan);
         document.getElementById('hisaab-modal')?.remove();
@@ -723,22 +617,17 @@ const LoanDetailPage = (() => {
         render(document.getElementById('page-container'), loanId);
     }
 
-    // ── Modal: Partial Payment (action panel button) ──────────────────────────
-    function showPartialPaymentModal2(loanId, totalPayable, remainingInterest) {
+    // ── Modal: Partial Payment ─────────────────────────────────────────────
+    function showPartialPaymentModal2(loanId) {
         document.getElementById('hisaab-modal')?.remove();
-        const modeLabel = _ledgerMode === 'monthly' ? '📆 Monthly' : '📅 Day-wise';
-        const basisLabel = _interestBasis === 365 ? '365 Days' : '360 Days';
+        const loan   = DB.getLoan(loanId);
+        const netDue = _hkNetPayable(loan);
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay'; overlay.id = 'hisaab-modal';
-        overlay.innerHTML = `<div class="modal"><h3 class="modal-title">💵 Partial Payment</h3>
-            <p class="text-muted mb-2" style="font-size:0.85rem;">Total Due: <strong>${UI.currency(totalPayable)}</strong></p>
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px 12px;border-radius:8px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);">
-                <span style="font-size:0.75rem;color:var(--text-muted);">Interest calculated using:</span>
-                <span style="font-size:0.75rem;font-weight:700;color:#818cf8;">${modeLabel} · ${basisLabel}</span>
-                <span style="font-size:0.68rem;color:var(--text-muted);margin-left:auto;">🔒 Frozen on save</span>
-            </div>
+        overlay.innerHTML = `<div class="modal"><h3 class="modal-title">💵 Payment</h3>
+            <p class="text-muted mb-2" style="font-size:0.85rem;">Net Payable (HK): <strong style="color:var(--safe);">${UI.currency(netDue)}</strong></p>
             <div class="form-group mb-2"><label class="form-label">Payment Amount (₹) *</label>
-                <input type="number" class="form-input" id="pay-amount" placeholder="Enter amount" min="1"></div>
+                <input type="number" class="form-input" id="pay-amount" placeholder="Enter amount" min="1" value="${netDue.toFixed(2)}"></div>
             <div class="form-group mb-2"><label class="form-label">Payment Date *</label>
                 <input type="date" class="form-input" id="pay-date" value="${new Date().toISOString().split('T')[0]}"></div>
             <div class="form-group mb-3"><label class="form-label">Notes (Optional)</label>
@@ -775,8 +664,8 @@ const LoanDetailPage = (() => {
         const amount = parseFloat(document.getElementById('disc-amount')?.value);
         const date   = document.getElementById('disc-date')?.value;
         if (!amount || amount <= 0 || !date) { UI.toast('Enter valid discount amount and date', 'error'); return; }
-        _initLedger(loan);
-        _saveLedgerEntry(loan, { date, particulars: '🏷️ Discount Given', debit: 0, credit: amount, type: 'discount' });
+        HisabKitaabPage.initHK(loan);
+        HisabKitaabPage.addEntry(loan, date, 'discount', amount, 'Discount');
         loan.totalDiscount = (loan.totalDiscount || 0) + amount;
         DB.saveLoan(loan);
         document.getElementById('hisaab-modal')?.remove();
@@ -784,24 +673,27 @@ const LoanDetailPage = (() => {
         render(document.getElementById('page-container'), loanId);
     }
 
-    // ── Modal: Settle Loan ────────────────────────────────────────────────────
-    function showSettleModal2(loanId, totalPayable) {
+    // ── Modal: Settle Loan ──────────────────────────────────────────────────────
+    function showSettleModal2(loanId) {
         document.getElementById('hisaab-modal')?.remove();
+        const loan   = DB.getLoan(loanId);
+        const netDue = _hkNetPayable(loan);
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay'; overlay.id = 'hisaab-modal';
         overlay.innerHTML = `<div class="modal"><h3 class="modal-title">✅ Settle Loan</h3>
-            <p class="text-muted mb-2" style="font-size:0.85rem;">Total Payable: <strong>${UI.currency(totalPayable)}</strong></p>
+            <p class="text-muted mb-2" style="font-size:0.85rem;">Net Payable (HK): <strong style="color:var(--safe);">${UI.currency(netDue)}</strong></p>
             <div class="form-group mb-2"><label class="form-label">Final Amount Received (₹) *</label>
-                <input type="number" class="form-input" id="settle-amount" placeholder="Amount received" min="0"></div>
+                <input type="number" class="form-input" id="settle-amount" placeholder="Amount received" min="0" value="${netDue.toFixed(2)}"></div>
             <div class="form-group mb-3"><label class="form-label">Date</label>
                 <input type="date" class="form-input" id="settle-date" value="${new Date().toISOString().split('T')[0]}"></div>
             <div class="modal-actions">
                 <button class="btn btn-outline" onclick="document.getElementById('hisaab-modal').remove()">Cancel</button>
-                <button class="btn btn-sm" style="background:rgba(16,185,129,0.2);border:1px solid var(--safe);color:var(--safe);" onclick="LoanDetailPage.processSettle('${loanId}',${totalPayable})">Confirm Settlement</button>
+                <button class="btn btn-sm" style="background:rgba(16,185,129,0.2);border:1px solid var(--safe);color:var(--safe);" onclick="LoanDetailPage.processSettle('${loanId}',${netDue})">Confirm Settlement</button>
             </div></div>`;
         document.body.appendChild(overlay);
         overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
     }
+
 
     async function processSettle(loanId, totalPayable) {
         const loan = DB.getLoan(loanId); if (!loan) return;
@@ -809,12 +701,13 @@ const LoanDetailPage = (() => {
         const date     = document.getElementById('settle-date')?.value;
         if (!date) { UI.toast('Select settlement date', 'error'); return; }
         if (!await UI.confirm('Settle Loan', `Mark loan as SETTLED? Received: ${UI.currency(received)}`)) return;
-        _initLedger(loan);
-        _saveLedgerEntry(loan, { date, particulars: '✅ Loan Settled', debit: 0, credit: received, type: 'settle' });
-        const diff = totalPayable - received;
+        HisabKitaabPage.initHK(loan);
+        HisabKitaabPage.addEntry(loan, date, 'settle', received, 'Loan Settled');
+        const netDue = _hkNetPayable(loan);
+        const diff = Math.max(0, (totalPayable || netDue) - received);
         if (diff > 0) { loan.totalDiscount = (loan.totalDiscount || 0) + diff; }
         loan.status = 'closed';
-        loan.settlement = { date: new Date().toISOString(), totalAmount: totalPayable, paidAmount: received, discount: diff > 0 ? diff : 0, adjustment: 0, status: 'CLOSED' };
+        loan.settlement = { date: new Date().toISOString(), totalAmount: totalPayable || netDue, paidAmount: received, discount: diff, adjustment: 0, status: 'CLOSED' };
         DB.saveLoan(loan);
         document.getElementById('hisaab-modal')?.remove();
         UI.toast('Loan settled successfully!', 'success');
@@ -892,20 +785,6 @@ const LoanDetailPage = (() => {
             console.error('Ledger build error:', e);
             return [];
         }
-    }
-
-    function _monthlyRate(loan) {
-        const r = parseFloat(loan.interestRate) || 0;
-        if (!r) return 0;
-        const period = loan.interestPeriod || 'monthly';
-        const annual = period === 'yearly' ? r : r * 12;
-        return annual / 100 / 12;
-    }
-
-    function _addOneMonth(d) {
-        const nd = new Date(d);
-        nd.setMonth(nd.getMonth() + 1);
-        return nd;
     }
 
     async function sendWhatsApp(loanId) {
@@ -1009,9 +888,8 @@ const LoanDetailPage = (() => {
     function processPayment(loanId) {
         const amountStr = document.getElementById('pay-amount')?.value;
         const dateStr   = document.getElementById('pay-date')?.value;
-        // Read optional note (safe: returns '' if element absent)
-        const note = (document.getElementById('pay-note')?.value || '').trim().slice(0, 250);
-        const amount = parseFloat(amountStr);
+        const note      = (document.getElementById('pay-note')?.value || '').trim().slice(0, 250);
+        const amount    = parseFloat(amountStr);
 
         if (!amount || amount <= 0) { UI.toast('Enter a valid amount', 'error'); return; }
         if (!dateStr) { UI.toast('Select payment date', 'error'); return; }
@@ -1019,81 +897,28 @@ const LoanDetailPage = (() => {
         const loan = DB.getLoan(loanId);
         if (!loan) { UI.toast('Loan not found', 'error'); return; }
 
-        const settings = DB.getSettings();
-        const rate = loan.metalType === 'gold' ? settings.currentGoldRate : settings.currentSilverRate;
-        const d = Calculator.calcLoanDetails(loan, rate, { endDate: dateStr });
-
-        if (amount > d.totalPayable) { UI.toast('Payment exceeds total payable', 'error'); return; }
-
-        // Logic:
-        // Payment goes to interest first, then principal.
-        let interestDeducted = 0;
-        let principalReduced = 0;
-
-        if (amount >= d.remainingInterest) {
-            interestDeducted = d.remainingInterest;
-            principalReduced = amount - d.remainingInterest;
-        } else {
-            interestDeducted = amount;
-            principalReduced = 0;
+        // Validate: payment should not exceed current HK net payable
+        const currentDue = _hkNetPayable(loan);
+        if (currentDue > 0 && amount > currentDue * 1.1) {
+            UI.toast(`Payment ₹${amount.toFixed(0)} exceeds net payable ₹${currentDue.toFixed(0)}`, 'error');
+            return;
         }
 
-        const newPrincipal = d.remainingPrincipal - principalReduced;
-
-        // Update Loan State
-        // It's critical to preserve original values for records
+        // Preserve original fields (for backward compat with overview display)
         if (!loan.originalLoanAmount) loan.originalLoanAmount = loan.loanAmount;
-        if (!loan.originalStartDate) loan.originalStartDate = loan.loanStartDate;
+        if (!loan.originalStartDate)  loan.originalStartDate  = loan.loanStartDate;
 
-        // FIX: Initialize ledger BEFORE pushing to paymentHistory.
-        // If _initLedger runs after push, it seeds this payment from history,
-        // then _saveLedgerEntry adds it again — causing double entries.
-        _initLedger(loan);
+        // Single writer: HK records the payment + freezes accrued interest
+        HisabKitaabPage.initHK(loan);
+        HisabKitaabPage.addEntry(loan, dateStr, 'payment', amount, note);
 
-        // Save history record (include note)
-        if (!loan.paymentHistory) loan.paymentHistory = [];
-        loan.paymentHistory.push({
-            date: dateStr,
-            paidAmount: amount,
-            interestDeducted,
-            principalReduced,
-            remainingPrincipal: newPrincipal,
-            note: note || ''
-        });
-
-        // Reset the loan "start date" to the payment date so new interest calculates from here
-        // Update the principal to the new remaining amount
-        loan.loanStartDate = dateStr;
-        loan.loanAmount = newPrincipal;
-        
-        // Reset paid interest/repayment fields as we've internalized them into the new principal/start date
-        loan.paidInterest = 0;
-        loan.partialRepayment = 0;
-        loan.manualPenalty = 0; // Assuming penalty is paid off
-
-        // Save ledger entry — embed note in Particulars if provided
-        const particulars = note
-            ? `💵 Payment Received 📝 ${note}`
-            : '💵 Payment Received';
-        // Stamp the entry with the active calculation type so it is immutable.
-        // Switching the global mode later will NEVER recalculate this stored interest.
-        const _calcType = _ledgerMode === 'monthly'
-            ? (_interestBasis === 365 ? 'MONTHLY_365' : 'MONTHLY')
-            : (_interestBasis === 365 ? 'DAY_WISE_365' : 'DAY_WISE');
-        const _daysForEntry = Calculator.getExactDays(loan.loanStartDate, dateStr);
-        _saveLedgerEntry(loan, {
-            date: dateStr, particulars, debit: 0,
-            interest: interestDeducted, credit: amount,
-            type: 'payment',
-            calculationType: _calcType,
-            daysCount: _daysForEntry
-        });
         DB.saveLoan(loan);
         document.querySelector('.modal-overlay')?.remove();
         document.getElementById('hisaab-modal')?.remove();
         UI.toast('Payment recorded successfully', 'success');
         render(document.getElementById('page-container'), loanId);
     }
+
 
     async function closeLoan(id) {
         if (await UI.confirm('Close Loan', 'Mark as closed?')) {
@@ -1400,6 +1225,53 @@ const LoanDetailPage = (() => {
         }
     }
 
+    async function handleImageTap(loanId, type, itemIndex = 0) {
+        const loan = DB.getLoan(loanId);
+        if (!loan) return;
+        
+        const hasImage = type === 'customer' ? !!loan.customerPhoto : !!loan.items[itemIndex].photo;
+        const currentSrc = type === 'customer' ? loan.customerPhoto : loan.items[itemIndex].photo;
+
+        const action = await UI.showImageOptions(hasImage);
+        if (!action) return;
+
+        if (action === 'view') {
+            UI.enlargeImage(currentSrc);
+        } else if (action === 'remove') {
+            if (await UI.confirm('Remove Photo', 'Are you sure you want to remove this photo?')) {
+                if (type === 'customer') {
+                    loan.customerPhoto = '';
+                    if (loan.customerId) {
+                        const cust = DB.getCustomer(loan.customerId);
+                        if (cust) { cust.photo = ''; DB.saveCustomer(cust); }
+                    }
+                } else {
+                    loan.items[itemIndex].photo = '';
+                }
+                DB.saveLoan(loan);
+                render(document.getElementById('page-container'), loanId);
+                UI.toast('Photo removed', 'success');
+            }
+        } else if (action === 'change' || action === 'upload') {
+            const profile = type === 'customer' ? 'customer' : (loan.items[itemIndex].metalType === 'gold' ? 'gold' : 'default');
+            const newBase64 = await UI.promptImageUpload(profile);
+            if (newBase64) {
+                if (type === 'customer') {
+                    loan.customerPhoto = newBase64;
+                    if (loan.customerId) {
+                        const cust = DB.getCustomer(loan.customerId);
+                        if (cust) { cust.photo = newBase64; DB.saveCustomer(cust); }
+                    }
+                } else {
+                    loan.items[itemIndex].photo = newBase64;
+                }
+                DB.saveLoan(loan);
+                render(document.getElementById('page-container'), loanId);
+                UI.toast('Photo updated successfully', 'success');
+            }
+        }
+    }
+
     function toggleRiskPanel() {
         _riskVisible = !_riskVisible;
         const panel = document.getElementById('risk-panel-wrapper');
@@ -1424,6 +1296,7 @@ const LoanDetailPage = (() => {
              showLockerEditModal, verifyAndEditLocker, processLockerEdit,
              showNoteEditModal, saveJewelleryNote,
              toggleRiskPanel, toggleLedgerMode, toggleInterestBasis,
+             handleImageTap,
              get _riskVisible()    { return _riskVisible;    },
              get _ledgerMode()     { return _ledgerMode;     },
              get _interestBasis()  { return _interestBasis;  } };

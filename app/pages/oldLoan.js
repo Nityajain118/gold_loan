@@ -40,6 +40,10 @@ const OldLoanPage = (() => {
                             oninput="OldLoanPage.onAddressInput(this)">
                         <div id="ol-address-dropdown" style="display:none; position:absolute; top:100%; left:0; right:0; background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; z-index:999; max-height:180px; overflow-y:auto; box-shadow:0 8px 24px rgba(0,0,0,0.3);"></div>
                     </div>
+                    <div class="form-group mb-3">
+                        <label class="form-label" data-i18n="customer_photo">${I18n.t('customer_photo')}</label>
+                        <div id="ol-customer-photo-wrap">${ImageUpload.renderUploader('ol-customer-photo', null, { label: 'Upload Customer Photo', compact: true, type: 'customer' })}</div>
+                    </div>
 
                     <h4 class="mb-1" style="color:var(--primary);font-size:0.9rem;"><span data-i18n="jewelry_items">${I18n.t('jewelry_items')}</span> (up to ${MAX_ITEMS})</h4>
                     <div class="jewelry-items-list" id="ol-items-list"></div>
@@ -222,6 +226,10 @@ const OldLoanPage = (() => {
                             onkeydown="OldLoanPage.blockInvalidKey(event)"
                             oninput="OldLoanPage.updateItem(${i},'weightGrams',this.value)"></div>
                 </div>
+                <div class="form-group mt-1">
+                    <label class="form-label" data-i18n="item_photo">${I18n.t('item_photo')}</label>
+                    ${ImageUpload.renderUploader('ol-item-photo-' + i, item.photo || null, { label: 'Upload ' + (item.metalType === 'gold' ? 'Gold' : 'Silver') + ' Item Photo', compact: true, type: item.metalType })}
+                </div>
                 <div id="ol-item-value-${i}">
                     ${w > 0 ? `<div class="jewelry-item-value">Value: ${UI.currency(val)} (@ ₹${rate.toLocaleString('en-IN')}/g · ${(pf * 100).toFixed(1)}% purity)</div>` : ''}
                 </div>
@@ -232,10 +240,19 @@ const OldLoanPage = (() => {
         if (btn) btn.style.display = _state.items.length >= MAX_ITEMS ? 'none' : '';
     }
 
-    function addItem() { if (_state.items.length >= MAX_ITEMS) return; _state.items.push(defaultItem()); renderItems(); }
-    function removeItem(i) { _state.items.splice(i, 1); renderItems(); }
+    function syncPhotos() {
+        if (typeof ImageUpload === 'undefined') return;
+        _state.items.forEach((item, i) => {
+            const data = ImageUpload.getImageData('ol-item-photo-' + i);
+            if (data) item.photo = data;
+        });
+    }
+
+    function addItem() { if (_state.items.length >= MAX_ITEMS) return; syncPhotos(); _state.items.push(defaultItem()); renderItems(); }
+    function removeItem(i) { syncPhotos(); _state.items.splice(i, 1); renderItems(); }
 
     function updateItem(i, f, v) {
+        syncPhotos();
         _state.items[i][f] = v;
         if (f === 'metalType') {
             _state.items[i].itemType = Calculator.getJewelryTypes(v)[0];
@@ -639,11 +656,17 @@ const OldLoanPage = (() => {
         if (!startDate) { UI.toast('Enter start date', 'error'); return; }
 
         const rates = Market.getCurrentRates();
-        const items = validItems.map(i => ({
-            itemType: i.itemType === 'Other' && i.customItemType ? i.customItemType : i.itemType, metalType: i.metalType, purity: i.purity,
-            customPurity: i.purity === 'custom' ? parseFloat(i.customPurity) : null,
-            weightGrams: parseFloat(i.weightGrams)
-        }));
+        const items = validItems.map(validItem => {
+            const originalIdx = _state.items.findIndex(stateItem => stateItem === validItem);
+            return {
+                itemType: validItem.itemType === 'Other' && validItem.customItemType ? validItem.customItemType : validItem.itemType, 
+                metalType: validItem.metalType, 
+                purity: validItem.purity,
+                customPurity: validItem.purity === 'custom' ? parseFloat(validItem.customPurity) : null,
+                weightGrams: parseFloat(validItem.weightGrams),
+                photo: originalIdx >= 0 ? (typeof ImageUpload !== 'undefined' ? ImageUpload.getImageData('ol-item-photo-' + originalIdx) : '') : ''
+            };
+        });
 
         let totalGoldWeight = 0, totalSilverWeight = 0, goldItems = 0, silverItems = 0;
         items.forEach(i => {
@@ -667,6 +690,7 @@ const OldLoanPage = (() => {
             historicalMarketRate: historicalRate, useHistoricalRate: _state.useHistoricalRate,
             paidInterest, partialRepayment: partial, manualPenalty: penalty,
             isMigrated: true, status,
+            customerPhoto: typeof ImageUpload !== 'undefined' ? ImageUpload.getImageData('ol-customer-photo') : '',
             marketRateAtCreation: historicalRate || Market.getRate(dom),
             jewelleryNote: jewelleryNote || ''
         };

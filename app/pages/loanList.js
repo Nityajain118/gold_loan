@@ -18,7 +18,10 @@ const LoanListPage = (() => {
 
             if (!_groups[key]) {
                 let info = null;
-                if (loan.customerId) info = DB.getCustomer(loan.customerId);
+                if (loan.customerId) {
+                    const dbCust = DB.getCustomer(loan.customerId);
+                    if (dbCust) info = Object.assign({}, dbCust);
+                }
                 _groups[key] = {
                     info: info || {
                         id:      key,
@@ -30,6 +33,9 @@ const LoanListPage = (() => {
                     },
                     loans: []
                 };
+            }
+            if (!_groups[key].info.photo && loan.customerPhoto) {
+                _groups[key].info.photo = loan.customerPhoto;
             }
             _groups[key].loans.push(loan);
         });
@@ -146,7 +152,7 @@ const LoanListPage = (() => {
             const silverCount = loans.filter(l => l.metalType === 'silver').length;
             const statusIcon  = gs === 'active' ? '🟢' : gs === 'closed' ? '⚫' : gs === 'mixed' ? '🔵' : '🔄';
             const avatar = info.photo
-                ? `<img src="${info.photo}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid var(--border);">`
+                ? `<img src="${info.photo}" onclick="event.stopPropagation(); UI.enlargeImage('${info.photo}')" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid var(--border);cursor:pointer;" title="Click to enlarge">`
                 : `<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--gold));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:1.1rem;flex-shrink:0;">${(info.name||'?')[0].toUpperCase()}</div>`;
 
             return `

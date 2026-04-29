@@ -66,6 +66,78 @@ const HisabKitaabPage = (() => {
     function _p(v) { return Number(Number(v).toFixed(3)); }
     function _cur3(v) { if (!v && v !== 0) return '₹0.000'; const n = Number(v); return '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 }); }
 
+    // ── Safe Number Utilities (crash-proof, NaN-safe) ──────────────────────────
+    function safeNumber(v) {
+        const n = Number(v);
+        return (v === null || v === undefined || !isFinite(n)) ? 0 : n;
+    }
+    function formatAmount(v) {
+        return Number(safeNumber(v)).toFixed(2);
+    }
+
+    // ── Centralized Calculation Engine — SINGLE SOURCE OF TRUTH ───────────────
+    /**
+     * calculateSummary(loan, today?)
+     *   Reads loan.hisabKitaab primary entries and computes:
+     *     DEBIT  → totalDebit += amount;  totalInterest += (amount × rate × days)/(100×30)
+     *     CREDIT → totalCredit += amount
+     *     netPayable = totalDebit + totalInterest - totalCredit (min 0, toFixed 2)
+     *
+     *   Attaches _amount, _days, _interest, _isDebit to each entry so
+     *   Loan Ledger can render rows WITHOUT recalculating anything independently.
+     */
+    function calculateSummary(loan, today) {
+        const EMPTY = { totalDebit: 0, totalCredit: 0, totalInterest: 0, netPayable: 0, entries: [] };
+        if (!loan) return EMPTY;
+        try {
+            today = today || new Date().toISOString().split('T')[0];
+            _initHK(loan);
+            const hk = loan.hisabKitaab || [];
+            const mr = safeNumber(_getMonthlyRate(loan));
+
+            let totalDebit = 0, totalCredit = 0, totalInterest = 0;
+
+            const primary = hk.filter(e =>
+                e.type === 'loan_given' || e.type === 'add_money' ||
+                e.type === 'payment'    || e.type === 'discount'  ||
+                e.type === 'settle'
+            ).slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            primary.forEach(e => {
+                const isDebit = (e.type === 'loan_given' || e.type === 'add_money');
+                const amount  = safeNumber(isDebit ? (e.principal || e.amount) : (e.paid || e.amount));
+
+                let interest = 0, days = 0;
+                if (isDebit && amount > 0 && mr > 0) {
+                    const d1 = new Date(e.date); d1.setHours(0, 0, 0, 0);
+                    const d2 = new Date(today);  d2.setHours(0, 0, 0, 0);
+                    days     = Math.max(0, Math.floor((d2 - d1) / 864e5));
+                    interest = parseFloat(((amount * mr * days) / (100 * 30)).toFixed(2));
+                    if (!isFinite(interest)) interest = 0;
+                    totalDebit    += amount;
+                    totalInterest += interest;
+                } else if (!isDebit) {
+                    totalCredit   += amount;
+                }
+                // Attach pre-computed values — ledger reads these, never recalculates
+                e._amount   = amount;
+                e._days     = days;
+                e._interest = interest;
+                e._isDebit  = isDebit;
+            });
+
+            const netPayable = parseFloat(Math.max(0, (totalDebit + totalInterest) - totalCredit).toFixed(2));
+            return {
+                totalDebit:    parseFloat(totalDebit.toFixed(2)),
+                totalCredit:   parseFloat(totalCredit.toFixed(2)),
+                totalInterest: parseFloat(totalInterest.toFixed(2)),
+                netPayable,
+                entries: primary
+            };
+        } catch(err) { console.error('calculateSummary', err); return EMPTY; }
+    }
+
+
     // ── Tithi Helper ──────────────────────────────
     function _getTithi(dateString) {
         try {
@@ -351,10 +423,10 @@ const HisabKitaabPage = (() => {
             </div>
             
             <div class="hk-live-summary hk-khata-summary">
-                <div class="hk-khata-summary-title">ACTIVE KHATA SUMMARY <a href="#" style="float:right; font-size:0.8rem; color:var(--primary); text-decoration:none;" onclick="HisabKitaabPage.showTimeline('${loan.id}')">View Full Ledger</a></div>
-                <div class="hk-live-row"><span class="hk-live-label">Net Principal</span><span class="hk-live-val">${_cur3(netGlobalPrin)}</span></div>
-                <div class="hk-live-row"><span class="hk-live-label">Interest (Till Today)</span><span class="hk-live-val" style="color:var(--monitor)">${netGlobalInt >= 0 ? '+' : ''} ${_cur3(netGlobalInt)}</span></div>
-                <div class="hk-live-row hk-live-net"><span class="hk-live-label">Final Payable</span><span class="hk-live-val">${_cur3(finalGlobalPayable)}</span></div>
+                <div class="hk-khata-summary-title">${I18n.t('active_khata_summary')} <a href="#" style="float:right; font-size:0.8rem; color:var(--primary); text-decoration:none;" onclick="HisabKitaabPage.showTimeline('${loan.id}')">View Full Ledger</a></div>
+                <div class="hk-live-row"><span class="hk-live-label" data-i18n="net_principal">${I18n.t('net_principal')}</span><span class="hk-live-val">${_cur3(netGlobalPrin)}</span></div>
+                <div class="hk-live-row"><span class="hk-live-label" data-i18n="interest_till_today">${I18n.t('interest_till_today')}</span><span class="hk-live-val" style="color:var(--monitor)">${netGlobalInt >= 0 ? '+' : ''} ${_cur3(netGlobalInt)}</span></div>
+                <div class="hk-live-row hk-live-net"><span class="hk-live-label" data-i18n="final_payable">${I18n.t('final_payable')}</span><span class="hk-live-val">${_cur3(finalGlobalPayable)}</span></div>
             </div>
         </div>`;
     }
@@ -586,5 +658,20 @@ const HisabKitaabPage = (() => {
         DB.saveLoan(loan); document.getElementById('hk-modal')?.remove(); UI.toast('✅ Loan settled!', 'success'); render(document.getElementById('page-container'), lid);
     }
 
-    return { render, showAddMoneyModal, doAdd, showPayModal, updatePayInterest, doPay, showDiscModal, doDisc, showSettleModal, doSettle, showTimeline, onSelect, toggleCard, toggleTithiMode };
+    // Expose internal helpers so loanDetail.js can use HK as single writer
+    function addEntry(loan, actionDate, type, amount, note) {
+        return _addEntry(loan, actionDate, type, amount, note);
+    }
+    function getMonthlyRate(loan) { return _getMonthlyRate(loan); }
+    function calcDays(from, to)   { return _calcDays(from, to); }
+    function calcInterest(principal, monthlyRate, days) { return _calcInterest(principal, monthlyRate, days); }
+    function initHK(loan) { _initHK(loan); }
+
+    return { render, showAddMoneyModal, doAdd, showPayModal, updatePayInterest, doPay,
+             showDiscModal, doDisc, showSettleModal, doSettle, showTimeline, onSelect,
+             toggleCard, toggleTithiMode,
+             // Public API for single-source-of-truth delegation:
+             addEntry, getMonthlyRate, calcDays, calcInterest, initHK,
+             // Centralized calculation engine:
+             calculateSummary, safeNumber, formatAmount };
 })();
