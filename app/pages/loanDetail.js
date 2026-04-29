@@ -200,6 +200,23 @@ const LoanDetailPage = (() => {
                 </div>
             </div>
 
+            <!-- C. Jewellery Note Card -->
+            <div class="ld-card" id="jewellery-note-card-${loan.id}" style="border-left:3px solid var(--primary);">
+                <div class="ld-section-title" style="display:flex;align-items:center;gap:8px;">
+                    📝 Jewellery Note
+                    <button onclick="LoanDetailPage.showNoteEditModal('${loan.id}')"
+                        style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;padding:4px 14px;border-radius:20px;font-size:0.75rem;font-weight:700;cursor:pointer;border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-secondary);transition:all .2s;"
+                        onmouseover="this.style.background='var(--primary)';this.style.color='#fff';"
+                        onmouseout="this.style.background='var(--bg-input)';this.style.color='var(--text-secondary)';">✏️ Edit</button>
+                </div>
+                <div class="ld-note-body-wrap">
+                ${loan.jewelleryNote
+                    ? `<div style="background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.18);border-radius:10px;padding:12px 16px;font-size:0.9rem;color:var(--text-primary);line-height:1.6;white-space:pre-wrap;">${loan.jewelleryNote.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`
+                    : `<div style="color:var(--text-muted);font-size:0.85rem;font-style:italic;padding:8px 0;">No note added yet. Click ✏️ Edit to add jewellery condition or remarks.</div>`
+                }
+                </div>
+            </div>
+
             <!-- D. Jewelry Items Card -->
             <div class="ld-card">
                 <div class="ld-section-title">💍 Jewelry Items</div>
@@ -1120,6 +1137,65 @@ const LoanDetailPage = (() => {
         } catch(e) { console.error('showLockerEditModal', e); }
     }
 
+    // ─── Jewellery Note: Edit Modal ───────────────────────────────────────
+    function showNoteEditModal(loanId) {
+        try {
+            document.getElementById('ld-note-modal')?.remove();
+            const loan = DB.getLoan(loanId);
+            if (!loan) return;
+            const existing = (loan.jewelleryNote || '').replace(/"/g, '&quot;');
+            const ov = document.createElement('div');
+            ov.className = 'modal-overlay'; ov.id = 'ld-note-modal';
+            ov.innerHTML = `<div class="modal" style="max-width:440px;">
+                <h3 class="modal-title">📝 Jewellery Note</h3>
+                <p class="text-muted mb-2" style="font-size:0.85rem;">Describe the jewellery condition, damage, or any remarks.</p>
+                <div class="form-group mb-3">
+                    <textarea id="ld-note-input" class="form-input" rows="5" maxlength="400"
+                        placeholder="e.g. Chain broken, stone missing, scratched surface…"
+                        style="resize:vertical;min-height:100px;">${existing}</textarea>
+                    <span class="form-hint">Max 400 characters</span>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-outline" onclick="document.getElementById('ld-note-modal').remove()">Cancel</button>
+                    <button class="btn btn-gold" onclick="LoanDetailPage.saveJewelleryNote('${loanId}')">Save Note</button>
+                </div>
+            </div>`;
+            document.body.appendChild(ov);
+            ov.onclick = e => { if (e.target === ov) ov.remove(); };
+            setTimeout(() => document.getElementById('ld-note-input')?.focus(), 80);
+        } catch(e) { console.error('showNoteEditModal', e); }
+    }
+
+    function saveJewelleryNote(loanId) {
+        try {
+            const loan = DB.getLoan(loanId);
+            if (!loan) return;
+            const note = (document.getElementById('ld-note-input')?.value || '').trim().slice(0, 400);
+            loan.jewelleryNote = note;
+            DB.saveLoan(loan);
+            document.getElementById('ld-note-modal')?.remove();
+            UI.toast('Jewellery note saved!', 'success');
+            // Re-render just the note card without full page reload
+            const card = document.getElementById(`jewellery-note-card-${loanId}`);
+            if (card) {
+                const noteBody = card.querySelector('#ld-note-body');
+                const content = note
+                    ? `<div style="background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.18);border-radius:10px;padding:12px 16px;font-size:0.9rem;color:var(--text-primary);line-height:1.6;white-space:pre-wrap;">${note.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`
+                    : `<div style="color:var(--text-muted);font-size:0.85rem;font-style:italic;padding:8px 0;">No note added yet. Click ✏️ Edit to add jewellery condition or remarks.</div>`;
+                // Update card by re-rendering only the body section
+                const existing = card.querySelector('.ld-note-body-wrap');
+                if (existing) {
+                    existing.innerHTML = content;
+                } else {
+                    // Full re-render as fallback
+                    render(document.getElementById('page-container'), loanId);
+                }
+            } else {
+                render(document.getElementById('page-container'), loanId);
+            }
+        } catch(e) { console.error('saveJewelleryNote', e); UI.toast('Failed to save note', 'error'); }
+    }
+
     function verifyAndEditLocker(loanId) {
         try {
             const pin = document.getElementById('ld-locker-pin')?.value || '';
@@ -1346,6 +1422,7 @@ const LoanDetailPage = (() => {
              showSettleModal2, processSettle,
              showEditModal, verifyAndShowEditForm, processLoanEdit,
              showLockerEditModal, verifyAndEditLocker, processLockerEdit,
+             showNoteEditModal, saveJewelleryNote,
              toggleRiskPanel, toggleLedgerMode, toggleInterestBasis,
              get _riskVisible()    { return _riskVisible;    },
              get _ledgerMode()     { return _ledgerMode;     },

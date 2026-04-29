@@ -54,6 +54,15 @@ const OldLoanPage = (() => {
                         <div class="items-summary-item"><div class="items-summary-label">Total Value</div><div class="items-summary-value" id="ol-total-value">₹0</div></div>
                     </div>
 
+                    <!-- Jewellery Note -->
+                    <div class="form-group mb-3 mt-2">
+                        <label class="form-label" style="display:flex;align-items:center;gap:6px;">📝 <span>Jewellery Note</span> <span style="font-size:0.75rem;color:var(--text-muted);font-weight:400;">(condition, damage, remarks)</span></label>
+                        <textarea class="form-input" id="ol-jewellery-note" rows="3" maxlength="400"
+                            placeholder="e.g. Chain broken, stone missing, scratched surface…"
+                            style="resize:vertical;min-height:72px;"></textarea>
+                        <span class="form-hint">Optional · Max 400 characters</span>
+                    </div>
+
                     <h4 class="mb-1 mt-3" style="color:var(--primary);font-size:0.9rem;" data-i18n="loan_details">${I18n.t('loan_details')}</h4>
                     <div class="form-grid mb-2">
                         ${UI.formGroup(I18n.t('loan_amount') + ' *', '<input type="number" class="form-input" id="ol-amount" required placeholder="' + I18n.t('loan_amount') + '" min="1" onkeydown="OldLoanPage.blockInvalidKey(event)" oninput="OldLoanPage.recalc()">')}
@@ -531,12 +540,6 @@ const OldLoanPage = (() => {
 
             renderItems();
             recalc();
-
-            const banner = document.createElement('div');
-            banner.style.cssText = 'background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.4);border-radius:8px;padding:8px 14px;font-size:0.82rem;color:var(--monitor);margin-bottom:12px;display:flex;align-items:center;gap:8px;';
-            banner.innerHTML = `📝 <strong>Draft restored</strong> — your previous Old Loan entry was saved. <button onclick="OldLoanPage.clearDraft();this.closest('div').remove()" style="margin-left:auto;border:none;background:transparent;color:var(--danger);cursor:pointer;font-size:0.8rem;">✕ Clear</button>`;
-            const form = document.getElementById('old-loan-form');
-            if (form) form.insertBefore(banner, form.firstChild);
         } catch(e) {}
     }
 
@@ -593,6 +596,7 @@ const OldLoanPage = (() => {
         const address = addressEl ? addressEl.value.trim() : '';
         const casteEl = document.getElementById('ol-caste');
         const caste = casteEl ? casteEl.value.trim() : '';
+        const jewelleryNote = (document.getElementById('ol-jewellery-note')?.value || '').trim().slice(0, 400);
         const historicalRate = parseFloat(document.getElementById('ol-historical-rate').value) || null;
         const paidInterest = parseFloat(document.getElementById('ol-paid-interest').value) || 0;
         const partial = parseFloat(document.getElementById('ol-partial').value) || 0;
@@ -663,7 +667,8 @@ const OldLoanPage = (() => {
             historicalMarketRate: historicalRate, useHistoricalRate: _state.useHistoricalRate,
             paidInterest, partialRepayment: partial, manualPenalty: penalty,
             isMigrated: true, status,
-            marketRateAtCreation: historicalRate || Market.getRate(dom)
+            marketRateAtCreation: historicalRate || Market.getRate(dom),
+            jewelleryNote: jewelleryNote || ''
         };
 
         // ── Customer resolution (phone-first, NEVER merge by name) ───────────

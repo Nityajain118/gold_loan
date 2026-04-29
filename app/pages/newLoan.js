@@ -57,6 +57,15 @@ const NewLoanPage = (() => {
                         <div class="items-summary-item"><div class="items-summary-label">Safe Loan (<span id="nl-ltv-label">75</span>% LTV)</div><div class="items-summary-value safe" id="nl-safe-loan">₹0</div></div>
                     </div>
 
+                    <!-- Jewellery Note -->
+                    <div class="form-group mb-3 mt-2">
+                        <label class="form-label" style="display:flex;align-items:center;gap:6px;">📝 <span>Jewellery Note</span> <span style="font-size:0.75rem;color:var(--text-muted);font-weight:400;">(condition, damage, remarks)</span></label>
+                        <textarea class="form-input" id="nl-jewellery-note" rows="3" maxlength="400"
+                            placeholder="e.g. Chain broken, stone missing, scratched surface…"
+                            style="resize:vertical;min-height:72px;"></textarea>
+                        <span class="form-hint">Optional · Max 400 characters</span>
+                    </div>
+
                     <h4 class="mb-1 mt-3" style="color:var(--primary);font-size:0.9rem;" data-i18n="loan_details">${I18n.t('loan_details')}</h4>
                     <div class="form-grid mb-2">
                         ${UI.formGroup(I18n.t('loan_amount'), '<input type="number" class="form-input" id="nl-amount" required placeholder="' + I18n.t('loan_amount') + '" min="1" onkeydown="NewLoanPage.blockInvalidKey(event)" oninput="NewLoanPage.recalc()">')}
@@ -622,13 +631,6 @@ const NewLoanPage = (() => {
 
             renderItems();
             recalc();
-
-            // Show a subtle banner so user knows draft was restored
-            const banner = document.createElement('div');
-            banner.style.cssText = 'background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.4);border-radius:8px;padding:8px 14px;font-size:0.82rem;color:var(--primary);margin-bottom:12px;display:flex;align-items:center;gap:8px;';
-            banner.innerHTML = `📝 <strong>Draft restored</strong> — your previous progress was saved. <button onclick="NewLoanPage.clearDraft();this.closest('div').remove()" style="margin-left:auto;border:none;background:transparent;color:var(--danger);cursor:pointer;font-size:0.8rem;">✕ Clear</button>`;
-            const form = document.getElementById('new-loan-form');
-            if (form) form.insertBefore(banner, form.firstChild);
         } catch(e) { /* silent */ }
     }
 
@@ -689,6 +691,7 @@ const NewLoanPage = (() => {
         const address = document.getElementById('nl-address').value.trim();
         const casteEl = document.getElementById('nl-caste');
         const caste = casteEl ? casteEl.value.trim() : '';
+        const jewelleryNote = (document.getElementById('nl-jewellery-note')?.value || '').trim().slice(0, 400);
 
         // --- Validate ---
         if (!customer) { UI.toast('Please enter customer name', 'error'); return; }
@@ -769,7 +772,8 @@ const NewLoanPage = (() => {
             paidInterest: 0, partialRepayment: 0, manualPenalty: 0,
             isMigrated: false, status: 'active',
             customerPhoto: ImageUpload.getImageData('nl-customer-photo'),
-            marketRateAtCreation: dominantMetal === 'gold' ? rates.gold : rates.silver
+            marketRateAtCreation: dominantMetal === 'gold' ? rates.gold : rates.silver,
+            jewelleryNote: jewelleryNote || ''
         };
 
         // ── Customer resolution (phone-first, NEVER merge by name) ───────────
