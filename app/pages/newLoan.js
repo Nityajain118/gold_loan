@@ -7,6 +7,8 @@ const NewLoanPage = (() => {
         items: [], isManualTithi: false 
     };
     const MAX_ITEMS = 10;
+    const DRAFT_KEY = 'gv_nl_draft';
+    let _draft_active = false; // signals main.js hook that a draft exists to save
 
     function render(container) {
         _state.items = [defaultItem()];
@@ -21,13 +23,16 @@ const NewLoanPage = (() => {
                     <h4 class="mb-1" style="color:var(--primary);font-size:0.9rem;" data-i18n="customer_info">${I18n.t('customer_info')}</h4>
                     <div class="form-grid mb-2">
                         ${UI.formGroup(I18n.t('customer_name') + ' *', '<input type="text" class="form-input" id="nl-customer" required placeholder="' + I18n.t('customer_name') + '" autocomplete="off">')}
-                        ${UI.formGroup(I18n.t('mobile_number'), `<input type="tel" class="form-input" id="nl-mobile" placeholder="10-digit number" maxlength="10" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/\\D/g,'').slice(0,10)">
+                        ${UI.formGroup(I18n.t('mobile_number'), `<input type="tel" class="form-input" id="nl-mobile" placeholder="10-digit number" maxlength="10" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/\\D/g,'').slice(0,10); NewLoanPage.checkMobile()">
                             <span id="nl-mobile-err" class="form-hint" style="color:var(--danger);display:none;">Enter a valid 10-digit mobile number</span>`)}
                         ${UI.formGroup(I18n.t('locker_name'), '<input type="text" class="form-input" id="nl-locker" placeholder="e.g., Locker A-12">')}
                         ${UI.formGroup(I18n.t('caste'), '<input type="text" class="form-input" id="nl-caste" placeholder="Optional Caste">')}
                     </div>
-                    <div class="form-group mb-3">
-                        ${UI.formGroup(I18n.t('address'), '<textarea class="form-input" id="nl-address" placeholder="Enter full address (optional)" style="height:70px;resize:vertical;"></textarea>')}
+                    <div class="form-group mb-3" style="position:relative;">
+                        <label class="form-label" data-i18n="address">${I18n.t('address')}</label>
+                        <input type="text" class="form-input" id="nl-address" placeholder="Enter city / address (optional)" autocomplete="off"
+                            oninput="NewLoanPage.onAddressInput(this)">
+                        <div id="nl-address-dropdown" style="display:none; position:absolute; top:100%; left:0; right:0; background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; z-index:999; max-height:180px; overflow-y:auto; box-shadow:0 8px 24px rgba(0,0,0,0.3);"></div>
                     </div>
                     <div class="form-group mb-3">
                         <label class="form-label" data-i18n="customer_photo">${I18n.t('customer_photo')}</label>
@@ -143,10 +148,16 @@ const NewLoanPage = (() => {
         const ltvPercentage = settings.ltvPercentage || 75;
         const ltvLabel = document.getElementById('nl-ltv-label');
         if (ltvLabel) ltvLabel.textContent = ltvPercentage;
+
+        // Mark draft as active (navigateTo hook will call saveDraft on leave)
+        _draft_active = true;
+
+        // Restore any saved draft
+        restoreDraft();
     }
 
     function defaultItem() {
-        return { metalType: 'gold', purity: '22K', customPurity: '', itemType: 'Ring', weightGrams: '' };
+        return { metalType: 'gold', purity: '22K', customPurity: '', itemType: 'Ring', customItemType: '', weightGrams: '' };
     }
 
     // Block e, +, - in number inputs
@@ -188,6 +199,13 @@ const NewLoanPage = (() => {
                             ${types.map(t => `<option value="${t}" ${item.itemType === t ? 'selected' : ''}>${t}</option>`).join('')}
                         </select>
                     </div>
+                    ${item.itemType === 'Other' ? `
+                    <div class="form-group">
+                        <label class="form-label">Custom Item Name</label>
+                        <input type="text" class="form-input" value="${item.customItemType || ''}" placeholder="Enter item name"
+                            oninput="NewLoanPage.updateItem(${i},'customItemType',this.value)"
+                            onblur="NewLoanPage.saveCustomItemName(${i})">
+                    </div>` : ''}
                     <div class="form-group">
                         <label class="form-label" data-i18n="purity">${I18n.t('purity')}</label>
                         <select class="form-select" onchange="NewLoanPage.updateItem(${i},'purity',this.value)">
@@ -200,7 +218,8 @@ const NewLoanPage = (() => {
                         <input type="number" class="form-input" value="${item.customPurity}" step="0.1" min="1" max="100"
                             placeholder="e.g., 87.5"
                             onkeydown="NewLoanPage.blockInvalidKey(event)"
-                            oninput="NewLoanPage.updateCustomPurity(${i}, this.value)">
+                            oninput="NewLoanPage.updateCustomPurity(${i}, this.value)"
+                            onblur="NewLoanPage.saveCustomPurityNow(${i})">
                         <span class="form-hint">Enter purity as % (1–100)</span>
                     </div>` : ''}
                     <div class="form-group">
@@ -243,6 +262,7 @@ const NewLoanPage = (() => {
             _state.items[index].itemType = types[0];
             _state.items[index].purity = value === 'gold' ? '22K' : '999';
             _state.items[index].customPurity = '';
+            _state.items[index].customItemType = '';
             renderItems();
             return;
         }
@@ -254,7 +274,14 @@ const NewLoanPage = (() => {
             return;
         }
         if (field === 'itemType') {
+            if (value !== 'Other') {
+                _state.items[index].customItemType = '';
+            }
             renderItems();
+            return;
+        }
+        if (field === 'customItemType') {
+            // Only update state; actual save happens onblur via saveCustomItemName()
             return;
         }
         if (field === 'weightGrams') {
@@ -266,8 +293,46 @@ const NewLoanPage = (() => {
 
     function updateCustomPurity(index, value) {
         _state.items[index].customPurity = value;
+        // Note: actual save to localStorage happens onblur via saveCustomPurityNow()
         updateSummary();
         recalc();
+    }
+
+    // Called onblur on the custom purity input — saves only the final entered value
+    function saveCustomPurityNow(index) {
+        const item = _state.items[index];
+        if (!item) return;
+        const pval = parseFloat(item.customPurity);
+        if (pval > 0 && pval <= 100) {
+            Calculator.saveCustomPurity(item.metalType, pval);
+            renderItems(); // refresh dropdown to include saved purity
+        }
+    }
+
+    // Called onblur from the custom item name input — saves only the final value (not each keystroke)
+    function saveCustomItemName(index) {
+        const item = _state.items[index];
+        if (!item) return;
+        const name = (item.customItemType || '').trim();
+        if (name) {
+            Calculator.saveCustomItemType(item.metalType, name);
+            renderItems(); // refresh dropdown so item appears going forward
+        }
+    }
+
+    // Live phone number validation — shows digit counter while typing
+    function checkMobile() {
+        const inp = document.getElementById('nl-mobile');
+        const errEl = document.getElementById('nl-mobile-err');
+        if (!inp || !errEl) return;
+        const v = inp.value;
+        if (v.length > 0 && v.length < 10) {
+            const remaining = 10 - v.length;
+            errEl.textContent = `${remaining} more digit${remaining !== 1 ? 's' : ''} needed (${v.length}/10)`;
+            errEl.style.display = '';
+        } else {
+            errEl.style.display = 'none';
+        }
     }
 
     function updateSummary() {
@@ -501,6 +566,118 @@ const NewLoanPage = (() => {
         }
     }
 
+    // ─── DRAFT PERSISTENCE ───────────────────────────────────────────
+    // Reads current form field values and saves them along with _state to localStorage.
+    function saveDraft() {
+        try {
+            const g = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+            const draft = {
+                customer: g('nl-customer'),
+                mobile:   g('nl-mobile'),
+                locker:   g('nl-locker'),
+                caste:    g('nl-caste'),
+                address:  g('nl-address'),
+                amount:   g('nl-amount'),
+                rate:     g('nl-rate'),
+                start:    g('nl-start'),
+                duration: g('nl-duration'),
+                interestPeriod: _state.interestPeriod,
+                interestType:   _state.interestType,
+                compoundingFrequency: _state.compoundingFrequency,
+                isManualTithi: _state.isManualTithi,
+                items: JSON.parse(JSON.stringify(_state.items)), // deep clone
+                ts: Date.now()
+            };
+            localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+        } catch(e) { /* silent */ }
+    }
+
+    // Restores a saved draft into the current form (called after render).
+    function restoreDraft() {
+        try {
+            const raw = localStorage.getItem(DRAFT_KEY);
+            if (!raw) return;
+            const d = JSON.parse(raw);
+            // Don't restore drafts older than 24 hours
+            if (!d || !d.ts || Date.now() - d.ts > 24 * 60 * 60 * 1000) {
+                localStorage.removeItem(DRAFT_KEY);
+                return;
+            }
+            const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+            set('nl-customer', d.customer);
+            set('nl-mobile',   d.mobile);
+            set('nl-locker',   d.locker);
+            set('nl-caste',    d.caste);
+            set('nl-address',  d.address);
+            set('nl-amount',   d.amount);
+            set('nl-rate',     d.rate);
+            set('nl-start',    d.start);
+            set('nl-duration', d.duration);
+
+            // Restore _state
+            if (d.items && d.items.length) _state.items = d.items;
+            if (d.interestPeriod)  setPeriod(d.interestPeriod);
+            if (d.interestType)    setType(d.interestType);
+            if (d.compoundingFrequency) setFreq(d.compoundingFrequency);
+
+            renderItems();
+            recalc();
+
+            // Show a subtle banner so user knows draft was restored
+            const banner = document.createElement('div');
+            banner.style.cssText = 'background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.4);border-radius:8px;padding:8px 14px;font-size:0.82rem;color:var(--primary);margin-bottom:12px;display:flex;align-items:center;gap:8px;';
+            banner.innerHTML = `📝 <strong>Draft restored</strong> — your previous progress was saved. <button onclick="NewLoanPage.clearDraft();this.closest('div').remove()" style="margin-left:auto;border:none;background:transparent;color:var(--danger);cursor:pointer;font-size:0.8rem;">✕ Clear</button>`;
+            const form = document.getElementById('new-loan-form');
+            if (form) form.insertBefore(banner, form.firstChild);
+        } catch(e) { /* silent */ }
+    }
+
+    function clearDraft() {
+        localStorage.removeItem(DRAFT_KEY);
+        _draft_active = false;
+    }
+
+    // ─── ADDRESS AUTOCOMPLETE ──────────────────────────────────────────
+    // Collects unique, non-empty addresses from all loans and customers in DB.
+    function _getAddressHistory() {
+        const seen = new Set();
+        const list = [];
+        try {
+            (DB.getLoans() || []).forEach(l => {
+                const a = (l.address || '').trim();
+                if (a && !seen.has(a.toLowerCase())) { seen.add(a.toLowerCase()); list.push(a); }
+            });
+            (DB.getCustomers() || []).forEach(c => {
+                const a = (c.address || '').trim();
+                if (a && !seen.has(a.toLowerCase())) { seen.add(a.toLowerCase()); list.push(a); }
+            });
+        } catch(e) {}
+        return list;
+    }
+
+    // Called oninput on the address field — filters and renders suggestions.
+    function onAddressInput(input) {
+        const dd = document.getElementById('nl-address-dropdown');
+        if (!dd) return;
+        const query = (input.value || '').trim().toLowerCase();
+        if (!query) { dd.style.display = 'none'; return; }
+        const matches = _getAddressHistory().filter(a => a.toLowerCase().includes(query)).slice(0, 8);
+        if (!matches.length) { dd.style.display = 'none'; return; }
+        dd.innerHTML = matches.map(a =>
+            `<div style="padding:10px 14px;cursor:pointer;font-size:0.88rem;color:var(--text-primary);border-bottom:1px solid var(--border-color);transition:background 0.15s;"
+                onmouseover="this.style.background='var(--bg-input)'"
+                onmouseout="this.style.background=''"
+                onclick="document.getElementById('nl-address').value='${a.replace(/'/g, '\\&#39;')}'; document.getElementById('nl-address-dropdown').style.display='none';">
+                📍 ${a}
+            </div>`
+        ).join('');
+        dd.style.display = 'block';
+        // Hide dropdown when clicking outside
+        const hideDD = (e) => { if (!dd.contains(e.target) && e.target !== input) { dd.style.display = 'none'; document.removeEventListener('click', hideDD); } };
+        document.addEventListener('click', hideDD);
+    }
+
+
     function save() {
         const customer = document.getElementById('nl-customer').value.trim();
         const mobile = document.getElementById('nl-mobile').value.trim();
@@ -537,6 +714,10 @@ const NewLoanPage = (() => {
                     return;
                 }
             }
+            if (it.itemType === 'Other' && !it.customItemType?.trim()) {
+                UI.toast(`Item #${idx + 1}: Please enter the custom item name`, 'error');
+                return;
+            }
         }
 
         if (!amount || amount <= 0) { UI.toast('Please enter valid loan amount', 'error'); return; }
@@ -550,7 +731,7 @@ const NewLoanPage = (() => {
                 stateItem === validItem
             );
             return {
-                itemType: validItem.itemType,
+                itemType: validItem.itemType === 'Other' && validItem.customItemType ? validItem.customItemType : validItem.itemType,
                 metalType: validItem.metalType,
                 purity: validItem.purity,
                 customPurity: validItem.purity === 'custom' ? parseFloat(validItem.customPurity) : null,
@@ -616,9 +797,10 @@ const NewLoanPage = (() => {
         loan.customerId = resolvedCustomer.id;
 
         DB.saveLoan(loan);
+        clearDraft(); // clear draft after successful save
         UI.toast('Loan created successfully!', 'success');
         UI.navigateTo('loans');
     }
 
-    return { render, addItem, removeItem, updateItem, updateCustomPurity, setPeriod, setType, setFreq, togglePanchang, saveOverride, recalc, save, blockInvalidKey, _state };
+    return { render, addItem, removeItem, updateItem, updateCustomPurity, saveCustomItemName, saveCustomPurityNow, checkMobile, onAddressInput, saveDraft, clearDraft, setPeriod, setType, setFreq, togglePanchang, saveOverride, recalc, save, blockInvalidKey, _state, get _draft_active() { return _draft_active; } };
 })();

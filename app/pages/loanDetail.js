@@ -98,71 +98,97 @@ const LoanDetailPage = (() => {
                 </div>
                 <div class="ld-header-right">
                     <span class="ld-badge ${badgeClass}">${badgeLabel}</span>
+                    <button class="ld-hdr-btn" style="background:linear-gradient(135deg,#f6d365,#fda085);color:#1a1a2e;font-weight:700;" onclick="UI.navigateTo('hisab-kitaab','${loan.id}')">📒 हिसाब किताब</button>
                     <button class="ld-hdr-btn" onclick="Export.exportLoanPDF(DB.getLoan('${loan.id}'))">${I18n.t('export_pdf')}</button>
                     <button class="ld-hdr-btn" onclick="LoanDetailPage.sendWhatsApp('${loan.id}')">${I18n.t('send_whatsapp')}</button>
                 </div>
             </div>
 
-            <!-- B. Loan Overview Card -->
+            <!-- B. Loan Overview Card (Card-based layout) -->
             <div class="ld-card">
-                <div class="ld-section-title" style="display:flex;align-items:center;">📊 Loan Overview
+                <div class="ld-section-title" style="display:flex;align-items:center;">📋 Loan Overview
                     <button onclick="LoanDetailPage.showEditModal('${loan.id}')"
                         style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;padding:4px 14px;border-radius:20px;font-size:0.75rem;font-weight:700;cursor:pointer;border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-secondary);transition:all .2s;"
                         onmouseover="this.style.background='var(--primary)';this.style.color='#fff';"
                         onmouseout="this.style.background='var(--bg-input)';this.style.color='var(--text-secondary)';">✏️ Edit</button>
                 </div>
-                <div class="ld-overview-grid">
-                    <div class="ld-overview-item">
-                        <div class="ld-overview-label">Metal Type</div>
-                        <div class="ld-overview-value gold">${icon} ${loan.metalType === 'gold' ? 'Gold' : 'Silver'} ${loan.metalSubType || ''}</div>
+
+                <!-- Row 1: Start Date, Maturity Date, Loan Amount, Interest Rate -->
+                <div class="ld-info-cards-grid">
+                    <div class="ld-info-card">
+                        <div class="ld-info-card-icon">📅</div>
+                        <div class="ld-info-card-label">Loan Start Date</div>
+                        <div class="ld-info-card-value">${UI.formatDate(loan.loanStartDate)}</div>
+                        ${d.startTithi ? `<div class="ld-info-card-sub">${UI.formatTithi(d.startTithi)}</div>` : ''}
                     </div>
-                    <div class="ld-overview-item">
-                        <div class="ld-overview-label">Total Weight</div>
-                        <div class="ld-overview-value">${totalWeight.toFixed(2)} g</div>
+                    <div class="ld-info-card">
+                        <div class="ld-info-card-icon">📅</div>
+                        <div class="ld-info-card-label">Maturity Date</div>
+                        <div class="ld-info-card-value">${UI.formatDate(d.maturityDate)}</div>
+                        ${d.maturityTithi ? `<div class="ld-info-card-sub">${UI.formatTithi(d.maturityTithi)}</div>` : ''}
                     </div>
-                    <div class="ld-overview-item">
-                        <div class="ld-overview-label">Metal Value</div>
-                        <div class="ld-overview-value gold">${UI.currency(d.metalValue)}</div>
+                    <div class="ld-info-card">
+                        <div class="ld-info-card-icon">₹</div>
+                        <div class="ld-info-card-label">Loan Amount</div>
+                        <div class="ld-info-card-value" style="color:var(--text-primary);">${UI.currency(origPrincipal)}</div>
                     </div>
-                    <div class="ld-overview-item">
-                        <div class="ld-overview-label">Loan Amount</div>
-                        <div class="ld-overview-value">${UI.currency(origPrincipal)}</div>
+                    <div class="ld-info-card">
+                        <div class="ld-info-card-icon">%</div>
+                        <div class="ld-info-card-label">Interest Rate</div>
+                        <div class="ld-info-card-value">${loan.interestRate || 0}%<br><span style="font-size:0.78rem;font-weight:500;color:var(--text-secondary);">per ${loan.interestPeriod || 'month'}</span></div>
                     </div>
-                    <div class="ld-overview-item">
-                        <div class="ld-overview-label">Interest Rate</div>
-                        <div class="ld-overview-value">${loan.interestRate || 0}% per ${loan.interestPeriod || 'month'}</div>
+                </div>
+
+                <!-- Row 2: Interest Type, Annual Interest, LTV, Metal Type -->
+                <div class="ld-info-cards-grid" style="margin-top:10px;">
+                    <div class="ld-info-card">
+                        <div class="ld-info-card-icon">📄</div>
+                        <div class="ld-info-card-label">Interest Type</div>
+                        <div class="ld-info-card-value" style="color:var(--primary);">${loan.interestType === 'compound' ? 'Compound' : 'Monthly'}</div>
                     </div>
-                    <div class="ld-overview-item">
-                        <div class="ld-overview-label">Interest Type</div>
-                        <div class="ld-overview-value">${interestTypeLabel}</div>
+                    <div class="ld-info-card">
+                        <div class="ld-info-card-icon">🔄</div>
+                        <div class="ld-info-card-label">Annual Interest</div>
+                        <div class="ld-info-card-value" style="color:var(--primary);">${UI.pct(d.effectiveRate || d.annualRate)}</div>
                     </div>
-                    <div class="ld-overview-item">
-                        <div class="ld-overview-label">Effective Annual Rate</div>
-                        <div class="ld-overview-value">${UI.pct(d.effectiveRate || d.annualRate)}</div>
+                    <div class="ld-info-card">
+                        <div class="ld-info-card-icon">⏱</div>
+                        <div class="ld-info-card-label">LTV</div>
+                        <div class="ld-info-card-value ${ltvBadge}">${UI.pct(d.ltv)}</div>
                     </div>
-                    <div class="ld-overview-item">
-                        <div class="ld-overview-label">Time Mode</div>
-                        <div class="ld-overview-value">${timeModeLabel}</div>
+                    <div class="ld-info-card">
+                        <div class="ld-info-card-icon">👥</div>
+                        <div class="ld-info-card-label">Metal Type</div>
+                        <div class="ld-info-card-value" style="color:var(--gold-dark);">${icon} ${loan.metalType === 'gold' ? 'Gold' : 'Silver'} ${loan.metalSubType || ''}</div>
                     </div>
-                    <div class="ld-overview-item">
-                        <div class="ld-overview-label">Items Count</div>
-                        <div class="ld-overview-value">${items.length} Item${items.length !== 1 ? 's' : ''}</div>
+                </div>
+
+                <!-- Row 3: Total Weight, Metal Value, Total Items + Days to Maturity -->
+                <div class="ld-info-cards-grid ld-info-cards-grid--3" style="margin-top:10px;">
+                    <div class="ld-info-card">
+                        <div class="ld-info-card-icon">⚖️</div>
+                        <div class="ld-info-card-label">Total Weight</div>
+                        <div class="ld-info-card-value">${totalWeight.toFixed(2)} g</div>
                     </div>
-                    <div class="ld-overview-item">
-                        <div class="ld-overview-label">Gold Items</div>
-                        <div class="ld-overview-value">${goldItemsCount}</div>
+                    <div class="ld-info-card">
+                        <div class="ld-info-card-icon">₹</div>
+                        <div class="ld-info-card-label">Metal Value</div>
+                        <div class="ld-info-card-value" style="color:var(--gold-dark);">${UI.currency(d.metalValue)}</div>
                     </div>
-                    <div class="ld-overview-item">
-                        <div class="ld-overview-label">Silver Items</div>
-                        <div class="ld-overview-value">${silverItemsCount}</div>
+                    <div class="ld-info-card">
+                        <div class="ld-info-card-icon">≡</div>
+                        <div class="ld-info-card-label">Total Items</div>
+                        <div class="ld-info-card-value">${items.length} Item${items.length !== 1 ? 's' : ''}</div>
                     </div>
-                    <div class="ld-overview-item">
-                        <div class="ld-overview-label">LTV</div>
-                        <div class="ld-overview-value ${ltvBadge}">${UI.pct(d.ltv)}</div>
+                    <div class="ld-info-card ${d.isOverdue ? 'ld-info-card--overdue' : 'ld-info-card--days'}">
+                        <div class="ld-info-card-icon">📅</div>
+                        <div class="ld-info-card-label">Days to Maturity</div>
+                        <div class="ld-info-card-value">${d.isOverdue ? '⚠️ OVERDUE' : d.daysToMaturity}<br><span style="font-size:0.75rem;font-weight:500;color:var(--text-secondary);">Duration: ${loan.loanDuration || 12} Months</span></div>
                     </div>
-                    <div class="ld-overview-item">
-                        <div class="ld-overview-label">🔒 Locker No.</div>
-                        <div class="ld-overview-value" style="display:flex;align-items:center;gap:6px;">
+                    <div class="ld-info-card">
+                        <div class="ld-info-card-icon">🔒</div>
+                        <div class="ld-info-card-label">Locker No.</div>
+                        <div class="ld-info-card-value" style="display:flex;align-items:center;gap:6px;">
                             <span id="locker-display-${loan.id}">${loan.lockerName || loan.lockerNo || '—'}</span>
                             <button onclick="LoanDetailPage.showLockerEditModal('${loan.id}')"
                                 title="Edit Locker Number"
@@ -170,27 +196,6 @@ const LoanDetailPage = (() => {
                                 onmouseover="this.style.color='var(--primary)';"
                                 onmouseout="this.style.color='var(--text-secondary)';">✏️</button>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- C. Dates Card -->
-            <div class="ld-card">
-                <div class="ld-dates-grid">
-                    <div class="ld-date-panel">
-                        <div class="ld-date-panel-label">📅 Start Date</div>
-                        <div class="ld-date-big">${UI.formatDate(loan.loanStartDate)}</div>
-                        ${d.startTithi ? `<div class="ld-date-tithi">${UI.formatTithi(d.startTithi)}</div>` : ''}
-                    </div>
-                    <div class="ld-date-panel">
-                        <div class="ld-date-panel-label">📅 Maturity Date</div>
-                        <div class="ld-date-big">${UI.formatDate(d.maturityDate)}</div>
-                        ${d.maturityTithi ? `<div class="ld-date-tithi">${UI.formatTithi(d.maturityTithi)}</div>` : ''}
-                    </div>
-                    <div class="ld-days-panel ${d.isOverdue ? 'ld-days-overdue' : ''}">
-                        <div class="ld-days-label">📅 Days to Maturity</div>
-                        <div class="ld-days-number">${d.isOverdue ? 'OVERDUE' : d.daysToMaturity}</div>
-                        <div class="ld-days-sub">Duration: ${loan.loanDuration || 12} Months</div>
                     </div>
                 </div>
             </div>

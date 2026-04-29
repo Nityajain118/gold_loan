@@ -266,7 +266,7 @@ const CustomerLedgerPage = (() => {
         overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 
         // Boot NewLoanPage state into the modal's form
-        NewLoanPage._state.items = [{ metalType: 'gold', purity: '22K', customPurity: '', itemType: 'Ring', weightGrams: '' }];
+        NewLoanPage._state.items = [{ metalType: 'gold', purity: '22K', customPurity: '', itemType: 'Ring', customItemType: '', weightGrams: '' }];
         NewLoanPage._state.interestPeriod = 'monthly';
         NewLoanPage._state.interestType = 'simple';
         NewLoanPage._state.compoundingFrequency = 12;
@@ -299,6 +299,9 @@ const CustomerLedgerPage = (() => {
                 const cp = parseFloat(it.customPurity);
                 if (!cp || cp <= 0 || cp > 100) { UI.toast(`Item #${idx + 1}: Enter a valid custom purity (1–100%)`, 'error'); return; }
             }
+            if (it.itemType === 'Other' && !it.customItemType?.trim()) {
+                UI.toast(`Item #${idx + 1}: Please enter the custom item name`, 'error'); return;
+            }
         }
         if (!amount || amount <= 0) { UI.toast('Please enter valid loan amount', 'error'); return; }
         if (!rate   || rate   <= 0) { UI.toast('Please enter valid interest rate', 'error'); return; }
@@ -306,7 +309,7 @@ const CustomerLedgerPage = (() => {
 
         const rates = Market.getCurrentRates();
         const items = validItems.map((vi, idx) => ({
-            itemType: vi.itemType, metalType: vi.metalType, purity: vi.purity,
+            itemType: vi.itemType === 'Other' && vi.customItemType ? vi.customItemType : vi.itemType, metalType: vi.metalType, purity: vi.purity,
             customPurity: vi.purity === 'custom' ? parseFloat(vi.customPurity) : null,
             weightGrams: parseFloat(vi.weightGrams),
             photo: ImageUpload.getImageData('nl-item-photo-' + NewLoanPage._state.items.indexOf(vi)) || ''

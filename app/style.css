@@ -3386,7 +3386,7 @@ html, body {
     display: flex; align-items: center; gap: 7px; margin-bottom: 16px;
 }
 
-/* --- Loan Overview Grid --- */
+/* --- Loan Overview Grid (legacy, kept for reference) --- */
 .ld-overview-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -3406,6 +3406,72 @@ html, body {
 .ld-overview-value.accent { color: var(--primary); }
 .ld-overview-value.gold   { color: var(--gold-dark); }
 .ld-overview-value.safe   { color: var(--safe); }
+
+/* --- New Card-Based Info Grid (Loan Overview) --- */
+.ld-info-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+.ld-info-cards-grid--3 {
+    grid-template-columns: repeat(5, 1fr);
+}
+.ld-info-card {
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: var(--transition);
+    min-height: 88px;
+}
+.ld-info-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 2px 8px rgba(99,102,241,0.1);
+    transform: translateY(-1px);
+}
+.ld-info-card--days {
+    background: linear-gradient(135deg, #f0f4ff, #e8eeff);
+    border-color: #c7d2fe;
+}
+[data-theme="dark"] .ld-info-card--days { background: rgba(79,70,229,0.12); border-color: rgba(99,102,241,0.3); }
+.ld-info-card--overdue {
+    background: rgba(239,68,68,0.06);
+    border-color: rgba(239,68,68,0.4);
+}
+.ld-info-card-icon {
+    font-size: 1rem;
+    color: var(--primary);
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 2px;
+}
+.ld-info-card-label {
+    font-size: 0.74rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ld-info-card-value {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.25;
+    margin-top: 2px;
+}
+.ld-info-card-value.safe    { color: var(--safe); }
+.ld-info-card-value.monitor { color: var(--monitor); }
+.ld-info-card-value.danger  { color: var(--danger); }
+.ld-info-card-sub {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+    line-height: 1.5;
+}
 
 /* --- Dates Grid --- */
 .ld-dates-grid {
@@ -3553,10 +3619,790 @@ html, body {
     .ld-hisaab-grid { grid-template-columns: repeat(2, 1fr); }
     .ld-summary-grid { grid-template-columns: 1fr; }
     .ld-action-bar { grid-template-columns: repeat(2, 1fr); }
+    /* New info cards: 2 per row on tablet */
+    .ld-info-cards-grid { grid-template-columns: repeat(2, 1fr); }
+    .ld-info-cards-grid--3 { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 480px) {
     .ld-header { flex-direction: column; align-items: flex-start; }
     .ld-header-right { width: 100%; justify-content: flex-end; }
     .ld-dates-grid { grid-template-columns: 1fr; }
     .ld-days-panel { grid-column: span 1; }
+    /* New info cards: 2 per row on mobile */
+    .ld-info-cards-grid { grid-template-columns: repeat(2, 1fr); }
+    .ld-info-cards-grid--3 { grid-template-columns: repeat(2, 1fr); }
+    .ld-info-card { padding: 11px 12px; min-height: 76px; }
+    .ld-info-card-value { font-size: 0.92rem; }
+}
+
+/* ============================================
+   Hisab Kitaab (हिसाब किताब) — Ledger Page
+   ============================================ */
+.hk-page {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: 40px;
+    font-family: 'Noto Sans Devanagari', 'Inter', sans-serif;
+}
+
+/* ── Customer Header ────────────────────────── */
+.hk-header {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+    box-shadow: var(--shadow-sm);
+}
+.hk-header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+    min-width: 0;
+}
+.hk-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1a1a2e;
+    font-size: 1.2rem;
+    font-weight: 800;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(246,211,101,0.3);
+}
+.hk-customer-info {
+    min-width: 0;
+}
+.hk-customer-name {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    word-break: break-word;
+}
+.hk-customer-meta {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    line-height: 1.5;
+}
+.hk-header-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+.hk-rate-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+}
+.hk-rate-info strong {
+    color: var(--primary);
+}
+
+/* ── Action Buttons ─────────────────────────── */
+.hk-actions {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+.hk-action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 16px 8px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-sm);
+}
+.hk-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+.hk-action-btn:active {
+    transform: translateY(0);
+}
+.hk-btn-icon {
+    font-size: 1.6rem;
+    line-height: 1;
+}
+.hk-btn-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-align: center;
+    line-height: 1.3;
+}
+.hk-btn-add { border-left: 3px solid var(--danger); }
+.hk-btn-add:hover { background: rgba(239,68,68,0.06); }
+.hk-btn-payment { border-left: 3px solid var(--safe); }
+.hk-btn-payment:hover { background: rgba(16,185,129,0.06); }
+.hk-btn-discount { border-left: 3px solid var(--monitor); }
+.hk-btn-discount:hover { background: rgba(245,158,11,0.06); }
+.hk-btn-settle { border-left: 3px solid var(--primary); }
+.hk-btn-settle:hover { background: rgba(99,102,241,0.06); }
+
+/* ── Balance Card ───────────────────────────── */
+.hk-balance-card {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border-radius: var(--radius-lg);
+    padding: 18px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: var(--shadow-md);
+}
+.hk-balance-label {
+    font-size: 1rem;
+    font-weight: 600;
+    color: rgba(255,255,255,0.7);
+}
+.hk-balance-value {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #f6d365;
+    letter-spacing: 0.5px;
+}
+
+/* ── Ledger Table ───────────────────────────── */
+.hk-table-wrap {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    box-shadow: var(--shadow-sm);
+}
+.hk-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 800px;
+    font-size: 0.88rem;
+}
+.hk-table thead th {
+    background: var(--bg-sidebar);
+    color: #fff;
+    padding: 12px 10px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    text-align: center;
+}
+.hk-table thead th:first-child { border-radius: var(--radius-md) 0 0 0; }
+.hk-table thead th:last-child { border-radius: 0 var(--radius-md) 0 0; }
+
+.hk-table tbody td {
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--border-light);
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap;
+    font-size: 0.85rem;
+}
+.hk-table tbody tr:last-child td { border-bottom: none; }
+.hk-table tbody tr:hover { background: rgba(99,102,241,0.04); }
+
+/* Cell-specific */
+.hk-cell-sr { font-weight: 600; color: var(--text-muted); width: 36px; }
+.hk-cell-date { font-weight: 500; }
+.hk-cell-balance strong { color: var(--primary); font-size: 0.92rem; }
+.hk-cell-interest { color: var(--monitor); font-weight: 700; }
+.hk-cell-paid { color: var(--safe); font-weight: 700; }
+.hk-cell-principal { color: var(--danger); font-weight: 700; }
+
+/* Type badges */
+.hk-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 16px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.hk-type-badge.hk-row-loan {
+    background: rgba(239,68,68,0.1);
+    color: var(--danger);
+}
+.hk-type-badge.hk-row-interest {
+    background: rgba(245,158,11,0.1);
+    color: var(--monitor);
+}
+.hk-type-badge.hk-row-payment {
+    background: rgba(16,185,129,0.1);
+    color: var(--safe);
+}
+.hk-type-badge.hk-row-discount {
+    background: rgba(99,102,241,0.1);
+    color: var(--primary);
+}
+.hk-type-badge.hk-row-settle {
+    background: rgba(16,185,129,0.15);
+    color: var(--safe);
+}
+
+/* Row highlighting */
+.hk-row-loan td { background: rgba(239,68,68,0.03); }
+.hk-row-interest td { background: rgba(245,158,11,0.03); }
+.hk-row-payment td { background: rgba(16,185,129,0.03); }
+.hk-row-discount td { background: rgba(99,102,241,0.03); }
+.hk-row-settle td { background: rgba(16,185,129,0.06); }
+
+/* ── Mobile Responsive ──────────────────────── */
+@media (max-width: 640px) {
+    .hk-header {
+        flex-direction: column;
+        padding: 14px 16px;
+    }
+    .hk-header-right {
+        align-items: flex-start;
+        flex-direction: row;
+        justify-content: space-between;
+        width: 100%;
+    }
+    .hk-rate-info {
+        align-items: flex-start;
+        flex-direction: row;
+        gap: 12px;
+    }
+    .hk-actions {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .hk-action-btn {
+        padding: 14px 6px;
+    }
+    .hk-btn-label {
+        font-size: 0.78rem;
+    }
+    .hk-balance-card {
+        padding: 14px 18px;
+    }
+    .hk-balance-value {
+        font-size: 1.3rem;
+    }
+    .hk-customer-name {
+        font-size: 1.1rem;
+    }
+    .hk-table {
+        font-size: 0.82rem;
+    }
+    .hk-table thead th {
+        font-size: 0.72rem;
+        padding: 10px 6px;
+    }
+    .hk-table tbody td {
+        padding: 8px 6px;
+        font-size: 0.8rem;
+    }
+}
+
+/* ── HK v2: Live Summary Card ─────────────── */
+.hk-live-summary {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border-radius: var(--radius-lg);
+    padding: 20px 24px;
+    box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.hk-live-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+}
+.hk-live-label {
+    font-size: 0.88rem;
+    color: rgba(255,255,255,0.6);
+    font-weight: 500;
+}
+.hk-live-val {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+    font-family: 'Inter', monospace;
+}
+.hk-live-net {
+    border-top: 1px solid rgba(255,255,255,0.15);
+    margin-top: 4px;
+    padding-top: 10px;
+}
+.hk-live-net .hk-live-label {
+    font-size: 1rem;
+    color: rgba(255,255,255,0.8);
+    font-weight: 700;
+}
+.hk-live-net .hk-live-val {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #f6d365;
+}
+
+/* ── HK v2: Running Interest Row ──────────── */
+.hk-row-running td {
+    background: rgba(16, 185, 129, 0.08) !important;
+    border-bottom: 2px solid var(--safe) !important;
+}
+.hk-type-badge.hk-row-running {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--safe);
+    animation: hk-pulse 2s ease-in-out infinite;
+}
+@keyframes hk-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+@media (max-width: 640px) {
+    .hk-live-summary { padding: 16px 18px; }
+    .hk-live-net .hk-live-val { font-size: 1.2rem; }
+}
+
+/* ── HK v2: Selection Summary ─────────────── */
+.hk-select-summary {
+    background: var(--bg-card);
+    border: 2px solid var(--primary);
+    border-radius: var(--radius-lg);
+    padding: 16px 20px;
+    box-shadow: var(--shadow-md);
+    animation: hk-slideIn 0.3s ease;
+}
+@keyframes hk-slideIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.hk-select-title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--primary);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-light);
+}
+.hk-select-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px dashed var(--border-light);
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.hk-select-row:last-child { border-bottom: none; }
+.hk-sel-left { display: flex; flex-direction: column; gap: 2px; }
+.hk-sel-label { font-weight: 700; font-size: 0.92rem; color: var(--text-primary); }
+.hk-sel-date { font-size: 0.78rem; color: var(--text-secondary); }
+.hk-sel-right {
+    display: flex;
+    gap: 16px;
+    font-size: 0.85rem;
+    text-align: right;
+}
+.hk-select-net {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 2px solid var(--primary);
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--primary);
+}
+.hk-select-net span:last-child {
+    font-size: 1.3rem;
+    color: var(--safe);
+}
+@media (max-width: 640px) {
+    .hk-select-summary { padding: 12px 14px; }
+    .hk-sel-right { gap: 10px; font-size: 0.8rem; }
+    .hk-select-net { font-size: 1rem; }
+    .hk-select-net span:last-child { font-size: 1.1rem; }
+}
+
+/* ── HK v2: Split Layout UI ─────────────── */
+.hk-split-layout {
+    display: flex;
+    flex-direction: row !important;
+    flex-wrap: nowrap;
+    gap: 12px;
+    margin: 16px 0;
+    align-items: flex-start;
+}
+
+.hk-col-udhar, .hk-col-jama {
+    flex: 1;
+    min-width: 0; /* Prevent flex blowout */
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 12px;
+    height: 65vh; /* Fixed viewport height for internal scroll */
+    min-height: 400px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+}
+
+.hk-col-udhar {
+    border-top: 4px solid var(--danger);
+}
+
+.hk-col-jama {
+    border-top: 4px solid var(--safe);
+}
+
+.hk-col-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex-grow: 1;
+}
+
+.hk-col-title {
+    font-size: 1rem;
+    font-weight: 800;
+    text-align: center;
+    margin-bottom: 4px;
+}
+
+.hk-col-total {
+    font-size: 1.4rem;
+    font-weight: 800;
+    text-align: center;
+    margin-bottom: 16px;
+    font-family: 'Inter', monospace;
+    border-bottom: 1px dashed var(--border-light);
+    padding-bottom: 12px;
+}
+
+.hk-col-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.hk-empty {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    padding: 20px 0;
+}
+
+.hk-card {
+    position: relative;
+    border-radius: 12px;
+    padding: 14px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.hk-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.hk-card-selected {
+    background: rgba(99, 102, 241, 0.05);
+    border-color: var(--primary);
+}
+
+/* Udhar (Red) */
+.hk-card-udhar {
+    border-left: 3px solid var(--danger);
+}
+.hk-card-udhar.hk-card-selected {
+    background: rgba(239, 68, 68, 0.05);
+    border-color: var(--danger);
+}
+.hk-card-udhar .hk-card-title { color: var(--danger); }
+.hk-card-udhar .hk-card-amount { color: var(--danger); }
+
+/* Jama (Green) */
+.hk-card-jama {
+    border-left: 3px solid var(--safe);
+}
+.hk-card-jama.hk-card-selected {
+    background: rgba(16, 185, 129, 0.05);
+    border-color: var(--safe);
+}
+.hk-card-jama .hk-card-title { color: var(--safe); }
+.hk-card-jama .hk-card-amount { color: var(--safe); }
+
+/* Card Internals */
+.hk-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.hk-card-title {
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.hk-card-amount {
+    font-size: 1.1rem;
+    font-weight: 800;
+    font-family: 'Inter', monospace;
+}
+
+.hk-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.hk-card-dates {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.hk-date-hi {
+    font-size: 0.75rem;
+    color: var(--primary);
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.hk-card-cb {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    margin-left: 8px;
+}
+
+.hk-card-details {
+    background: rgba(0,0,0,0.02);
+    padding: 8px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+}
+[data-theme="dark"] .hk-card-details { background: rgba(255,255,255,0.03); }
+
+.hk-detail-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+.hk-detail-row:last-child { margin-bottom: 0; }
+
+.hk-card-note {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-style: italic;
+    background: rgba(245,158,11,0.05);
+    padding: 6px;
+    border-radius: 4px;
+}
+
+.hk-card-more {
+    font-size: 0.8rem;
+    color: var(--primary);
+    cursor: pointer;
+    margin-top: 4px;
+}
+.hk-card-more summary {
+    font-weight: 600;
+    outline: none;
+}
+
+/* Khata Summary Bottom Box */
+.hk-khata-summary {
+    background: var(--bg-card);
+    border: 2px solid var(--border-color);
+    box-shadow: none;
+    margin-top: 16px;
+}
+.hk-khata-summary-title {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-light);
+    text-transform: uppercase;
+}
+
+/* Custom Scrollbar for columns */
+.hk-col-udhar::-webkit-scrollbar, .hk-col-jama::-webkit-scrollbar {
+    width: 6px;
+}
+.hk-col-udhar::-webkit-scrollbar-track, .hk-col-jama::-webkit-scrollbar-track {
+    background: transparent;
+}
+.hk-col-udhar::-webkit-scrollbar-thumb, .hk-col-jama::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+@media (max-width: 640px) {
+    .hk-split-layout {
+        gap: 8px;
+    }
+    .hk-col-udhar, .hk-col-jama {
+        padding: 8px;
+    }
+    .hk-col-title {
+        font-size: 0.8rem;
+    }
+    .hk-col-total {
+        font-size: 1.1rem;
+    }
+    .hk-card {
+        padding: 10px;
+    }
+    .hk-card-amount {
+        font-size: 0.9rem;
+    }
+    .hk-card-title {
+        font-size: 0.75rem;
+    }
+    .hk-card-dates {
+        flex-direction: column;
+        gap: 4px;
+    }
+}
+
+/* Tithi Toggle Switch */
+.hk-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+}
+.hk-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.hk-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: var(--border-color);
+    transition: .4s;
+    border-radius: 24px;
+}
+.hk-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+input:checked + .hk-slider {
+    background-color: var(--primary);
+}
+input:checked + .hk-slider:before {
+    transform: translateX(20px);
+}
+
+/* ── HK: Discount Applied Section ───────────── */
+.hk-discount-section {
+    margin: 0 0 16px 0;
+    background: linear-gradient(135deg, rgba(245,158,11,0.08) 0%, rgba(251,191,36,0.06) 100%);
+    border: 2px solid rgba(245,158,11,0.35);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    animation: hk-slideIn 0.3s ease;
+}
+
+.hk-discount-section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: linear-gradient(90deg, rgba(245,158,11,0.18), rgba(251,191,36,0.08));
+    border-bottom: 1px solid rgba(245,158,11,0.2);
+}
+
+.hk-discount-icon {
+    font-size: 1.3rem;
+}
+
+.hk-discount-title {
+    flex: 1;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--monitor);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.hk-discount-total {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--monitor);
+    font-family: 'Inter', monospace;
+}
+
+.hk-discount-cards {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 14px;
+}
+
+/* Discount card variant */
+.hk-card-discount {
+    border-left: 3px solid var(--monitor);
+    flex: 1;
+    min-width: 200px;
+}
+.hk-card-discount.hk-card-selected {
+    background: rgba(245,158,11,0.07);
+    border-color: var(--monitor);
+}
+.hk-card-discount .hk-card-title { color: var(--monitor); }
+.hk-card-discount .hk-card-amount { color: var(--monitor); }
+
+@media (max-width: 640px) {
+    .hk-discount-section-header { padding: 10px 12px; }
+    .hk-discount-cards { flex-direction: column; padding: 10px; }
+    .hk-discount-title { font-size: 0.8rem; }
+    .hk-discount-total { font-size: 1rem; }
+    .hk-card-discount { min-width: unset; }
 }

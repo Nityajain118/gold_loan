@@ -23,6 +23,83 @@ const Calculator = (() => {
         silver: ['Ring', 'Necklace', 'Chain', 'Bangle', 'Bracelet', 'Anklet', 'Coin', 'Bar', 'Payal', 'Plate', 'Glass', 'Idol', 'Utensil', 'Toe Ring', 'Other']
     };
 
+    // ── Custom Item Type Persistence ───────────────
+    const CUSTOM_ITEMS_KEY = 'gv_custom_item_types';
+    const CUSTOM_PURITIES_KEY = 'gv_custom_purities';
+
+    function getCustomItemTypes(metalType) {
+        try {
+            const all = JSON.parse(localStorage.getItem(CUSTOM_ITEMS_KEY)) || {};
+            // Filter out any short/partial entries (< 2 chars) that may have been saved by mistake
+            const clean = (all[metalType] || []).filter(t => t && t.trim().length >= 2);
+            // If cleanup changed anything, persist it
+            if (clean.length !== (all[metalType] || []).length) {
+                all[metalType] = clean;
+                localStorage.setItem(CUSTOM_ITEMS_KEY, JSON.stringify(all));
+            }
+            return clean;
+        } catch { return []; }
+    }
+
+    // Remove a specific custom item type (for settings management)
+    function deleteCustomItemType(metalType, name) {
+        try {
+            const all = JSON.parse(localStorage.getItem(CUSTOM_ITEMS_KEY)) || {};
+            if (all[metalType]) {
+                all[metalType] = all[metalType].filter(t => t.toLowerCase() !== name.toLowerCase());
+                localStorage.setItem(CUSTOM_ITEMS_KEY, JSON.stringify(all));
+            }
+        } catch { /* silent fail */ }
+    }
+
+    function saveCustomItemType(metalType, name) {
+        const trimmed = (name || '').trim();
+        if (!trimmed) return;
+        try {
+            const all = JSON.parse(localStorage.getItem(CUSTOM_ITEMS_KEY)) || {};
+            if (!all[metalType]) all[metalType] = [];
+            // Avoid duplicates (case-insensitive)
+            if (!all[metalType].some(t => t.toLowerCase() === trimmed.toLowerCase())) {
+                all[metalType].push(trimmed);
+                localStorage.setItem(CUSTOM_ITEMS_KEY, JSON.stringify(all));
+            }
+        } catch { /* silent fail */ }
+    }
+
+    function getCustomPurities(metalType) {
+        try {
+            const all = JSON.parse(localStorage.getItem(CUSTOM_PURITIES_KEY)) || {};
+            return (all[metalType] || []).filter(Boolean);
+        } catch { return []; }
+    }
+
+    // Remove a specific custom purity value (for settings management)
+    function deleteCustomPurity(metalType, purityPct) {
+        const key = parseFloat(parseFloat(purityPct).toFixed(2));
+        try {
+            const all = JSON.parse(localStorage.getItem(CUSTOM_PURITIES_KEY)) || {};
+            if (all[metalType]) {
+                all[metalType] = all[metalType].filter(p => p !== key);
+                localStorage.setItem(CUSTOM_PURITIES_KEY, JSON.stringify(all));
+            }
+        } catch { /* silent fail */ }
+    }
+
+    function saveCustomPurity(metalType, purityPct) {
+        const val = parseFloat(purityPct);
+        if (!val || val <= 0 || val > 100) return;
+        const key = parseFloat(val.toFixed(2)); // normalize
+        try {
+            const all = JSON.parse(localStorage.getItem(CUSTOM_PURITIES_KEY)) || {};
+            if (!all[metalType]) all[metalType] = [];
+            if (!all[metalType].includes(key)) {
+                all[metalType].push(key);
+                all[metalType].sort((a, b) => b - a); // highest first
+                localStorage.setItem(CUSTOM_PURITIES_KEY, JSON.stringify(all));
+            }
+        } catch { /* silent fail */ }
+    }
+
     function getPurityFactor(subType) {
         if (subType === 'custom') return 1.0; // fallback; use customPurity field directly
         // If subType is a numeric string (e.g. "87.5"), treat as percentage
@@ -41,6 +118,15 @@ const Calculator = (() => {
             const pct = (getPurityFactor(p) * 100).toFixed(1);
             return `<option value="${p}" ${selectedPurity === p ? 'selected' : ''}>${p} (${pct}%)</option>`;
         }).join('');
+        // Saved custom purities — appear as selectable options
+        const savedCustom = getCustomPurities(metal);
+        if (savedCustom.length) {
+            opts += savedCustom.map(cp => {
+                const label = `${cp}% (Custom)`;
+                const isSelected = selectedPurity === String(cp) || selectedPurity === cp;
+                return `<option value="${cp}" ${isSelected ? 'selected' : ''}>${label}</option>`;
+            }).join('');
+        }
         opts += `<option value="custom" ${selectedPurity === 'custom' ? 'selected' : ''}>✏️ Custom Purity</option>`;
         return opts;
     }
@@ -50,7 +136,12 @@ const Calculator = (() => {
     }
 
     function getJewelryTypes(metalType) {
-        return JEWELRY_TYPES[metalType] || JEWELRY_TYPES.gold;
+        const base = JEWELRY_TYPES[metalType] || JEWELRY_TYPES.gold;
+        const customs = getCustomItemTypes(metalType);
+        if (!customs.length) return base;
+        // Insert custom types before 'Other'
+        const withoutOther = base.filter(t => t !== 'Other');
+        return [...withoutOther, ...customs, 'Other'];
     }
 
     /**
@@ -477,6 +568,8 @@ const Calculator = (() => {
     return {
         PURITY, GOLD_TYPES, SILVER_TYPES, JEWELRY_TYPES,
         getPurityFactor, getMetalSubTypes, getJewelryTypes, buildItemPurityOptions,
+        getCustomItemTypes, saveCustomItemType, deleteCustomItemType,
+        getCustomPurities, saveCustomPurity, deleteCustomPurity,
         calcMetalValue, calcItemsMetalValue,
         calcSimpleInterest, calcSimpleInterestByDays,
         calcCompoundInterest, calcCompoundInterestWithFreq,

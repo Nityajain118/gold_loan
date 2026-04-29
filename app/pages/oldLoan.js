@@ -9,6 +9,8 @@ const OldLoanPage = (() => {
         isManualTithi: false
     };
     const MAX_ITEMS = 10;
+    const DRAFT_KEY = 'gv_ol_draft';
+    let _draft_active = false;
 
     function render(container) {
         _state.items = [defaultItem()];
@@ -27,13 +29,16 @@ const OldLoanPage = (() => {
                     <h4 class="mb-1" style="color:var(--primary);font-size:0.9rem;" data-i18n="customer_info">${I18n.t('customer_info')}</h4>
                     <div class="form-grid mb-2">
                         ${UI.formGroup(I18n.t('customer_name') + ' *', '<input type="text" class="form-input" id="ol-customer" required placeholder="' + I18n.t('customer_name') + '" autocomplete="off">')}
-                        ${UI.formGroup(I18n.t('mobile_number'), `<input type="tel" class="form-input" id="ol-mobile" placeholder="10-digit number" maxlength="10" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/\\D/g,'').slice(0,10)">
+                        ${UI.formGroup(I18n.t('mobile_number'), `<input type="tel" class="form-input" id="ol-mobile" placeholder="10-digit number" maxlength="10" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/\\D/g,'').slice(0,10); OldLoanPage.checkMobile()">
                             <span id="ol-mobile-err" class="form-hint" style="color:var(--danger);display:none;">Enter a valid 10-digit mobile number</span>`)}
                         ${UI.formGroup(I18n.t('locker_name'), '<input type="text" class="form-input" id="ol-locker" placeholder="e.g., Locker A-12">')}
                         ${UI.formGroup(I18n.t('caste'), '<input type="text" class="form-input" id="ol-caste" placeholder="Optional Caste">')}
                     </div>
-                    <div class="form-group mb-3">
-                        ${UI.formGroup(I18n.t('address') + ' *', '<textarea class="form-input" id="ol-address" required placeholder="Enter full address" style="height:70px;resize:vertical;"></textarea>')}
+                    <div class="form-group mb-3" style="position:relative;">
+                        <label class="form-label">${I18n.t('address')} *</label>
+                        <input type="text" class="form-input" id="ol-address" placeholder="Enter city / address" autocomplete="off" required
+                            oninput="OldLoanPage.onAddressInput(this)">
+                        <div id="ol-address-dropdown" style="display:none; position:absolute; top:100%; left:0; right:0; background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; z-index:999; max-height:180px; overflow-y:auto; box-shadow:0 8px 24px rgba(0,0,0,0.3);"></div>
                     </div>
 
                     <h4 class="mb-1" style="color:var(--primary);font-size:0.9rem;"><span data-i18n="jewelry_items">${I18n.t('jewelry_items')}</span> (up to ${MAX_ITEMS})</h4>
@@ -142,9 +147,13 @@ const OldLoanPage = (() => {
                 </form>
             </div>`;
         renderItems();
+
+        // Mark draft as active; restore any saved draft
+        _draft_active = true;
+        restoreDraft();
     }
 
-    function defaultItem() { return { metalType: 'gold', purity: '22K', customPurity: '', itemType: 'Ring', weightGrams: '' }; }
+    function defaultItem() { return { metalType: 'gold', purity: '22K', customPurity: '', itemType: 'Ring', customItemType: '', weightGrams: '' }; }
 
     function blockInvalidKey(e) {
         if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
@@ -179,6 +188,13 @@ const OldLoanPage = (() => {
                         <select class="form-select" onchange="OldLoanPage.updateItem(${i},'itemType',this.value)">
                             ${types.map(t => `<option value="${t}" ${item.itemType === t ? 'selected' : ''}>${t}</option>`).join('')}
                         </select></div>
+                    ${item.itemType === 'Other' ? `
+                    <div class="form-group">
+                        <label class="form-label">Custom Item Name</label>
+                        <input type="text" class="form-input" value="${item.customItemType || ''}" placeholder="Enter item name"
+                            oninput="OldLoanPage.updateItem(${i},'customItemType',this.value)"
+                            onblur="OldLoanPage.saveCustomItemName(${i})">
+                    </div>` : ''}
                     <div class="form-group"><label class="form-label">Purity</label>
                         <select class="form-select" onchange="OldLoanPage.updateItem(${i},'purity',this.value)">
                             ${Calculator.buildItemPurityOptions(item.metalType, item.purity)}
@@ -188,7 +204,8 @@ const OldLoanPage = (() => {
                         <label class="form-label">Custom Purity (%)</label>
                         <input type="number" class="form-input" value="${item.customPurity}" step="0.1" min="1" max="100" placeholder="e.g., 87.5"
                             onkeydown="OldLoanPage.blockInvalidKey(event)"
-                            oninput="OldLoanPage.updateCustomPurity(${i}, this.value)">
+                            oninput="OldLoanPage.updateCustomPurity(${i}, this.value)"
+                            onblur="OldLoanPage.saveCustomPurityNow(${i})">
                         <span class="form-hint">Enter purity as % (1–100)</span>
                     </div>` : ''}
                     <div class="form-group"><label class="form-label">Weight (g)</label>
@@ -215,6 +232,7 @@ const OldLoanPage = (() => {
             _state.items[i].itemType = Calculator.getJewelryTypes(v)[0];
             _state.items[i].purity = v === 'gold' ? '22K' : '999';
             _state.items[i].customPurity = '';
+            _state.items[i].customItemType = '';
             renderItems();
             return;
         }
@@ -226,7 +244,14 @@ const OldLoanPage = (() => {
             return;
         }
         if (f === 'itemType') {
+            if (v !== 'Other') {
+                _state.items[i].customItemType = '';
+            }
             renderItems();
+            return;
+        }
+        if (f === 'customItemType') {
+            // Only update state; actual save happens onblur via saveCustomItemName()
             return;
         }
         if (f === 'weightGrams') {
@@ -238,7 +263,45 @@ const OldLoanPage = (() => {
 
     function updateCustomPurity(i, v) {
         _state.items[i].customPurity = v;
+        // Note: actual save to localStorage happens onblur via saveCustomPurityNow()
         updateSummary(); recalc();
+    }
+
+    // Called onblur on the custom purity input — saves only the final entered value
+    function saveCustomPurityNow(index) {
+        const item = _state.items[index];
+        if (!item) return;
+        const pval = parseFloat(item.customPurity);
+        if (pval > 0 && pval <= 100) {
+            Calculator.saveCustomPurity(item.metalType, pval);
+            renderItems(); // refresh dropdown to include saved purity
+        }
+    }
+
+    // Called onblur from the custom item name input — saves only the final value (not each keystroke)
+    function saveCustomItemName(index) {
+        const item = _state.items[index];
+        if (!item) return;
+        const name = (item.customItemType || '').trim();
+        if (name) {
+            Calculator.saveCustomItemType(item.metalType, name);
+            renderItems();
+        }
+    }
+
+    // Live phone number validation — shows digit counter while typing
+    function checkMobile() {
+        const inp = document.getElementById('ol-mobile');
+        const errEl = document.getElementById('ol-mobile-err');
+        if (!inp || !errEl) return;
+        const v = inp.value;
+        if (v.length > 0 && v.length < 10) {
+            const remaining = 10 - v.length;
+            errEl.textContent = `${remaining} more digit${remaining !== 1 ? 's' : ''} needed (${v.length}/10)`;
+            errEl.style.display = '';
+        } else {
+            errEl.style.display = 'none';
+        }
     }
 
     function updateSummary() {
@@ -407,6 +470,117 @@ const OldLoanPage = (() => {
         }
     }
 
+    // ─── DRAFT PERSISTENCE ──────────────────────────────────────────
+    function saveDraft() {
+        try {
+            const g = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+            const draft = {
+                customer:  g('ol-customer'),
+                mobile:    g('ol-mobile'),
+                locker:    g('ol-locker'),
+                caste:     g('ol-caste'),
+                address:   g('ol-address'),
+                amount:    g('ol-amount'),
+                rate:      g('ol-rate'),
+                start:     g('ol-start'),
+                duration:  g('ol-duration'),
+                paidInt:   g('ol-paid-interest'),
+                partial:   g('ol-partial'),
+                penalty:   g('ol-penalty'),
+                histRate:  g('ol-historical-rate'),
+                status:    g('ol-status'),
+                interestPeriod: _state.interestPeriod,
+                interestType:   _state.interestType,
+                compoundingFrequency: _state.compoundingFrequency,
+                items: JSON.parse(JSON.stringify(_state.items)),
+                ts: Date.now()
+            };
+            localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+        } catch(e) {}
+    }
+
+    function restoreDraft() {
+        try {
+            const raw = localStorage.getItem(DRAFT_KEY);
+            if (!raw) return;
+            const d = JSON.parse(raw);
+            if (!d || !d.ts || Date.now() - d.ts > 24 * 60 * 60 * 1000) {
+                localStorage.removeItem(DRAFT_KEY);
+                return;
+            }
+            const set = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined && val !== '') el.value = val; };
+            set('ol-customer', d.customer);
+            set('ol-mobile',   d.mobile);
+            set('ol-locker',   d.locker);
+            set('ol-caste',    d.caste);
+            set('ol-address',  d.address);
+            set('ol-amount',   d.amount);
+            set('ol-rate',     d.rate);
+            set('ol-start',    d.start);
+            set('ol-duration', d.duration);
+            set('ol-paid-interest', d.paidInt);
+            set('ol-partial',  d.partial);
+            set('ol-penalty',  d.penalty);
+            set('ol-historical-rate', d.histRate);
+            set('ol-status',   d.status);
+
+            if (d.items && d.items.length) _state.items = d.items;
+            if (d.interestPeriod) setPeriod(d.interestPeriod);
+            if (d.interestType)   setType(d.interestType);
+            if (d.compoundingFrequency) setFreq(d.compoundingFrequency);
+
+            renderItems();
+            recalc();
+
+            const banner = document.createElement('div');
+            banner.style.cssText = 'background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.4);border-radius:8px;padding:8px 14px;font-size:0.82rem;color:var(--monitor);margin-bottom:12px;display:flex;align-items:center;gap:8px;';
+            banner.innerHTML = `📝 <strong>Draft restored</strong> — your previous Old Loan entry was saved. <button onclick="OldLoanPage.clearDraft();this.closest('div').remove()" style="margin-left:auto;border:none;background:transparent;color:var(--danger);cursor:pointer;font-size:0.8rem;">✕ Clear</button>`;
+            const form = document.getElementById('old-loan-form');
+            if (form) form.insertBefore(banner, form.firstChild);
+        } catch(e) {}
+    }
+
+    function clearDraft() {
+        localStorage.removeItem(DRAFT_KEY);
+        _draft_active = false;
+    }
+
+    // ─── ADDRESS AUTOCOMPLETE ──────────────────────────────────────────
+    function _getAddressHistory() {
+        const seen = new Set(), list = [];
+        try {
+            (DB.getLoans() || []).forEach(l => {
+                const a = (l.address || '').trim();
+                if (a && !seen.has(a.toLowerCase())) { seen.add(a.toLowerCase()); list.push(a); }
+            });
+            (DB.getCustomers() || []).forEach(c => {
+                const a = (c.address || '').trim();
+                if (a && !seen.has(a.toLowerCase())) { seen.add(a.toLowerCase()); list.push(a); }
+            });
+        } catch(e) {}
+        return list;
+    }
+
+    function onAddressInput(input) {
+        const dd = document.getElementById('ol-address-dropdown');
+        if (!dd) return;
+        const query = (input.value || '').trim().toLowerCase();
+        if (!query) { dd.style.display = 'none'; return; }
+        const matches = _getAddressHistory().filter(a => a.toLowerCase().includes(query)).slice(0, 8);
+        if (!matches.length) { dd.style.display = 'none'; return; }
+        dd.innerHTML = matches.map(a =>
+            `<div style="padding:10px 14px;cursor:pointer;font-size:0.88rem;color:var(--text-primary);border-bottom:1px solid var(--border-color);transition:background 0.15s;"
+                onmouseover="this.style.background='var(--bg-input)'"
+                onmouseout="this.style.background=''"
+                onclick="document.getElementById('ol-address').value='${a.replace(/'/g, '\\&#39;')}'; document.getElementById('ol-address-dropdown').style.display='none';">
+                📍 ${a}
+            </div>`
+        ).join('');
+        dd.style.display = 'block';
+        const hideDD = (e) => { if (!dd.contains(e.target) && e.target !== input) { dd.style.display = 'none'; document.removeEventListener('click', hideDD); } };
+        document.addEventListener('click', hideDD);
+    }
+
     function save() {
         const customer = document.getElementById('ol-customer').value.trim();
         const mobile = document.getElementById('ol-mobile').value.trim();
@@ -450,6 +624,10 @@ const OldLoanPage = (() => {
                     return;
                 }
             }
+            if (it.itemType === 'Other' && !it.customItemType?.trim()) {
+                UI.toast(`Item #${idx + 1}: Please enter the custom item name`, 'error');
+                return;
+            }
         }
 
         if (!amount || amount <= 0) { UI.toast('Enter valid loan amount', 'error'); return; }
@@ -458,7 +636,7 @@ const OldLoanPage = (() => {
 
         const rates = Market.getCurrentRates();
         const items = validItems.map(i => ({
-            itemType: i.itemType, metalType: i.metalType, purity: i.purity,
+            itemType: i.itemType === 'Other' && i.customItemType ? i.customItemType : i.itemType, metalType: i.metalType, purity: i.purity,
             customPurity: i.purity === 'custom' ? parseFloat(i.customPurity) : null,
             weightGrams: parseFloat(i.weightGrams)
         }));
@@ -509,9 +687,10 @@ const OldLoanPage = (() => {
         loan.customerId = resolvedCustomer.id;
 
         DB.saveLoan(loan);
+        clearDraft(); // clear draft after successful save
         UI.toast('Old loan migrated!', 'success');
         UI.navigateTo('loans');
     }
 
-    return { render, addItem, removeItem, updateItem, updateCustomPurity, setPeriod, setType, setFreq, toggleHistorical, togglePanchang, saveOverride, recalc, save, blockInvalidKey };
+    return { render, addItem, removeItem, updateItem, updateCustomPurity, saveCustomItemName, saveCustomPurityNow, checkMobile, onAddressInput, saveDraft, clearDraft, setPeriod, setType, setFreq, toggleHistorical, togglePanchang, saveOverride, recalc, save, blockInvalidKey, get _draft_active() { return _draft_active; } };
 })();

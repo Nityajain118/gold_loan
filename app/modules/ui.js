@@ -56,7 +56,8 @@ const UI = (() => {
             'inventory': 'Inventory',
             'market': 'Market Rates',
             'settings': 'Settings',
-            'common-customers': '🔗 Common Customers'
+            'common-customers': '🔗 Common Customers',
+            'hisab-kitaab': 'Hisab Kitaab'
         };
 
         title.textContent = titles[page] || 'GoldVault';
@@ -75,7 +76,8 @@ const UI = (() => {
             'inventory': () => InventoryPage.render(container),
             'market': () => MarketPage.render(container),
             'settings': () => SettingsPage.render(container),
-            'common-customers': () => CommonCustomersPage.render(container)
+            'common-customers': () => CommonCustomersPage.render(container),
+            'hisab-kitaab': () => HisabKitaabPage.render(container, data)
         };
 
         if (renderers[page]) {

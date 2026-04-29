@@ -26,6 +26,8 @@
         setupDarkMode();
         setupTimeMode();
         setupSessionTimer();
+        setupEnterNavigation();
+        setupDraftHook();
     }
 
     // --- PIN Setup ---
@@ -280,4 +282,50 @@
             }
         }, 60000);
     }
+
+    // ─── Enter Key → Focus Next Field ──────────────────────────────────────────
+    // Pressing Enter in any INPUT or SELECT moves focus to the next field.
+    // Textarea is intentionally excluded so multi-line address entry still works.
+    function setupEnterNavigation() {
+        document.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter') return;
+            const tag = e.target.tagName;
+            if (tag !== 'INPUT' && tag !== 'SELECT') return;
+            if (e.target.type === 'submit' || e.target.type === 'button') return;
+            // Allow Enter inside modals to bubble naturally (don't block modal confirms)
+            if (e.target.closest('.modal-overlay')) return;
+
+            e.preventDefault();
+            const form = e.target.closest('form') || document.getElementById('page-container');
+            if (!form) return;
+            const focusable = Array.from(form.querySelectorAll(
+                'input:not([disabled]):not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])'
+            ));
+            const idx = focusable.indexOf(e.target);
+            if (idx > -1 && idx < focusable.length - 1) {
+                focusable[idx + 1].focus();
+            }
+        });
+    }
+
+    // ─── Draft Persistence (save form state before navigating away) ────────────
+    function setupDraftHook() {
+        const origNavigate = UI.navigateTo.bind(UI);
+        UI.navigateTo = function(page, data) {
+            // Save draft from the page we are leaving
+            const currentPage = document.getElementById('page-container');
+            if (currentPage) {
+                try {
+                    if (typeof NewLoanPage !== 'undefined' && NewLoanPage._draft_active) {
+                        NewLoanPage.saveDraft();
+                    }
+                    if (typeof OldLoanPage !== 'undefined' && OldLoanPage._draft_active) {
+                        OldLoanPage.saveDraft();
+                    }
+                } catch(e) {}
+            }
+            origNavigate(page, data);
+        };
+    }
+
 })();
