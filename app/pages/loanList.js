@@ -7,7 +7,9 @@ const LoanListPage = (() => {
 
     // ── Group loans into customer buckets (crash-safe) ────────────────────────
     function _buildGroups() {
-        const loans = DB.getLoans();
+        const allLoans = DB.getLoans();
+        // Filter by active firm
+        const loans = FirmManager.filterLoans(allLoans);
         _groups = {};
 
         loans.forEach(loan => {
@@ -166,6 +168,7 @@ const LoanListPage = (() => {
                             <div style="font-weight:700;font-size:1rem;color:var(--text-primary);">${info.name}</div>
                             ${info.mobile ? `<div style="font-size:0.8rem;color:var(--text-secondary);">📱 ${info.mobile}</div>` : ''}
                             ${info.address ? `<div style="font-size:0.75rem;color:var(--text-secondary);">📍 ${info.address}</div>` : ''}
+                            ${FirmManager.getBadgeHtml(info.firm_id || (loans[0]?.firm_id))}
                         </div>
                     </div>
                     <div style="text-align:right;display:flex;flex-direction:column;gap:4px;align-items:flex-end;">
@@ -278,6 +281,7 @@ const LoanListPage = (() => {
                             <div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:2px;">Loan #${shortId}</div>
                             <div style="font-weight:700;font-size:1rem;">${UI.currency(loan.loanAmount||0)}</div>
                             <div style="font-size:0.8rem;color:var(--text-secondary);">${loan.metalSubType||''} · ${loan.weightGrams||0}g · Started ${UI.formatDate(loan.loanStartDate)}</div>
+                            ${FirmManager.getBadgeHtml(loan?.firm_id)}
                         </div>
                         <span class="status-badge ${loan.status||'active'}">${statusIcon} ${(loan.status||'active').toUpperCase()}</span>
                     </div>

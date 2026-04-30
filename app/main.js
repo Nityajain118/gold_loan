@@ -111,6 +111,12 @@
             document.documentElement.setAttribute('data-theme', 'dark');
         }
 
+        // ★ Seed default firm on first run (migrates existing data)
+        try { FirmManager.seedDefaultFirm(); } catch(e) {}
+
+        // ★ Render firm selector bar
+        try { UI.renderFirmSelector(); } catch(e) {}
+
         // ★ Sync all existing GV customers to master on boot
         setTimeout(() => {
             try { DB.syncAllToMaster(); } catch(e) {}

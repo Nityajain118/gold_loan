@@ -66,6 +66,18 @@ const HisabKitaabPage = (() => {
     function _p(v) { return Number(Number(v).toFixed(3)); }
     function _cur3(v) { if (!v && v !== 0) return '₹0.000'; const n = Number(v); return '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 }); }
 
+    // ── Duration Formatter — "244 days (8 months 4 days)" ────────────────────
+    function _formatDuration(days) {
+        const d = Math.max(0, Math.floor(days));
+        if (d === 0) return '0 days';
+        const months = Math.floor(d / 30);
+        const rem    = d % 30;
+        if (months === 0) return `${d} day${d !== 1 ? 's' : ''}`;
+        const mStr = `${months} month${months !== 1 ? 's' : ''}`;
+        if (rem === 0) return `${d} days (${mStr})`;
+        return `${d} days (${mStr} ${rem} day${rem !== 1 ? 's' : ''})`;
+    }
+
     // ── Safe Number Utilities (crash-proof, NaN-safe) ──────────────────────────
     function safeNumber(v) {
         const n = Number(v);
@@ -323,13 +335,17 @@ const HisabKitaabPage = (() => {
                         <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:6px; line-height:1.8; background:rgba(0,0,0,0.1); padding:8px; border-radius:6px;">
                             <div style="display:flex;justify-content:space-between;"><span><strong>From Date:</strong></span> <span>${UI.formatDate(e.date)}</span></div>
                             <div style="display:flex;justify-content:space-between;"><span><strong>Today Date:</strong></span> <span>${UI.formatDate(today)}</span></div>
-                            <div style="display:flex;justify-content:space-between;"><span><strong>Days Count:</strong></span> <span>${_calcDays(e.date, today)} days</span></div>
+                            <div style="display:flex;justify-content:space-between;"><span><strong>Duration:</strong></span> <span>${_formatDuration(_calcDays(e.date, today))}</span></div>
                             <div style="display:flex;justify-content:space-between;"><span><strong>Interest Rate:</strong></span> <span>${mr.toFixed(2)}% / month</span></div>
                             <div style="margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.1); color:var(--primary); font-family:monospace; font-size:0.7rem;">
                                 Formula: Principal × Rate × Days / (30 × 100)
                             </div>
                         </div>
                     </details>
+                    ${!isClosed ? `<div class="hk-card-delete-wrap" onclick="event.stopPropagation()">
+                        <button class="hk-delete-btn" title="Delete entry (PIN required)"
+                            onclick="HisabKitaabPage.showDeleteModal('${loanId}', ${idx})">🗑️ Delete</button>
+                    </div>` : ''}
                 </div>
             </div>`;
 
@@ -420,6 +436,10 @@ const HisabKitaabPage = (() => {
                 <div class="hk-select-title">${selTitle}</div>
                 <div id="hk-select-rows"></div>
                 <div class="hk-select-net"><span>${selNetL}</span><span id="hk-select-net-val">₹0</span></div>
+                <div class="hk-settle-actions">
+                    <button class="btn btn-sm hk-settle-sel-btn" onclick="HisabKitaabPage.settleSelected('${loan.id}')">✅ Settle Selected</button>
+                    <button class="btn btn-ghost btn-sm" style="font-size:0.78rem;" onclick="document.querySelectorAll('.hk-select-cb').forEach(cb=>{cb.checked=false;cb.closest('.hk-card')?.classList.remove('hk-card-selected');});document.getElementById('hk-select-summary').style.display='none';">✕ Clear Selection</button>
+                </div>
             </div>
             
             <div class="hk-live-summary hk-khata-summary">
@@ -480,7 +500,7 @@ const HisabKitaabPage = (() => {
             
             const dateStr = _tithiMode ? _getTithi(e.date) : UI.formatDate(e.date);
             const row = `<div class="hk-select-row">
-                <div class="hk-sel-left"><span class="hk-sel-label">${icon} ${label}</span><span class="hk-sel-date">${dateStr} → ${isHi ? 'आज' : 'Today'} (${days} ${isHi ? 'दिन' : 'days'})</span></div>
+                <div class="hk-sel-left"><span class="hk-sel-label">${icon} ${label}</span><span class="hk-sel-date">${dateStr} → ${isHi ? 'आज' : 'Today'} (${_formatDuration(days)})</span></div>
                 <div class="hk-sel-right">
                     <div>${isHi ? 'रकम' : 'Amt'}: <strong>${_cur3(amt)}</strong></div>
                     <div>${isDebit ? (isHi ? 'ब्याज' : 'Int') : 'Int Adj'}: <strong style="color:var(--monitor)">${isDebit ? '+' : '-'}${_cur3(interest)}</strong></div>
@@ -667,11 +687,147 @@ const HisabKitaabPage = (() => {
     function calcInterest(principal, monthlyRate, days) { return _calcInterest(principal, monthlyRate, days); }
     function initHK(loan) { _initHK(loan); }
 
+    // ── Settle Selected Entries ───────────────────────────────────────────────
+    async function settleSelected(loanId) {
+        try {
+            const loan = DB.getLoan(loanId); if (!loan) return;
+            _initHK(loan);
+            const hk  = loan.hisabKitaab;
+            const cbs = document.querySelectorAll('.hk-select-cb:checked');
+            if (!cbs.length) { UI.toast('Select at least one entry first', 'warning'); return; }
+            const today = new Date().toISOString().split('T')[0];
+            const mr    = _getMonthlyRate(loan);
+            const isHi  = (typeof I18n !== 'undefined') && I18n.getLang() === 'hi';
+
+            let debitEntries = [];
+            cbs.forEach(cb => {
+                const idx = parseInt(cb.dataset.idx);
+                const e   = hk[idx]; if (!e) return;
+                const isDebit = (e.type === 'loan_given' || e.type === 'add_money');
+                if (!isDebit) return;
+                const days     = _calcDays(e.date, today);
+                const amt      = e.principal || e.amount || 0;
+                const interest = _calcInterest(amt, e.rate || mr, days);
+                debitEntries.push({ idx, e, amt, interest, total: _p(amt + interest) });
+            });
+
+            if (!debitEntries.length) { UI.toast(isHi ? 'उधार एंट्री चुनें' : 'Select Udhar (Loan/Add Money) entries to settle', 'warning'); return; }
+
+            const totalToSettle = _p(debitEntries.reduce((s, d) => s + d.total, 0));
+            const confirmed = await UI.confirm(
+                isHi ? 'चयनित एंट्री सेटल करें' : 'Settle Selected Entries',
+                `${isHi ? 'कुल' : 'Total'}: ${_cur3(totalToSettle)}\n${debitEntries.length} ${isHi ? 'उधार एंट्री सेटल होंगी' : 'Udhar entries will be settled'}`
+            );
+            if (!confirmed) return;
+
+            _addEntry(loan, today, 'settle', totalToSettle,
+                `${isHi ? 'चयनित सेटलमेंट' : 'Selected entries settlement'} (${debitEntries.length} entries)`);
+
+            // Close loan only if net balance reaches 0
+            const remaining = _getRunningInterest(loan).balance;
+            if (remaining <= 0.01) {
+                loan.status = 'closed';
+                loan.settlement = { date: new Date().toISOString(), totalAmount: totalToSettle, paidAmount: totalToSettle, discount: 0, status: 'CLOSED' };
+            }
+
+            DB.saveLoan(loan);
+            UI.toast(isHi ? '✅ सेटलमेंट पूर्ण!' : '✅ Settlement completed!', 'success');
+            render(document.getElementById('page-container'), loanId);
+        } catch(err) { UI.toast('Error: ' + err.message, 'error'); }
+    }
+
+    // ── PIN-Protected Delete ──────────────────────────────────────────────────
+    function showDeleteModal(loanId, idx) {
+        try {
+            const loan = DB.getLoan(loanId); if (!loan) return;
+            const hk   = loan.hisabKitaab || [];
+            const e    = hk[idx];
+            if (!e) { UI.toast('Entry not found', 'error'); return; }
+
+            const debitCount    = hk.filter(x => x.type === 'loan_given' || x.type === 'add_money').length;
+            const isOriginalOnly = (e.type === 'loan_given' && debitCount === 1);
+            document.getElementById('hk-modal')?.remove();
+            const ov = document.createElement('div');
+            ov.className = 'modal-overlay'; ov.id = 'hk-modal';
+            const label = _typeLabel(e.type);
+            const amt   = e.principal || e.paid || e.amount || 0;
+
+            if (isOriginalOnly) {
+                ov.innerHTML = `<div class="modal" style="max-width:380px;">
+                    <h3 class="modal-title">⚠️ Cannot Delete</h3>
+                    <p style="color:var(--text-secondary);font-size:0.88rem;">The original loan disbursement cannot be deleted here.<br>Use the <strong>Delete Loan</strong> button on the Loan Detail page to remove the entire loan.</p>
+                    <div class="modal-actions"><button class="btn btn-outline" onclick="document.getElementById('hk-modal').remove()">OK</button></div>
+                </div>`;
+            } else {
+                ov.innerHTML = `<div class="modal" style="max-width:380px;">
+                    <h3 class="modal-title">🗑️ Delete Entry</h3>
+                    <div style="background:var(--bg-input);border-radius:8px;padding:12px 14px;margin-bottom:14px;">
+                        <div style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:3px;">${label}</div>
+                        <div style="font-weight:800;font-size:1rem;">${_cur3(amt)}</div>
+                        <div style="font-size:0.77rem;color:var(--text-muted);">${UI.formatDate(e.date)}</div>
+                    </div>
+                    <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:var(--danger);">⚠️ This cannot be undone. All balances will recalculate.</div>
+                    <div class="form-group mb-3">
+                        <label class="form-label">🔐 Enter PIN *</label>
+                        <input type="password" class="form-input" id="hk-del-pin"
+                            maxlength="4" inputmode="numeric" pattern="[0-9]*"
+                            placeholder="••••" autocomplete="off"
+                            oninput="this.value=this.value.replace(/\\D/g,'').slice(0,4)"
+                            style="letter-spacing:0.5em;font-size:1.4rem;text-align:center;max-width:140px;margin:0 auto;display:block;">
+                        <div id="hk-pin-err" style="color:var(--danger);font-size:0.8rem;text-align:center;margin-top:6px;display:none;">❌ Invalid PIN. Try again.</div>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn btn-outline" onclick="document.getElementById('hk-modal').remove()">Cancel</button>
+                        <button class="btn btn-danger" onclick="HisabKitaabPage.processDelete('${loanId}', ${idx})">Delete Entry</button>
+                    </div>
+                </div>`;
+            }
+            document.body.appendChild(ov);
+            ov.onclick = ev => { if (ev.target === ov) ov.remove(); };
+            setTimeout(() => document.getElementById('hk-del-pin')?.focus(), 100);
+        } catch(err) { UI.toast('Error: ' + err.message, 'error'); }
+    }
+
+    async function processDelete(loanId, idx) {
+        try {
+            const pin = (document.getElementById('hk-del-pin')?.value || '').trim();
+            const pinErr = document.getElementById('hk-pin-err');
+            if (!pin) { if (pinErr) { pinErr.textContent = '❌ Enter PIN first.'; pinErr.style.display = 'block'; } return; }
+            if (!await DB.verifyPin(pin)) {
+                if (pinErr) { pinErr.textContent = '❌ Invalid PIN. Try again.'; pinErr.style.display = 'block'; }
+                const inp = document.getElementById('hk-del-pin');
+                if (inp) { inp.value = ''; inp.focus(); }
+                return;
+            }
+            const loan = DB.getLoan(loanId); if (!loan) return;
+            _initHK(loan);
+            const hk  = loan.hisabKitaab;
+            const e   = hk[idx]; if (!e) { UI.toast('Entry not found', 'error'); return; }
+
+            // Archive to delete log
+            loan.hkDeleteLog = loan.hkDeleteLog || [];
+            loan.hkDeleteLog.push({ entry: JSON.parse(JSON.stringify(e)), deletedAt: new Date().toISOString(), deletedByPin: true });
+
+            // Remove entry and renumber
+            hk.splice(idx, 1);
+            hk.forEach((row, i) => { row.sr = i + 1; });
+
+            DB.saveLoan(loan);
+            document.getElementById('hk-modal')?.remove();
+            UI.toast('✅ Entry deleted successfully', 'success');
+            render(document.getElementById('page-container'), loanId);
+        } catch(err) { UI.toast('Error: ' + err.message, 'error'); }
+    }
+
     return { render, showAddMoneyModal, doAdd, showPayModal, updatePayInterest, doPay,
              showDiscModal, doDisc, showSettleModal, doSettle, showTimeline, onSelect,
              toggleCard, toggleTithiMode,
+             // Settlement & Secure Delete (new):
+             settleSelected, showDeleteModal, processDelete,
              // Public API for single-source-of-truth delegation:
              addEntry, getMonthlyRate, calcDays, calcInterest, initHK,
              // Centralized calculation engine:
-             calculateSummary, safeNumber, formatAmount };
+             calculateSummary, safeNumber, formatAmount,
+             // Duration helper (shared with loanDetail.js):
+             formatDuration: _formatDuration };
 })();

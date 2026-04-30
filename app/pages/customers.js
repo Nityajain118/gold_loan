@@ -11,8 +11,11 @@ const CustomersPage = (() => {
 
     // ── Main Render ──────────────────────────────────────────────────────────
     function render(container) {
-        const customers = DB.getCustomers();
-        const loans     = DB.getLoans();
+        const allCustomers = DB.getCustomers();
+        const customers = FirmManager.filterCustomers(allCustomers);
+        const allLoans = DB.getLoans();
+        const loans = FirmManager.filterLoans(allLoans);
+        const activeFirm = FirmManager.getSelected();
 
         if (customers.length === 0) {
             container.innerHTML = `
@@ -135,6 +138,7 @@ const CustomersPage = (() => {
 
     // ── Single Customer Card ───────────────────────────────────────────────
     function _customerCard(c, loans) {
+        const firmBadge = FirmManager.getBadgeHtml(c?.firm_id);
         const activeLoans = loans.filter(l =>
             (l.customerId === c.id ||
              (c.mobile && c.mobile.length === 10 && l.mobile === c.mobile)) &&
@@ -151,7 +155,7 @@ const CustomersPage = (() => {
                         : `<div class="vc-avatar-placeholder">${(c.name||'?')[0].toUpperCase()}</div>`}
                 </div>
                 <div class="vc-info">
-                    <div class="vc-name">${c.name}</div>
+                    <div class="vc-name">${c.name} ${firmBadge}</div>
                     <div class="vc-phone">${c.mobile || 'No Mobile'}</div>
                     ${c.address ? `<div class="vc-address">📍 ${c.address}</div>` : ''}
                 </div>
@@ -402,6 +406,8 @@ const CustomersPage = (() => {
 
     // ── Add Customer Modal ─────────────────────────────────────────────────
     function showAdd() {
+        const firms = FirmManager.getAll();
+        const defaultFirmId = FirmManager.getDefaultFirmId();
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
         overlay.innerHTML = `<div class="modal">
@@ -415,6 +421,13 @@ const CustomersPage = (() => {
                 <span id="add-cust-mobile-err" class="form-hint" style="color:var(--danger);display:none;">Enter a valid 10-digit mobile number</span>
             </div>
             <div class="form-group mb-2"><label class="form-label">Village / Address</label><textarea class="form-textarea" id="add-cust-address" placeholder="e.g. Mumbai, Badnagar…"></textarea></div>
+            ${firms.length > 0 ? `
+            <div class="form-group mb-2">
+                <label class="form-label">🏢 Select Firm *</label>
+                <select class="form-select" id="add-cust-firm">
+                    ${firms.map(f => `<option value="${f.id}" ${f.id === defaultFirmId ? 'selected' : ''}>${f.name}${f.isMain ? ' (Main)' : ''}</option>`).join('')}
+                </select>
+            </div>` : ''}
             <div class="form-group mb-2">
                 <label class="form-label">📸 Customer Photo</label>
                 ${ImageUpload.renderUploader('add-cust-photo', null, { label: 'Upload Photo', compact: true, type: 'customer' })}
@@ -441,8 +454,10 @@ const CustomersPage = (() => {
         if (mobileErr) mobileErr.style.display = 'none';
         const photo   = ImageUpload.getImageData('add-cust-photo');
         const address = document.getElementById('add-cust-address').value.trim();
+        const firmEl  = document.getElementById('add-cust-firm');
+        const firm_id = firmEl ? firmEl.value : FirmManager.getDefaultFirmId();
 
-        const newCust = DB.saveCustomer({ name, mobile, address, photo: photo || '', totalLoans: 0 });
+        const newCust = DB.saveCustomer({ name, mobile, address, photo: photo || '', totalLoans: 0, firm_id });
 
         if (typeof JewelleryDataService !== 'undefined') {
             JewelleryDataService.upsertMaster({ name, mobile, village: address, moduleId: 'gold', sourceId: newCust.id });

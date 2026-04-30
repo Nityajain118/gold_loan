@@ -184,6 +184,7 @@ const LoanDetailPage = (() => {
                         <div class="ld-info-card-icon">📅</div>
                         <div class="ld-info-card-label">Days to Maturity</div>
                         <div class="ld-info-card-value">${d.isOverdue ? '⚠️ OVERDUE' : d.daysToMaturity}<br><span style="font-size:0.75rem;font-weight:500;color:var(--text-secondary);">Duration: ${loan.loanDuration || 12} Months</span></div>
+                        <div class="ld-info-card-sub" style="color:var(--text-muted);font-size:0.7rem;">Age: ${_fmtDur(Math.floor((Date.now() - new Date(loan.loanStartDate || loan.originalStartDate)) / 86400000))}</div>
                     </div>
                     <div class="ld-info-card">
                         <div class="ld-info-card-icon">🔒</div>
@@ -380,6 +381,15 @@ const LoanDetailPage = (() => {
         return loan.interestPeriod === 'yearly' ? r / 12 : r;
     }
 
+    // Duration formatter (reuse HK helper; fallback inline)
+    function _fmtDur(days) {
+        try { return HisabKitaabPage.formatDuration(days); } catch(e) {
+            const d = Math.max(0, Math.floor(days)); const m = Math.floor(d / 30); const rem = d % 30;
+            if (m === 0) return `${d} days`;
+            return rem === 0 ? `${d} days (${m}m)` : `${d} days (${m}m ${rem}d)`;
+        }
+    }
+
     function _addOneMonth(date) {
         const d = new Date(date);
         d.setMonth(d.getMonth() + 1);
@@ -538,8 +548,10 @@ const LoanDetailPage = (() => {
                 // Interest display — 2 decimal places, with days annotation
                 let intDisplay = '—';
                 if (interest > 0) {
-                    const daysLabel = tl.days_inline ? tl.days_inline.replace('{d}', days) : `${days}d`;
-                    intDisplay = `₹${Number(interest).toFixed(2)} <span style="font-size:0.65rem;color:var(--text-muted);margin-left:4px;font-weight:600;">${daysLabel}</span>`;
+                    const m   = Math.floor(days / 30), rem = days % 30;
+                    const dur = m > 0 ? (rem > 0 ? `${m}m ${rem}d` : `${m}m`) : `${days}d`;
+                    const daysLabel = `${days}d • ${dur}`;
+                    intDisplay = `₹${Number(interest).toFixed(2)} <span style="font-size:0.65rem;color:var(--text-muted);margin-left:4px;font-weight:600;">(${daysLabel})</span>`;
                 }
 
                 const baseLabel   = catLabel[e.type] || e.type;

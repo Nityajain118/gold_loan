@@ -9,7 +9,9 @@ const DB = (() => {
         marketLog: 'gv_market_log',
         settings: 'gv_settings',
         activityLog: 'gv_activity_log',
-        session: 'gv_session'
+        session: 'gv_session',
+        firms: 'gv_firms',
+        activeFirm: 'gv_active_firm'
     };
 
     const DEFAULT_SETTINGS = {
@@ -222,6 +224,73 @@ const DB = (() => {
         return (_get(KEYS.activityLog) || []).reverse();
     }
 
+    // --- Firms ---
+    function getFirms() {
+        return _get(KEYS.firms) || [];
+    }
+
+    function getMainFirm() {
+        return getFirms().find(f => f.isMain) || null;
+    }
+
+    function saveFirm(firm) {
+        const firms = getFirms();
+        firm.id = firm.id || ('firm-' + uuid());
+        firm.createdAt = firm.createdAt || new Date().toISOString();
+        // If this is the very first firm, force isMain = true
+        if (firms.length === 0) firm.isMain = true;
+        // Assign colorIndex
+        if (firm.colorIndex === undefined || firm.colorIndex === null) {
+            firm.colorIndex = firms.length % 8;
+        }
+        const idx = firms.findIndex(f => f.id === firm.id);
+        if (idx >= 0) {
+            firms[idx] = { ...firms[idx], ...firm };
+        } else {
+            firms.push(firm);
+        }
+        _set(KEYS.firms, firms);
+        logActivity(`Firm ${idx >= 0 ? 'updated' : 'created'}: ${firm.name}`);
+        return firms.find(f => f.id === firm.id);
+    }
+
+    function deleteFirm(id) {
+        const firms = getFirms();
+        const firm = firms.find(f => f.id === id);
+        if (!firm) return;
+        if (firm.isMain) throw new Error('Cannot delete the Main Firm');
+
+        // Reassign loans & customers belonging to this firm → main firm
+        const mainFirm = getMainFirm();
+        if (mainFirm) {
+            const loans = getLoans();
+            loans.forEach(l => { if (l.firm_id === id) { l.firm_id = mainFirm.id; } });
+            _set(KEYS.loans, loans);
+
+            const customers = getCustomers();
+            customers.forEach(c => { if (c.firm_id === id) { c.firm_id = mainFirm.id; } });
+            _set(KEYS.customers, customers);
+        }
+
+        _set(KEYS.firms, firms.filter(f => f.id !== id));
+        // If deleted firm was active, reset to All Firms
+        if (getActiveFirm() === id) setActiveFirm(null);
+        logActivity(`Firm deleted: ${firm.name}`);
+    }
+
+    // --- Active Firm (Firm Selector Persistence) ---
+    function getActiveFirm() {
+        return _get(KEYS.activeFirm) || null;
+    }
+
+    function setActiveFirm(firmId) {
+        if (firmId) {
+            _set(KEYS.activeFirm, firmId);
+        } else {
+            localStorage.removeItem(KEYS.activeFirm);
+        }
+    }
+
     return {
         getSettings, saveSettings, hasPin, setPin, verifyPin,
         setSession, getSession, clearSession, isSessionValid,
@@ -229,6 +298,8 @@ const DB = (() => {
         getCustomers, getCustomer, saveCustomer, deleteCustomer,
         getInventory, getInventoryItem, saveInventoryItem, deleteInventoryItem,
         getMarketLog, addMarketEntry,
-        logActivity, getActivityLog, uuid
+        logActivity, getActivityLog, uuid,
+        getFirms, saveFirm, deleteFirm, getMainFirm,
+        getActiveFirm, setActiveFirm
     };
 })();

@@ -172,6 +172,11 @@
                     </a>
                 </li>
                 <li>
+                    <a href="#" class="nav-item" data-page="firms">
+                        <span class="nav-icon">🏢</span> Firms & Branches
+                    </a>
+                </li>
+                <li>
                     <a href="#" class="nav-item" data-page="common-customers" id="nav-common-customers" data-i18n="nav_common">
                         <span class="nav-icon">🔗</span> Common Customers
                     </a>
@@ -209,6 +214,9 @@
             <a href="#" class="bottom-nav-item" data-page="common-customers">
                 <span>🔗</span><small data-i18n="nav_common">Common</small>
             </a>
+            <a href="#" class="bottom-nav-item" data-page="firms">
+                <span>🏢</span><small>Firms</small>
+            </a>
         </nav>
 
         <!-- ---- Main Content Area ---- -->
@@ -232,6 +240,9 @@
                 </div>
             </header>
 
+            <!-- Firm Selector Bar -->
+            <div id="firm-selector-bar" class="firm-selector-bar" style="display:none;"></div>
+
             <!-- Dynamic Page Container -->
             <div id="page-container" class="page-container container">
                 <!-- Pages are rendered dynamically by JavaScript -->
@@ -250,6 +261,7 @@
     <!-- Modules (load first — no dependencies on pages) -->
     <script src="modules/i18n.js"></script>
     <script src="modules/db.js"></script>
+    <script src="modules/firms.js"></script>
     <script src="modules/tithi.js"></script>
     <script src="modules/imageUpload.js"></script>
     <script src="modules/calculator.js"></script>
@@ -272,6 +284,7 @@
     <script src="pages/inventory.js"></script>
     <script src="pages/marketPage.js"></script>
     <script src="pages/settings.js"></script>
+    <script src="pages/firms.js"></script>
     <script src="pages/common.js"></script>
     <script src="pages/hisabKitaab.js"></script>
 

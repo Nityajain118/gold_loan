@@ -27,6 +27,7 @@ const NewLoanPage = (() => {
                             <span id="nl-mobile-err" class="form-hint" style="color:var(--danger);display:none;">Enter a valid 10-digit mobile number</span>`)}
                         ${UI.formGroup(I18n.t('locker_name'), '<input type="text" class="form-input" id="nl-locker" placeholder="e.g., Locker A-12">')}
                         ${UI.formGroup(I18n.t('caste'), '<input type="text" class="form-input" id="nl-caste" placeholder="Optional Caste">')}
+                        ${UI.formGroup('🏢 Firm *', `<select class="form-select" id="nl-firm">${FirmManager.buildSelectOptions(FirmManager.getDefaultFirmId())}</select>`)}
                     </div>
                     <div class="form-group mb-3" style="position:relative;">
                         <label class="form-label" data-i18n="address">${I18n.t('address')}</label>
@@ -586,6 +587,7 @@ const NewLoanPage = (() => {
                 locker:   g('nl-locker'),
                 caste:    g('nl-caste'),
                 address:  g('nl-address'),
+                firm_id:  g('nl-firm'),
                 amount:   g('nl-amount'),
                 rate:     g('nl-rate'),
                 start:    g('nl-start'),
@@ -618,6 +620,7 @@ const NewLoanPage = (() => {
             set('nl-locker',   d.locker);
             set('nl-caste',    d.caste);
             set('nl-address',  d.address);
+            set('nl-firm',     d.firm_id);
             set('nl-amount',   d.amount);
             set('nl-rate',     d.rate);
             set('nl-start',    d.start);
@@ -758,6 +761,7 @@ const NewLoanPage = (() => {
         const loan = {
             customerName: customer, mobile, lockerName: locker,
             address, caste,
+            firm_id: document.getElementById('nl-firm')?.value || FirmManager.getDefaultFirmId(),
             metalType: dominantMetal, metalSubType: dominantPurity,
             weightGrams: totalGoldWeight + totalSilverWeight,
             items,
@@ -788,7 +792,7 @@ const NewLoanPage = (() => {
 
         if (!resolvedCustomer) {
             // New person — create fresh record
-            resolvedCustomer = DB.saveCustomer({ name: customer, mobile, address, caste, totalLoans: 1 });
+            resolvedCustomer = DB.saveCustomer({ name: customer, mobile, address, caste, totalLoans: 1, firm_id: loan.firm_id });
         } else {
             // Same person (matched by phone) — update counts & optional fields
             resolvedCustomer.totalLoans = (resolvedCustomer.totalLoans || 0) + 1;

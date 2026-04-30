@@ -33,6 +33,7 @@ const OldLoanPage = (() => {
                             <span id="ol-mobile-err" class="form-hint" style="color:var(--danger);display:none;">Enter a valid 10-digit mobile number</span>`)}
                         ${UI.formGroup(I18n.t('locker_name'), '<input type="text" class="form-input" id="ol-locker" placeholder="e.g., Locker A-12">')}
                         ${UI.formGroup(I18n.t('caste'), '<input type="text" class="form-input" id="ol-caste" placeholder="Optional Caste">')}
+                        ${UI.formGroup('🏢 Firm *', `<select class="form-select" id="ol-firm">${FirmManager.buildSelectOptions(FirmManager.getDefaultFirmId())}</select>`)}
                     </div>
                     <div class="form-group mb-3" style="position:relative;">
                         <label class="form-label">${I18n.t('address')} *</label>
@@ -506,6 +507,7 @@ const OldLoanPage = (() => {
                 locker:    g('ol-locker'),
                 caste:     g('ol-caste'),
                 address:   g('ol-address'),
+                firm_id:   g('ol-firm'),
                 amount:    g('ol-amount'),
                 rate:      g('ol-rate'),
                 start:     g('ol-start'),
@@ -540,6 +542,7 @@ const OldLoanPage = (() => {
             set('ol-locker',   d.locker);
             set('ol-caste',    d.caste);
             set('ol-address',  d.address);
+            set('ol-firm',     d.firm_id);
             set('ol-amount',   d.amount);
             set('ol-rate',     d.rate);
             set('ol-start',    d.start);
@@ -678,6 +681,7 @@ const OldLoanPage = (() => {
         const loan = {
             customerName: customer, mobile, lockerName: locker,
             address, caste,
+            firm_id: document.getElementById('ol-firm')?.value || FirmManager.getDefaultFirmId(),
             metalType: dom, metalSubType: items.find(i => i.metalType === dom)?.purity || '22K',
             weightGrams: totalGoldWeight + totalSilverWeight, items,
             loanAmount: amount, interestRate: rate,
@@ -704,7 +708,7 @@ const OldLoanPage = (() => {
         }
 
         if (!resolvedCustomer) {
-            resolvedCustomer = DB.saveCustomer({ name: customer, mobile, address, caste, totalLoans: 1 });
+            resolvedCustomer = DB.saveCustomer({ name: customer, mobile, address, caste, totalLoans: 1, firm_id: loan.firm_id });
         } else {
             resolvedCustomer.totalLoans = (resolvedCustomer.totalLoans || 0) + 1;
             if (address) resolvedCustomer.address = address;

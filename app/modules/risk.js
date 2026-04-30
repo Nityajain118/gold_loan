@@ -6,9 +6,12 @@ const Risk = (() => {
     /**
      * Analyze all loans and return risk summary
      */
-    function analyzePortfolio() {
-        const loans = DB.getLoans().filter(l => l.status !== 'closed');
+    function analyzePortfolio(filteredLoans) {
+        const loans = filteredLoans
+            ? filteredLoans.filter(l => l.status !== 'closed')
+            : DB.getLoans().filter(l => l.status !== 'closed');
         const settings = DB.getSettings();
+
 
         let totalLoans = loans.length;
         let totalLoanAmount = 0;

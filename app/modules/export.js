@@ -375,12 +375,19 @@ const Export = (() => {
     /**
      * Export all loans as CSV
      */
-    function exportLoansCSV() {
-        const loans = DB.getLoans();
+    function exportLoansCSV(firmId) {
+        const allLoans = DB.getLoans();
+        const loans = firmId
+            ? allLoans.filter(l => (l?.firm_id || '') === firmId)
+            : allLoans;
         const settings = DB.getSettings();
+        const firms = DB.getFirms();
+        const firmMap = {};
+        firms.forEach(f => { firmMap[f.id] = f.name; });
+        const mainFirm = DB.getMainFirm();
 
         const headers = [
-            'Customer Name', 'Mobile', 'Metal Type', 'Purity', 'Weight (g)',
+            'Firm Name', 'Customer Name', 'Mobile', 'Metal Type', 'Purity', 'Weight (g)',
             'Loan Amount', 'Interest Rate', 'Interest Period', 'Interest Type',
             'Start Date', 'Duration (months)', 'Status', 'Locker',
             'Total Interest', 'Total Payable', 'Metal Value', 'LTV%', 'Risk Level'
@@ -389,7 +396,11 @@ const Export = (() => {
         const rows = loans.map(loan => {
             const rate = loan.metalType === 'gold' ? settings.currentGoldRate : settings.currentSilverRate;
             const details = Calculator.calcLoanDetails(loan, rate);
+            const firmName = loan.firm_id
+                ? (firmMap[loan.firm_id] || '—')
+                : (mainFirm ? mainFirm.name : '—');
             return [
+                firmName,
                 loan.customerName, loan.mobile || '', loan.metalType, loan.metalSubType,
                 loan.weightGrams, loan.loanAmount, loan.interestRate, loan.interestPeriod,
                 loan.interestType, loan.loanStartDate, loan.loanDuration, loan.status || 'active',
@@ -403,7 +414,12 @@ const Export = (() => {
             .map(row => row.map(cell => `"${cell}"`).join(','))
             .join('\n');
 
-        downloadFile(csvContent, `goldvault_loans_${new Date().toISOString().split('T')[0]}.csv`, 'text/csv');
+        const suffix = firmId ? `_${(firmMap[firmId] || firmId).replace(/\s+/g, '_')}` : '_all';
+        downloadFile(csvContent, `goldvault_loans${suffix}_${new Date().toISOString().split('T')[0]}.csv`, 'text/csv');
+    }
+
+    function exportFirmCSV(firmId) {
+        exportLoansCSV(firmId);
     }
 
     /**
@@ -465,6 +481,6 @@ const Export = (() => {
     }
 
     return {
-        exportLoanPDF, generateLoanPDFBlob, exportLoansCSV, exportBackup, importBackup
+        exportLoanPDF, generateLoanPDFBlob, exportLoansCSV, exportFirmCSV, exportBackup, importBackup
     };
 })();

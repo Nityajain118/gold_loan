@@ -48,7 +48,6 @@ const UI = (() => {
             'old-loan': 'Old Loan Entry (Migration)',
             'loans': 'All Loans',
             'loan-detail': 'Loan Details',
-            'loan-detail': 'Loan Details',
             'customers': 'Customers',
             'customer-profile': 'Customer Profile',
             'customer-ledger': 'Customer Ledger',
@@ -57,7 +56,8 @@ const UI = (() => {
             'market': 'Market Rates',
             'settings': 'Settings',
             'common-customers': '🔗 Common Customers',
-            'hisab-kitaab': 'Hisab Kitaab'
+            'hisab-kitaab': 'Hisab Kitaab',
+            'firms': '🏢 Firms & Branches'
         };
 
         title.textContent = titles[page] || 'GoldVault';
@@ -77,7 +77,8 @@ const UI = (() => {
             'market': () => MarketPage.render(container),
             'settings': () => SettingsPage.render(container),
             'common-customers': () => CommonCustomersPage.render(container),
-            'hisab-kitaab': () => HisabKitaabPage.render(container, data)
+            'hisab-kitaab': () => HisabKitaabPage.render(container, data),
+            'firms': () => FirmsPage.render(container)
         };
 
         if (renderers[page]) {
@@ -318,8 +319,48 @@ const UI = (() => {
         });
     }
 
+    /**
+     * Render the firm selector bar into #firm-selector-bar
+     */
+    function renderFirmSelector() {
+        try {
+            const bar = document.getElementById('firm-selector-bar');
+            if (!bar) return;
+            const firms = (typeof DB !== 'undefined') ? DB.getFirms() : [];
+            if (firms.length === 0) { bar.style.display = 'none'; return; }
+            bar.style.display = 'flex';
+            const activeFirmId = DB.getActiveFirm() || '';
+
+            let html = `<button class="firm-tab ${!activeFirmId ? 'firm-tab-active' : ''}" onclick="UI.switchFirm(null)">🌐 All Firms</button>`;
+            firms.forEach(f => {
+                const color = (typeof FirmManager !== 'undefined') ? FirmManager.getColor(f) : { bg: '#d4af37', text: '#1a1a2e' };
+                const isActive = f.id === activeFirmId;
+                html += `<button class="firm-tab ${isActive ? 'firm-tab-active' : ''}" 
+                    style="${isActive ? `background:${color.bg};color:${color.text};border-color:${color.bg};` : ''}"
+                    onclick="UI.switchFirm('${f.id}')">${f.name}${f.isMain ? ' ⭐' : ''}</button>`;
+            });
+            bar.innerHTML = html;
+        } catch(e) {}
+    }
+
+    /**
+     * Switch active firm and re-render current page
+     */
+    function switchFirm(firmId) {
+        try {
+            DB.setActiveFirm(firmId);
+            renderFirmSelector();
+            // Re-render current page
+            const container = document.getElementById('page-container');
+            const activeNav = document.querySelector('.nav-item.active, .bottom-nav-item.active');
+            const currentPage = activeNav ? activeNav.dataset.page : 'dashboard';
+            navigateTo(currentPage);
+        } catch(e) {}
+    }
+
     return {
         toast, navigateTo, currency, formatDate, pct, html, confirm, formGroup,
-        formatTithi, formatDuration, enlargeImage, showImageOptions, promptImageUpload
+        formatTithi, formatDuration, enlargeImage, showImageOptions, promptImageUpload,
+        renderFirmSelector, switchFirm
     };
 })();

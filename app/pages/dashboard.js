@@ -5,8 +5,15 @@ const DashboardPage = (() => {
     let charts = {};
 
     function render(container) {
-        const summary = Risk.analyzePortfolio();
-        const loans = DB.getLoans();
+        try {
+            const allLoans = DB.getLoans();
+            const allCustomers = DB.getCustomers();
+            // Filter by active firm (null = All Firms = no filter)
+            const loans = FirmManager.filterLoans(allLoans);
+            const activeFirm = FirmManager.getSelected();
+            const firmLabel = activeFirm ? activeFirm.name : 'All Firms';
+            const firmColor = activeFirm ? FirmManager.getColor(activeFirm) : null;
+            const summary = Risk.analyzePortfolio(loans);
         
         // --- Smart Money Lending Engine Logic ---
         function calculateDashboard(loansList) {
@@ -42,6 +49,13 @@ const DashboardPage = (() => {
         const mlData = calculateDashboard(loans);
 
         container.innerHTML = `
+            <!-- Firm Context Banner -->
+            ${activeFirm ? `
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:${firmColor.bg}22;border:1px solid ${firmColor.bg}66;margin-bottom:16px;">
+                <span class="firm-badge" style="background:${firmColor.bg};color:${firmColor.text};">🏢 ${activeFirm.name}</span>
+                <span style="font-size:0.82rem;color:var(--text-secondary);">Showing data for this branch only · <button class="btn btn-ghost btn-xs" style="display:inline;padding:0;font-size:0.8rem;" onclick="UI.switchFirm(null)">Switch to All Firms</button></span>
+            </div>` : ''}
+
             <!-- MONEY LENDING DASHBOARD -->
             <div class="section-header mt-2 mb-3">
                 <h3 class="section-title" data-i18n="money_lending_dashboard">${I18n.t('money_lending_dashboard')}</h3>
@@ -137,6 +151,28 @@ const DashboardPage = (() => {
                 </div>
             </div>
 
+            <!-- Firm-wise Breakdown (only when All Firms selected and multiple firms exist) -->
+            ${!activeFirm && DB.getFirms().length > 1 ? `
+            <div class="section-header mt-4 mb-3">
+                <h3 class="section-title">🏢 Branch-wise Breakdown</h3>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:24px;">
+                ${FirmManager.computeFirmStats(allLoans, allCustomers).map(s => `
+                <div class="card" style="border-left:4px solid ${s.color.bg};padding:14px 16px;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                        <span class="firm-badge" style="background:${s.color.bg};color:${s.color.text};">🏢 ${s.firm.name}</span>
+                        ${s.firm.isMain ? '<span style="font-size:0.7rem;color:var(--text-secondary);">Main</span>' : ''}
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:0.82rem;">
+                        <div><div style="color:var(--text-secondary);">Active</div><div style="font-weight:700;color:var(--primary);">${s.activeLoans} loans</div></div>
+                        <div><div style="color:var(--text-secondary);">Overdue</div><div style="font-weight:700;color:var(--danger);">${s.overdueLoans}</div></div>
+                        <div><div style="color:var(--text-secondary);">Principal</div><div style="font-weight:700;">${UI.currency(s.totalPrincipal)}</div></div>
+                        <div><div style="color:var(--text-secondary);">Interest</div><div style="font-weight:700;color:var(--safe);">${UI.currency(s.totalInterest)}</div></div>
+                    </div>
+                    <button class="btn btn-outline btn-xs full-width mt-2" onclick="UI.switchFirm('${s.firm.id}')">View Branch →</button>
+                </div>`).join('')}
+            </div>` : ''}
+
             <!-- Alerts -->
             <div class="section-header mt-2">
                 <h3 class="section-title" data-i18n="alerts_warnings">${I18n.t('alerts_warnings')}</h3>
@@ -154,10 +190,14 @@ const DashboardPage = (() => {
                 <button class="btn btn-primary" onclick="UI.navigateTo('old-loan')" data-i18n="add_old_loan">${I18n.t('add_old_loan')}</button>
                 <button class="btn btn-outline" onclick="Export.exportLoansCSV()" data-i18n="export_csv">${I18n.t('export_csv')}</button>
                 <button class="btn btn-outline" onclick="Export.exportBackup()" data-i18n="backup">${I18n.t('backup')}</button>
+                <button class="btn btn-outline" onclick="UI.navigateTo('firms')">🏢 Manage Firms</button>
             </div>
         `;
 
         renderCharts(summary);
+        } catch(e) {
+            container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><h3>Dashboard Error</h3><p style="font-size:0.85rem;">${e.message}</p></div>`;
+        }
     }
 
     function renderAlerts(alerts) {
