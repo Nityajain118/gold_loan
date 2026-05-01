@@ -6,7 +6,7 @@ const OldLoanPage = (() => {
         interestPeriod: 'monthly', interestType: 'simple',
         compoundingFrequency: 12,
         useHistoricalRate: false, autoCalcMaturity: true, items: [],
-        isManualTithi: false
+        isManualTithi: false, showBreakdown: false
     };
     const MAX_ITEMS = 10;
     const DRAFT_KEY = 'gv_ol_draft';
@@ -51,12 +51,22 @@ const OldLoanPage = (() => {
                     <div class="flex gap-1 mt-1 mb-2">
                         <button type="button" class="btn btn-outline btn-sm" id="ol-add-item-btn" onclick="OldLoanPage.addItem()" data-i18n="add_another_item">${I18n.t('add_another_item')}</button>
                     </div>
-                    <div class="items-summary" id="ol-items-summary">
-                        <div class="items-summary-item"><div class="items-summary-label">Total Items</div><div class="items-summary-value" id="ol-total-items">0</div></div>
-                        <div class="items-summary-item"><div class="items-summary-label">Gold</div><div class="items-summary-value" id="ol-gold-items">0</div></div>
-                        <div class="items-summary-item"><div class="items-summary-label">Silver</div><div class="items-summary-value" id="ol-silver-items">0</div></div>
-                        <div class="items-summary-item"><div class="items-summary-label">Total Weight</div><div class="items-summary-value" id="ol-total-weight">0g</div></div>
-                        <div class="items-summary-item"><div class="items-summary-label">Total Value</div><div class="items-summary-value" id="ol-total-value">₹0</div></div>
+                    <div class="items-summary-wrapper" style="margin-top:12px; background: linear-gradient(135deg, var(--gold-light), var(--bg-card)); border: 1px solid var(--gold); border-radius: var(--radius-sm);">
+                        <div style="display:flex; align-items:center; cursor:pointer;" onclick="OldLoanPage.toggleBreakdown()">
+                            <div class="items-summary" id="ol-items-summary" style="flex:1; margin-top:0; border:none; background:none;">
+                                <div class="items-summary-item"><div class="items-summary-label">Total Items</div><div class="items-summary-value" id="ol-total-items">0</div></div>
+                                <div class="items-summary-item"><div class="items-summary-label">Gold</div><div class="items-summary-value" id="ol-gold-items">0</div></div>
+                                <div class="items-summary-item"><div class="items-summary-label">Silver</div><div class="items-summary-value" id="ol-silver-items">0</div></div>
+                                <div class="items-summary-item"><div class="items-summary-label">Total Weight</div><div class="items-summary-value" id="ol-total-weight">0g</div></div>
+                                <div class="items-summary-item"><div class="items-summary-label">Total Value</div><div class="items-summary-value" id="ol-total-value">₹0</div></div>
+                                <div class="items-summary-item" id="ol-pure-gold-wrapper"><div class="items-summary-label">Pure Gold Weight</div><div class="items-summary-value" id="ol-pure-gold-weight">0g</div></div>
+                                <div class="items-summary-item" id="ol-pure-silver-wrapper" style="display:none;"><div class="items-summary-label">Pure Silver Weight</div><div class="items-summary-value" id="ol-pure-silver-weight">0g</div></div>
+                            </div>
+                            <div style="padding:0 16px; font-size:1.2rem; display:flex; align-items:center; justify-content:center; color:var(--gold-dark);">
+                                <span id="ol-breakdown-icon">⬇️</span>
+                            </div>
+                        </div>
+                        <div id="ol-items-breakdown" style="display:none; padding:16px; border-top:1px solid var(--gold); background:var(--bg-card); border-radius:0 0 var(--radius-sm) var(--radius-sm);"></div>
                     </div>
 
                     <!-- Jewellery Note -->
@@ -70,7 +80,7 @@ const OldLoanPage = (() => {
 
                     <h4 class="mb-1 mt-3" style="color:var(--primary);font-size:0.9rem;" data-i18n="loan_details">${I18n.t('loan_details')}</h4>
                     <div class="form-grid mb-2">
-                        ${UI.formGroup(I18n.t('loan_amount') + ' *', '<input type="number" class="form-input" id="ol-amount" required placeholder="' + I18n.t('loan_amount') + '" min="1" onkeydown="OldLoanPage.blockInvalidKey(event)" oninput="OldLoanPage.recalc()">')}
+                        ${UI.formGroup(I18n.t('loan_amount') + ' *', '<input type="number" class="form-input" id="ol-amount" required placeholder="' + I18n.t('loan_amount') + '" min="1" onkeydown="OldLoanPage.blockInvalidKey(event)" oninput="OldLoanPage.recalc()"><div id="ol-amount-fmt" style="font-size:0.82rem; color:var(--text-secondary); margin-top:4px; font-weight:600; min-height:16px;"></div>')}
                         ${UI.formGroup(I18n.t('interest_rate') + ' *', '<input type="number" class="form-input" id="ol-rate" required placeholder="e.g., 2" step="0.01" min="0.01" onkeydown="OldLoanPage.blockInvalidKey(event)" oninput="OldLoanPage.recalc()">')}
                         ${UI.formGroup(I18n.t('interest_period'), `<div class="segment-control" id="ol-period-group">
                             <button type="button" class="segment-btn active" data-value="monthly" onclick="OldLoanPage.setPeriod('monthly')" data-i18n="monthly">${I18n.t('monthly')}</button>
@@ -199,16 +209,13 @@ const OldLoanPage = (() => {
                             <option value="silver" ${item.metalType === 'silver' ? 'selected' : ''}>🥈 Silver</option>
                         </select></div>
                     <div class="form-group"><label class="form-label">Item Type</label>
-                        <select class="form-select" onchange="OldLoanPage.updateItem(${i},'itemType',this.value)">
-                            ${types.map(t => `<option value="${t}" ${item.itemType === t ? 'selected' : ''}>${t}</option>`).join('')}
-                        </select></div>
-                    ${item.itemType === 'Other' ? `
-                    <div class="form-group">
-                        <label class="form-label">Custom Item Name</label>
-                        <input type="text" class="form-input" value="${item.customItemType || ''}" placeholder="Enter item name"
-                            oninput="OldLoanPage.updateItem(${i},'customItemType',this.value)"
-                            onblur="OldLoanPage.saveCustomItemName(${i})">
-                    </div>` : ''}
+                        <input type="text" class="form-input" list="ol-item-types-${item.metalType}-${i}" value="${item.itemType || ''}" placeholder="Type or select..."
+                            oninput="OldLoanPage.updateItem(${i},'itemType',this.value)"
+                            onblur="OldLoanPage.saveItemTypeNow(${i})">
+                        <datalist id="ol-item-types-${item.metalType}-${i}">
+                            ${types.filter(t => t !== 'Other').map(t => `<option value="${t}">`).join('')}
+                        </datalist>
+                    </div>
                     <div class="form-group"><label class="form-label">Purity</label>
                         <select class="form-select" onchange="OldLoanPage.updateItem(${i},'purity',this.value)">
                             ${Calculator.buildItemPurityOptions(item.metalType, item.purity)}
@@ -259,7 +266,6 @@ const OldLoanPage = (() => {
             _state.items[i].itemType = Calculator.getJewelryTypes(v)[0];
             _state.items[i].purity = v === 'gold' ? '22K' : '999';
             _state.items[i].customPurity = '';
-            _state.items[i].customItemType = '';
             renderItems();
             return;
         }
@@ -271,14 +277,7 @@ const OldLoanPage = (() => {
             return;
         }
         if (f === 'itemType') {
-            if (v !== 'Other') {
-                _state.items[i].customItemType = '';
-            }
-            renderItems();
-            return;
-        }
-        if (f === 'customItemType') {
-            // Only update state; actual save happens onblur via saveCustomItemName()
+            _state.items[i].itemType = v;
             return;
         }
         if (f === 'weightGrams') {
@@ -305,14 +304,18 @@ const OldLoanPage = (() => {
         }
     }
 
-    // Called onblur from the custom item name input — saves only the final value (not each keystroke)
-    function saveCustomItemName(index) {
+    // Called onblur from the item type input — saves only the final value
+    function saveItemTypeNow(index) {
         const item = _state.items[index];
         if (!item) return;
-        const name = (item.customItemType || '').trim();
+        const name = (item.itemType || '').trim();
         if (name) {
-            Calculator.saveCustomItemType(item.metalType, name);
-            renderItems();
+            const baseTypes = Calculator.JEWELRY_TYPES[item.metalType] || Calculator.JEWELRY_TYPES.gold;
+            const isBase = baseTypes.some(t => t.toLowerCase() === name.toLowerCase());
+            if (!isBase && name.toLowerCase() !== 'other') {
+                Calculator.saveCustomItemType(item.metalType, name);
+                renderItems();
+            }
         }
     }
 
@@ -355,12 +358,56 @@ const OldLoanPage = (() => {
         });
         const totalItems = goldItems + silverItems;
 
+        const pureGoldWeight = _state.items
+            .filter(i => i.metalType === 'gold' && parseFloat(i.weightGrams) > 0)
+            .reduce((s, i) => s + parseFloat(i.weightGrams) * (i.purity === 'custom' ? (parseFloat(i.customPurity) || 0) / 100 : Calculator.getPurityFactor(i.purity)), 0);
+
+        const pureSilverWeight = _state.items
+            .filter(i => i.metalType === 'silver' && parseFloat(i.weightGrams) > 0)
+            .reduce((s, i) => s + parseFloat(i.weightGrams) * (i.purity === 'custom' ? (parseFloat(i.customPurity) || 0) / 100 : Calculator.getPurityFactor(i.purity)), 0);
+
         const el = id => document.getElementById(id);
         if (el('ol-total-items')) el('ol-total-items').textContent = totalItems;
         if (el('ol-gold-items')) el('ol-gold-items').textContent = goldItems;
         if (el('ol-silver-items')) el('ol-silver-items').textContent = silverItems;
         if (el('ol-total-weight')) el('ol-total-weight').textContent = (totalGoldWeight + totalSilverWeight).toFixed(2) + 'g';
         if (el('ol-total-value')) el('ol-total-value').textContent = UI.currency(totalValue);
+
+        if (el('ol-pure-gold-weight')) el('ol-pure-gold-weight').textContent = pureGoldWeight.toFixed(3) + 'g';
+        if (el('ol-pure-silver-weight')) el('ol-pure-silver-weight').textContent = pureSilverWeight.toFixed(3) + 'g';
+
+        if (el('ol-pure-gold-wrapper')) el('ol-pure-gold-wrapper').style.display = goldItems > 0 ? '' : 'none';
+        if (el('ol-pure-silver-wrapper')) el('ol-pure-silver-wrapper').style.display = silverItems > 0 ? '' : 'none';
+
+        const breakdownEl = document.getElementById('ol-items-breakdown');
+        if (breakdownEl) {
+            const validItems = _state.items.filter(i => parseFloat(i.weightGrams) > 0);
+            if (validItems.length === 0) {
+                breakdownEl.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem; text-align:center;">No items added yet.</div>';
+            } else {
+                breakdownEl.innerHTML = validItems.map((it, idx) => {
+                    const isGold = it.metalType === 'gold';
+                    const icon = isGold ? '🥇' : '🥈';
+                    const color = isGold ? 'var(--gold-dark)' : 'var(--text-secondary)';
+                    const bg = isGold ? 'rgba(218,165,32,0.05)' : 'rgba(148,163,184,0.05)';
+                    const rate = isGold ? rates.gold : rates.silver;
+                    const pf = it.purity === 'custom' ? (parseFloat(it.customPurity) || 0) / 100 : Calculator.getPurityFactor(it.purity);
+                    const w = parseFloat(it.weightGrams) || 0;
+                    const val = w * pf * rate;
+                    return `<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; margin-bottom:8px; background:${bg}; border:1px solid var(--border-color); border-radius:8px;">
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <span style="font-size:0.85rem; font-weight:700; color:var(--text-primary);">${icon} Item ${idx + 1} - ${it.itemType || 'Unknown'}</span>
+                            <span style="font-size:0.75rem; color:var(--text-muted);">${it.purity} • ${w.toFixed(2)}g</span>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:0.9rem; font-weight:700; color:${color};">${UI.currency(val)}</div>
+                            <div style="font-size:0.7rem; color:var(--text-muted);">@ ₹${rate.toLocaleString('en-IN')}/g</div>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+        }
+
         recalc();
     }
 
@@ -405,6 +452,11 @@ const OldLoanPage = (() => {
 
     function recalc() {
         const amount = parseFloat(document.getElementById('ol-amount')?.value) || 0;
+        const fmtEl = document.getElementById('ol-amount-fmt');
+        if (fmtEl) {
+            fmtEl.textContent = amount > 0 ? `(${UI.currency(amount)})` : '';
+        }
+        
         const rate = parseFloat(document.getElementById('ol-rate')?.value) || 0;
         const startDate = document.getElementById('ol-start')?.value;
         const paidInterest = parseFloat(document.getElementById('ol-paid-interest')?.value) || 0;
@@ -648,8 +700,8 @@ const OldLoanPage = (() => {
                     return;
                 }
             }
-            if (it.itemType === 'Other' && !it.customItemType?.trim()) {
-                UI.toast(`Item #${idx + 1}: Please enter the custom item name`, 'error');
+            if (!it.itemType?.trim()) {
+                UI.toast(`Item #${idx + 1}: Please enter an item type`, 'error');
                 return;
             }
         }
@@ -662,7 +714,7 @@ const OldLoanPage = (() => {
         const items = validItems.map(validItem => {
             const originalIdx = _state.items.findIndex(stateItem => stateItem === validItem);
             return {
-                itemType: validItem.itemType === 'Other' && validItem.customItemType ? validItem.customItemType : validItem.itemType, 
+                itemType: validItem.itemType.trim(), 
                 metalType: validItem.metalType, 
                 purity: validItem.purity,
                 customPurity: validItem.purity === 'custom' ? parseFloat(validItem.customPurity) : null,
@@ -725,5 +777,15 @@ const OldLoanPage = (() => {
         UI.navigateTo('loans');
     }
 
-    return { render, addItem, removeItem, updateItem, updateCustomPurity, saveCustomItemName, saveCustomPurityNow, checkMobile, onAddressInput, saveDraft, clearDraft, setPeriod, setType, setFreq, toggleHistorical, togglePanchang, saveOverride, recalc, save, blockInvalidKey, get _draft_active() { return _draft_active; } };
+    function toggleBreakdown() {
+        _state.showBreakdown = !_state.showBreakdown;
+        const bd = document.getElementById('ol-items-breakdown');
+        const icon = document.getElementById('ol-breakdown-icon');
+        if (bd && icon) {
+            bd.style.display = _state.showBreakdown ? 'block' : 'none';
+            icon.textContent = _state.showBreakdown ? '⬆️' : '⬇️';
+        }
+    }
+
+    return { render, addItem, removeItem, updateItem, updateCustomPurity, saveItemTypeNow, saveCustomPurityNow, checkMobile, onAddressInput, saveDraft, clearDraft, setPeriod, setType, setFreq, toggleHistorical, togglePanchang, saveOverride, recalc, save, blockInvalidKey, toggleBreakdown, get _draft_active() { return _draft_active; } };
 })();

@@ -71,10 +71,9 @@ const CustomerLedgerPage = (() => {
                 ${allLoans.sort((a, b) => new Date(b.loanStartDate) - new Date(a.loanStartDate)).map(loan => {
                     const rate = loan.metalType === 'gold' ? settings.currentGoldRate : settings.currentSilverRate;
                     const d = Calculator.calcLoanDetails(loan, rate);
-                    const itemLabel = _buildItemLabel(loan);
                     return `<tr>
                         <td>${UI.formatDate(loan.loanStartDate)}</td>
-                        <td>${loan.metalType === 'gold' ? '🥇 Gold' : '🥈 Silver'} ${loan.metalSubType}${itemLabel}</td>
+                        <td>${_buildMetalAndItemLabel(loan)}</td>
                         <td class="text-gold font-semibold">${UI.currency(d.metalValue)}</td>
                         <td>${loan.status === 'closed' ? '—' : UI.currency(d.remainingPrincipal)}</td>
                         <td class="font-semibold text-danger">${loan.status === 'closed' ? '—' : UI.currency(d.totalPayable)}</td>
@@ -125,15 +124,30 @@ const CustomerLedgerPage = (() => {
         `;
     }
 
-    // Build "— Ring" / "— Ring, Chain" label from items array
-    function _buildItemLabel(loan) {
-        if (loan.items && loan.items.length > 0) {
-            const types = [...new Set(loan.items.map(i => i.itemType).filter(Boolean))];
-            if (types.length > 0) {
-                return `<span style="color:var(--text-muted);font-size:0.82rem;"> — ${types.join(', ')}</span>`;
-            }
+    // Build "🥇 Gold 22K (Ring), 🥈 Silver 925 (Payal)" label from items array
+    function _buildMetalAndItemLabel(loan) {
+        if (!loan.items || loan.items.length === 0) {
+            return `${loan.metalType === 'gold' ? '🥇 Gold' : '🥈 Silver'} ${loan.metalSubType || ''}`;
         }
-        return '';
+        
+        const buildParts = (items, metalName, emoji) => {
+            if (items.length === 0) return null;
+            const purity = items[0].purity; 
+            const names = [...new Set(items.map(i => i.itemType).filter(Boolean))];
+            const nameStr = names.length > 0 ? `(${names.join(', ')})` : '';
+            return `${emoji} ${metalName} ${purity || ''} ${nameStr}`.trim();
+        };
+
+        const goldItems = loan.items.filter(i => i.metalType === 'gold');
+        const silverItems = loan.items.filter(i => i.metalType === 'silver');
+        
+        const parts = [];
+        const gLabel = buildParts(goldItems, 'Gold', '🥇');
+        if (gLabel) parts.push(gLabel);
+        const sLabel = buildParts(silverItems, 'Silver', '🥈');
+        if (sLabel) parts.push(sLabel);
+        
+        return parts.join('<br/><span style="margin-top:2px;display:block;">') + '</span>';
     }
 
     // ── (+) New Loan Modal ────────────────────────────────────────────────────
@@ -189,14 +203,23 @@ const CustomerLedgerPage = (() => {
                     <button type="button" class="btn btn-outline btn-sm" id="nl-add-item-btn" onclick="NewLoanPage.addItem()">➕ Add Another Item</button>
                 </div>
 
-                <div class="items-summary" id="nl-items-summary">
-                    <div class="items-summary-item"><div class="items-summary-label">Total Items</div><div class="items-summary-value" id="nl-total-items">0</div></div>
-                    <div class="items-summary-item"><div class="items-summary-label">Gold Items</div><div class="items-summary-value" id="nl-gold-items">0</div></div>
-                    <div class="items-summary-item"><div class="items-summary-label">Silver Items</div><div class="items-summary-value" id="nl-silver-items">0</div></div>
-                    <div class="items-summary-item"><div class="items-summary-label">Total Weight</div><div class="items-summary-value" id="nl-total-weight">0g</div></div>
-                    <div class="items-summary-item"><div class="items-summary-label">Total Metal Value</div><div class="items-summary-value" id="nl-total-value">₹0</div></div>
-                    <div class="items-summary-item"><div class="items-summary-label">Pure Gold Weight</div><div class="items-summary-value" id="nl-pure-gold-weight">0g</div></div>
-                    <div class="items-summary-item"><div class="items-summary-label">Safe Loan (<span id="nl-ltv-label">${ltvPct}</span>% LTV)</div><div class="items-summary-value safe" id="nl-safe-loan">₹0</div></div>
+                <div class="items-summary-wrapper" style="margin-top:12px; background: linear-gradient(135deg, var(--gold-light), var(--bg-card)); border: 1px solid var(--gold); border-radius: var(--radius-sm);">
+                    <div style="display:flex; align-items:center; cursor:pointer;" onclick="NewLoanPage.toggleBreakdown()">
+                        <div class="items-summary" id="nl-items-summary" style="flex:1; margin-top:0; border:none; background:none;">
+                            <div class="items-summary-item"><div class="items-summary-label">Total Items</div><div class="items-summary-value" id="nl-total-items">0</div></div>
+                            <div class="items-summary-item"><div class="items-summary-label">Gold Items</div><div class="items-summary-value" id="nl-gold-items">0</div></div>
+                            <div class="items-summary-item"><div class="items-summary-label">Silver Items</div><div class="items-summary-value" id="nl-silver-items">0</div></div>
+                            <div class="items-summary-item"><div class="items-summary-label">Total Weight</div><div class="items-summary-value" id="nl-total-weight">0g</div></div>
+                            <div class="items-summary-item"><div class="items-summary-label">Total Metal Value</div><div class="items-summary-value" id="nl-total-value">₹0</div></div>
+                            <div class="items-summary-item" id="nl-pure-gold-wrapper"><div class="items-summary-label">Pure Gold Weight</div><div class="items-summary-value" id="nl-pure-gold-weight">0g</div></div>
+                            <div class="items-summary-item" id="nl-pure-silver-wrapper" style="display:none;"><div class="items-summary-label">Pure Silver Weight</div><div class="items-summary-value" id="nl-pure-silver-weight">0g</div></div>
+                            <div class="items-summary-item"><div class="items-summary-label">Safe Loan (<span id="nl-ltv-label">${ltvPct}</span>% LTV)</div><div class="items-summary-value safe" id="nl-safe-loan">₹0</div></div>
+                        </div>
+                        <div style="padding:0 16px; font-size:1.2rem; display:flex; align-items:center; justify-content:center; color:var(--gold-dark);">
+                            <span id="nl-breakdown-icon">⬇️</span>
+                        </div>
+                    </div>
+                    <div id="nl-items-breakdown" style="display:none; padding:16px; border-top:1px solid var(--gold); background:var(--bg-card); border-radius:0 0 var(--radius-sm) var(--radius-sm);"></div>
                 </div>
 
                 <h4 style="color:var(--primary);font-size:0.9rem;margin:16px 0 10px;">💰 Loan Details</h4>

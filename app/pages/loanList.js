@@ -150,8 +150,16 @@ const LoanListPage = (() => {
             const gs = _groupStatus(loans);
             const activeLoans = loans.filter(l => (l.status||'active') !== 'closed');
             const totalActive = activeLoans.reduce((s, l) => s + (l.loanAmount||0), 0);
-            const goldCount   = loans.filter(l => l.metalType === 'gold').length;
-            const silverCount = loans.filter(l => l.metalType === 'silver').length;
+            
+            let goldCount = 0, silverCount = 0, mixedCount = 0;
+            loans.forEach(l => {
+                const hasG = l.items && l.items.length > 0 ? l.items.some(i => i.metalType === 'gold') : (l.metalType === 'gold');
+                const hasS = l.items && l.items.length > 0 ? l.items.some(i => i.metalType === 'silver') : (l.metalType === 'silver');
+                if (hasG && hasS) mixedCount++;
+                else if (hasS) silverCount++;
+                else goldCount++;
+            });
+            
             const statusIcon  = gs === 'active' ? '🟢' : gs === 'closed' ? '⚫' : gs === 'mixed' ? '🔵' : '🔄';
             const avatar = info.photo
                 ? `<img src="${info.photo}" onclick="event.stopPropagation(); UI.enlargeImage('${info.photo}')" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid var(--border);cursor:pointer;" title="Click to enlarge">`
@@ -183,12 +191,17 @@ const LoanListPage = (() => {
                     </div>
                     <div class="loan-stat">
                         <span class="label">🥇 Gold:</span>
-                        <span class="value">${goldCount} loan${goldCount!==1?'s':''}</span>
+                        <span class="value">${goldCount}</span>
                     </div>
                     <div class="loan-stat">
                         <span class="label">🥈 Silver:</span>
-                        <span class="value">${silverCount} loan${silverCount!==1?'s':''}</span>
+                        <span class="value">${silverCount}</span>
                     </div>
+                    ${mixedCount > 0 ? `
+                    <div class="loan-stat">
+                        <span class="label">🔗 Mixed:</span>
+                        <span class="value">${mixedCount}</span>
+                    </div>` : ''}
                     <div class="loan-stat">
                         <span class="label" data-i18n="total_loans">${I18n.t('total_loans')}</span>
                         <span class="value">${loans.length}</span>
@@ -207,8 +220,18 @@ const LoanListPage = (() => {
         const group = _groups[_state.groupKey];
         if (!group) { _state.view='customers'; render(container); return; }
         const { info, loans } = group;
-        const goldLoans   = loans.filter(l => l.metalType === 'gold');
-        const silverLoans = loans.filter(l => l.metalType === 'silver');
+        
+        const goldLoans = [];
+        const silverLoans = [];
+        const mixedLoans = [];
+        
+        loans.forEach(l => {
+            const hasG = l.items && l.items.length > 0 ? l.items.some(i => i.metalType === 'gold') : (l.metalType === 'gold');
+            const hasS = l.items && l.items.length > 0 ? l.items.some(i => i.metalType === 'silver') : (l.metalType === 'silver');
+            if (hasG && hasS) mixedLoans.push(l);
+            else if (hasS) silverLoans.push(l);
+            else goldLoans.push(l);
+        });
 
         container.innerHTML = `
         <button class="btn btn-ghost mb-2" onclick="LoanListPage.goBack()">${I18n.t('back_to_customers')}</button>
@@ -241,12 +264,23 @@ const LoanListPage = (() => {
                 onmouseenter="this.style.transform='translateY(-3px)';this.style.borderColor='#94a3b8'"
                 onmouseleave="this.style.transform='';this.style.borderColor='rgba(148,163,184,0.3)'">
                 <div style="font-size:2rem;margin-bottom:8px;">🥈</div>
-                <div style="font-weight:700;font-size:1.1rem;color:#94a3b8;">${I18n.t('silver_loans')}</div>
+                <div style="font-weight:700;font-size:1.1rem;color:#94a3b8;">${I18n.t('silver_loans') || 'Silver Loans'}</div>
                 <div style="font-size:1.8rem;font-weight:800;color:var(--text-primary);margin:4px 0;">${silverLoans.length}</div>
                 <div style="font-size:0.8rem;color:var(--text-secondary);">${silverLoans.filter(l=>(l.status||'active')==='active').length} Active · ${silverLoans.filter(l=>l.status==='closed').length} Closed</div>
                 <div style="font-size:0.78rem;color:var(--text-secondary);margin-top:4px;">Total: ${UI.currency(silverLoans.reduce((s,l)=>s+(l.loanAmount||0),0))}</div>
             </div>` : ''}
-            ${goldLoans.length===0&&silverLoans.length===0?'<p class="text-muted">' + I18n.t('no_matches') + '</p>':''}
+            ${mixedLoans.length > 0 ? `
+            <div onclick="LoanListPage.drillMetal('mixed')"
+                style="background:linear-gradient(135deg,rgba(99,102,241,0.12),rgba(99,102,241,0.05));border:1px solid rgba(99,102,241,0.3);border-radius:12px;padding:20px;cursor:pointer;transition:all .2s;"
+                onmouseenter="this.style.transform='translateY(-3px)';this.style.borderColor='#6366f1'"
+                onmouseleave="this.style.transform='';this.style.borderColor='rgba(99,102,241,0.3)'">
+                <div style="font-size:2rem;margin-bottom:8px;">🔗</div>
+                <div style="font-weight:700;font-size:1.1rem;color:#6366f1;">Mixed Metal Loans</div>
+                <div style="font-size:1.8rem;font-weight:800;color:var(--text-primary);margin:4px 0;">${mixedLoans.length}</div>
+                <div style="font-size:0.8rem;color:var(--text-secondary);">${mixedLoans.filter(l=>(l.status||'active')==='active').length} Active · ${mixedLoans.filter(l=>l.status==='closed').length} Closed</div>
+                <div style="font-size:0.78rem;color:var(--text-secondary);margin-top:4px;">Total: ${UI.currency(mixedLoans.reduce((s,l)=>s+(l.loanAmount||0),0))}</div>
+            </div>` : ''}
+            ${goldLoans.length===0&&silverLoans.length===0&&mixedLoans.length===0?'<p class="text-muted">' + I18n.t('no_matches') + '</p>':''}
         </div>`;
     }
 
@@ -256,9 +290,17 @@ const LoanListPage = (() => {
         if (!group) { _state.view='customers'; render(container); return; }
         const { info, loans } = group;
         const metal = _state.metal;
-        const filtered = loans.filter(l => l.metalType === metal);
+        
+        const filtered = loans.filter(l => {
+            const hasG = l.items && l.items.length > 0 ? l.items.some(i => i.metalType === 'gold') : (l.metalType === 'gold');
+            const hasS = l.items && l.items.length > 0 ? l.items.some(i => i.metalType === 'silver') : (l.metalType === 'silver');
+            if (metal === 'mixed') return hasG && hasS;
+            if (metal === 'silver') return hasS && !hasG;
+            return hasG && !hasS; // gold
+        });
+        
         const settings = DB.getSettings();
-        const metalLabel = metal === 'gold' ? '🥇 Gold' : '🥈 Silver';
+        const metalLabel = metal === 'gold' ? '🥇 Gold' : (metal === 'silver' ? '🥈 Silver' : '🔗 Mixed Metal');
 
         container.innerHTML = `
         <button class="btn btn-ghost mb-2" onclick="LoanListPage.goBackTypes()">← Back to ${info.name}</button>

@@ -12,8 +12,12 @@ const LoanDetailPage = (() => {
         const rate = loan.metalType === 'gold' ? settings.currentGoldRate : settings.currentSilverRate;
         // Pass current interest basis (360/365) to calcLoanDetails
         const d = Calculator.calcLoanDetails(loan, rate, { basis: _interestBasis });
-        const icon = loan.metalType === 'gold' ? '🥇' : '🥈';
         const items = loan.items || [];
+        const hasGold = items.some(it => it.metalType === 'gold');
+        const hasSilver = items.some(it => it.metalType === 'silver');
+        const isMixed = hasGold && hasSilver;
+        const icon = isMixed ? '🔗' : (loan.metalType === 'gold' ? '🥇' : '🥈');
+        const loanMetalLabel = isMixed ? 'Mixed Metal' : (loan.metalType === 'gold' ? 'Gold' : 'Silver');
         const rates = Market.getCurrentRates();
 
         // ── Computed values for dashboard ─────────────────────────────────────
@@ -159,7 +163,7 @@ const LoanDetailPage = (() => {
                     <div class="ld-info-card">
                         <div class="ld-info-card-icon">👥</div>
                         <div class="ld-info-card-label">Metal Type</div>
-                        <div class="ld-info-card-value" style="color:var(--gold-dark);">${icon} ${loan.metalType === 'gold' ? 'Gold' : 'Silver'} ${loan.metalSubType || ''}</div>
+                        <div class="ld-info-card-value" style="color:var(--gold-dark);">${icon} ${loanMetalLabel} ${!isMixed && loan.metalSubType ? loan.metalSubType : ''}</div>
                     </div>
                 </div>
 

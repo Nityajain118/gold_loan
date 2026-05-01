@@ -4,7 +4,7 @@
 const NewLoanPage = (() => {
     let _state = { 
         interestPeriod: 'monthly', interestType: 'simple', compoundingFrequency: 12, 
-        items: [], isManualTithi: false 
+        items: [], isManualTithi: false, showBreakdown: false 
     };
     const MAX_ITEMS = 10;
     const DRAFT_KEY = 'gv_nl_draft';
@@ -48,14 +48,23 @@ const NewLoanPage = (() => {
                     </div>
 
                     <!-- Items Summary -->
-                    <div class="items-summary" id="nl-items-summary">
-                        <div class="items-summary-item"><div class="items-summary-label">Total Items</div><div class="items-summary-value" id="nl-total-items">0</div></div>
-                        <div class="items-summary-item"><div class="items-summary-label">Gold Items</div><div class="items-summary-value" id="nl-gold-items">0</div></div>
-                        <div class="items-summary-item"><div class="items-summary-label">Silver Items</div><div class="items-summary-value" id="nl-silver-items">0</div></div>
-                        <div class="items-summary-item"><div class="items-summary-label">Total Weight</div><div class="items-summary-value" id="nl-total-weight">0g</div></div>
-                        <div class="items-summary-item"><div class="items-summary-label">Total Metal Value</div><div class="items-summary-value" id="nl-total-value">₹0</div></div>
-                        <div class="items-summary-item"><div class="items-summary-label">Pure Gold Weight</div><div class="items-summary-value" id="nl-pure-gold-weight">0g</div></div>
-                        <div class="items-summary-item"><div class="items-summary-label">Safe Loan (<span id="nl-ltv-label">75</span>% LTV)</div><div class="items-summary-value safe" id="nl-safe-loan">₹0</div></div>
+                    <div class="items-summary-wrapper" style="margin-top:12px; background: linear-gradient(135deg, var(--gold-light), var(--bg-card)); border: 1px solid var(--gold); border-radius: var(--radius-sm);">
+                        <div style="display:flex; align-items:center; cursor:pointer;" onclick="NewLoanPage.toggleBreakdown()">
+                            <div class="items-summary" id="nl-items-summary" style="flex:1; margin-top:0; border:none; background:none;">
+                                <div class="items-summary-item"><div class="items-summary-label">Total Items</div><div class="items-summary-value" id="nl-total-items">0</div></div>
+                                <div class="items-summary-item"><div class="items-summary-label">Gold Items</div><div class="items-summary-value" id="nl-gold-items">0</div></div>
+                                <div class="items-summary-item"><div class="items-summary-label">Silver Items</div><div class="items-summary-value" id="nl-silver-items">0</div></div>
+                                <div class="items-summary-item"><div class="items-summary-label">Total Weight</div><div class="items-summary-value" id="nl-total-weight">0g</div></div>
+                                <div class="items-summary-item"><div class="items-summary-label">Total Metal Value</div><div class="items-summary-value" id="nl-total-value">₹0</div></div>
+                                <div class="items-summary-item" id="nl-pure-gold-wrapper"><div class="items-summary-label">Pure Gold Weight</div><div class="items-summary-value" id="nl-pure-gold-weight">0g</div></div>
+                                <div class="items-summary-item" id="nl-pure-silver-wrapper" style="display:none;"><div class="items-summary-label">Pure Silver Weight</div><div class="items-summary-value" id="nl-pure-silver-weight">0g</div></div>
+                                <div class="items-summary-item"><div class="items-summary-label">Safe Loan (<span id="nl-ltv-label">75</span>% LTV)</div><div class="items-summary-value safe" id="nl-safe-loan">₹0</div></div>
+                            </div>
+                            <div style="padding:0 16px; font-size:1.2rem; display:flex; align-items:center; justify-content:center; color:var(--gold-dark);">
+                                <span id="nl-breakdown-icon">⬇️</span>
+                            </div>
+                        </div>
+                        <div id="nl-items-breakdown" style="display:none; padding:16px; border-top:1px solid var(--gold); background:var(--bg-card); border-radius:0 0 var(--radius-sm) var(--radius-sm);"></div>
                     </div>
 
                     <!-- Jewellery Note -->
@@ -69,7 +78,7 @@ const NewLoanPage = (() => {
 
                     <h4 class="mb-1 mt-3" style="color:var(--primary);font-size:0.9rem;" data-i18n="loan_details">${I18n.t('loan_details')}</h4>
                     <div class="form-grid mb-2">
-                        ${UI.formGroup(I18n.t('loan_amount'), '<input type="number" class="form-input" id="nl-amount" required placeholder="' + I18n.t('loan_amount') + '" min="1" onkeydown="NewLoanPage.blockInvalidKey(event)" oninput="NewLoanPage.recalc()">')}
+                        ${UI.formGroup(I18n.t('loan_amount'), '<input type="number" class="form-input" id="nl-amount" required placeholder="' + I18n.t('loan_amount') + '" min="1" onkeydown="NewLoanPage.blockInvalidKey(event)" oninput="NewLoanPage.recalc()"><div id="nl-amount-fmt" style="font-size:0.82rem; color:var(--text-secondary); margin-top:4px; font-weight:600; min-height:16px;"></div>')}
                         ${UI.formGroup(I18n.t('interest_rate'), '<input type="number" class="form-input" id="nl-rate" required placeholder="e.g., 2" step="0.01" min="0.01" onkeydown="NewLoanPage.blockInvalidKey(event)" oninput="NewLoanPage.recalc()">')}
                         ${UI.formGroup(I18n.t('interest_period'), `
                             <div class="segment-control" id="nl-period-group">
@@ -205,17 +214,13 @@ const NewLoanPage = (() => {
                     </div>
                     <div class="form-group">
                         <label class="form-label" data-i18n="item_type">${I18n.t('item_type')}</label>
-                        <select class="form-select" onchange="NewLoanPage.updateItem(${i},'itemType',this.value)">
-                            ${types.map(t => `<option value="${t}" ${item.itemType === t ? 'selected' : ''}>${t}</option>`).join('')}
-                        </select>
+                        <input type="text" class="form-input" list="nl-item-types-${item.metalType}-${i}" value="${item.itemType || ''}" placeholder="Type or select..."
+                            oninput="NewLoanPage.updateItem(${i},'itemType',this.value)"
+                            onblur="NewLoanPage.saveItemTypeNow(${i})">
+                        <datalist id="nl-item-types-${item.metalType}-${i}">
+                            ${types.filter(t => t !== 'Other').map(t => `<option value="${t}">`).join('')}
+                        </datalist>
                     </div>
-                    ${item.itemType === 'Other' ? `
-                    <div class="form-group">
-                        <label class="form-label">Custom Item Name</label>
-                        <input type="text" class="form-input" value="${item.customItemType || ''}" placeholder="Enter item name"
-                            oninput="NewLoanPage.updateItem(${i},'customItemType',this.value)"
-                            onblur="NewLoanPage.saveCustomItemName(${i})">
-                    </div>` : ''}
                     <div class="form-group">
                         <label class="form-label" data-i18n="purity">${I18n.t('purity')}</label>
                         <select class="form-select" onchange="NewLoanPage.updateItem(${i},'purity',this.value)">
@@ -272,7 +277,6 @@ const NewLoanPage = (() => {
             _state.items[index].itemType = types[0];
             _state.items[index].purity = value === 'gold' ? '22K' : '999';
             _state.items[index].customPurity = '';
-            _state.items[index].customItemType = '';
             renderItems();
             return;
         }
@@ -284,14 +288,7 @@ const NewLoanPage = (() => {
             return;
         }
         if (field === 'itemType') {
-            if (value !== 'Other') {
-                _state.items[index].customItemType = '';
-            }
-            renderItems();
-            return;
-        }
-        if (field === 'customItemType') {
-            // Only update state; actual save happens onblur via saveCustomItemName()
+            _state.items[index].itemType = value;
             return;
         }
         if (field === 'weightGrams') {
@@ -319,14 +316,18 @@ const NewLoanPage = (() => {
         }
     }
 
-    // Called onblur from the custom item name input — saves only the final value (not each keystroke)
-    function saveCustomItemName(index) {
+    // Called onblur from the item type input — saves only the final value
+    function saveItemTypeNow(index) {
         const item = _state.items[index];
         if (!item) return;
-        const name = (item.customItemType || '').trim();
+        const name = (item.itemType || '').trim();
         if (name) {
-            Calculator.saveCustomItemType(item.metalType, name);
-            renderItems(); // refresh dropdown so item appears going forward
+            const baseTypes = Calculator.JEWELRY_TYPES[item.metalType] || Calculator.JEWELRY_TYPES.gold;
+            const isBase = baseTypes.some(t => t.toLowerCase() === name.toLowerCase());
+            if (!isBase && name.toLowerCase() !== 'other') {
+                Calculator.saveCustomItemType(item.metalType, name);
+                renderItems(); // refresh datalist so item appears going forward
+            }
         }
     }
 
@@ -379,6 +380,11 @@ const NewLoanPage = (() => {
             .filter(i => i.metalType === 'gold')
             .reduce((s, i) => s + i.weightGrams * i.purityFactor, 0);
 
+        // Silver Valuation: Pure Silver Weight = weight × (purity/100) for silver items only
+        const pureSilverWeight = items
+            .filter(i => i.metalType === 'silver')
+            .reduce((s, i) => s + i.weightGrams * i.purityFactor, 0);
+
         // Actual Gold Value = pureGoldWeight × gold market rate
         const actualGoldValue = pureGoldWeight * rates.gold;
 
@@ -393,8 +399,40 @@ const NewLoanPage = (() => {
         if (el('nl-silver-items')) el('nl-silver-items').textContent = silverItems;
         if (el('nl-total-weight')) el('nl-total-weight').textContent = (totalGoldWeight + totalSilverWeight).toFixed(2) + 'g';
         if (el('nl-total-value')) el('nl-total-value').textContent = UI.currency(totalValue);
+        
         if (el('nl-pure-gold-weight')) el('nl-pure-gold-weight').textContent = pureGoldWeight.toFixed(3) + 'g';
+        if (el('nl-pure-silver-weight')) el('nl-pure-silver-weight').textContent = pureSilverWeight.toFixed(3) + 'g';
+        
+        if (el('nl-pure-gold-wrapper')) el('nl-pure-gold-wrapper').style.display = goldItems > 0 ? '' : 'none';
+        if (el('nl-pure-silver-wrapper')) el('nl-pure-silver-wrapper').style.display = silverItems > 0 ? '' : 'none';
+
         if (el('nl-safe-loan')) el('nl-safe-loan').textContent = UI.currency(safeLoanAmount);
+
+        const breakdownEl = document.getElementById('nl-items-breakdown');
+        if (breakdownEl) {
+            const validItems = items.filter(i => i.weightGrams > 0);
+            if (validItems.length === 0) {
+                breakdownEl.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem; text-align:center;">No items added yet.</div>';
+            } else {
+                breakdownEl.innerHTML = validItems.map((it, idx) => {
+                    const isGold = it.metalType === 'gold';
+                    const icon = isGold ? '🥇' : '🥈';
+                    const color = isGold ? 'var(--gold-dark)' : 'var(--text-secondary)';
+                    const bg = isGold ? 'rgba(218,165,32,0.05)' : 'rgba(148,163,184,0.05)';
+                    const rate = isGold ? rates.gold : rates.silver;
+                    return `<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; margin-bottom:8px; background:${bg}; border:1px solid var(--border-color); border-radius:8px;">
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <span style="font-size:0.85rem; font-weight:700; color:var(--text-primary);">${icon} Item ${idx + 1} - ${it.itemType || 'Unknown'}</span>
+                            <span style="font-size:0.75rem; color:var(--text-muted);">${it.purity} • ${it.weightGrams.toFixed(2)}g</span>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:0.9rem; font-weight:700; color:${color};">${UI.currency(it._value)}</div>
+                            <div style="font-size:0.7rem; color:var(--text-muted);">@ ₹${rate.toLocaleString('en-IN')}/g</div>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+        }
 
         recalc();
     }
@@ -456,6 +494,11 @@ const NewLoanPage = (() => {
 
     function recalc() {
         const amount = parseFloat(document.getElementById('nl-amount')?.value) || 0;
+        const fmtEl = document.getElementById('nl-amount-fmt');
+        if (fmtEl) {
+            fmtEl.textContent = amount > 0 ? `(${UI.currency(amount)})` : '';
+        }
+
         const rate = parseFloat(document.getElementById('nl-rate')?.value) || 0;
         const duration = parseInt(document.getElementById('nl-duration')?.value) || 12;
         const startDate = document.getElementById('nl-start')?.value;
@@ -720,8 +763,8 @@ const NewLoanPage = (() => {
                     return;
                 }
             }
-            if (it.itemType === 'Other' && !it.customItemType?.trim()) {
-                UI.toast(`Item #${idx + 1}: Please enter the custom item name`, 'error');
+            if (!it.itemType?.trim()) {
+                UI.toast(`Item #${idx + 1}: Please enter an item type`, 'error');
                 return;
             }
         }
@@ -737,7 +780,7 @@ const NewLoanPage = (() => {
                 stateItem === validItem
             );
             return {
-                itemType: validItem.itemType === 'Other' && validItem.customItemType ? validItem.customItemType : validItem.itemType,
+                itemType: validItem.itemType.trim(),
                 metalType: validItem.metalType,
                 purity: validItem.purity,
                 customPurity: validItem.purity === 'custom' ? parseFloat(validItem.customPurity) : null,
@@ -810,5 +853,15 @@ const NewLoanPage = (() => {
         UI.navigateTo('loans');
     }
 
-    return { render, addItem, removeItem, updateItem, updateCustomPurity, saveCustomItemName, saveCustomPurityNow, checkMobile, onAddressInput, saveDraft, clearDraft, setPeriod, setType, setFreq, togglePanchang, saveOverride, recalc, save, blockInvalidKey, _state, get _draft_active() { return _draft_active; } };
+    function toggleBreakdown() {
+        _state.showBreakdown = !_state.showBreakdown;
+        const bd = document.getElementById('nl-items-breakdown');
+        const icon = document.getElementById('nl-breakdown-icon');
+        if (bd && icon) {
+            bd.style.display = _state.showBreakdown ? 'block' : 'none';
+            icon.textContent = _state.showBreakdown ? '⬆️' : '⬇️';
+        }
+    }
+
+    return { render, addItem, removeItem, updateItem, updateCustomPurity, saveItemTypeNow, saveCustomPurityNow, checkMobile, onAddressInput, saveDraft, clearDraft, setPeriod, setType, setFreq, togglePanchang, saveOverride, recalc, save, blockInvalidKey, toggleBreakdown, _state, get _draft_active() { return _draft_active; } };
 })();
