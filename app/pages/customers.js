@@ -12,10 +12,30 @@ const CustomersPage = (() => {
     // ── Main Render ──────────────────────────────────────────────────────────
     function render(container) {
         const allCustomers = DB.getCustomers();
-        const customers = FirmManager.filterCustomers(allCustomers);
+        const rawCustomers = FirmManager.filterCustomers(allCustomers);
         const allLoans = DB.getLoans();
         const loans = FirmManager.filterLoans(allLoans);
         const activeFirm = FirmManager.getSelected();
+
+        // ── Combine customers by mobile to handle multi-firm entries ─────────
+        const customersMap = {};
+        rawCustomers.forEach(c => {
+            const key = (c.mobile && c.mobile.length === 10) ? 'mob:' + c.mobile : 'id:' + c.id;
+            if (!customersMap[key]) {
+                customersMap[key] = { ...c, _allFirmIds: c.firm_id ? [c.firm_id] : [] };
+            } else {
+                if (c.firm_id && !customersMap[key]._allFirmIds.includes(c.firm_id)) {
+                    customersMap[key]._allFirmIds.push(c.firm_id);
+                }
+                if (!customersMap[key].photo && c.photo) customersMap[key].photo = c.photo;
+                if (!customersMap[key].address && c.address) customersMap[key].address = c.address;
+                // Merge settlements safely
+                if (c.settlements && c.settlements.length > 0) {
+                    customersMap[key].settlements = [...(customersMap[key].settlements || []), ...c.settlements];
+                }
+            }
+        });
+        const customers = Object.values(customersMap);
 
         if (customers.length === 0) {
             container.innerHTML = `
@@ -69,9 +89,9 @@ const CustomersPage = (() => {
                     (c.mobile || '').includes(query))
                 : sorted;
 
-            const displayed = (isExpanded || filtered.length <= 3)
+            const displayed = (isExpanded || filtered.length <= 5)
                 ? filtered
-                : filtered.slice(0, 3);
+                : filtered.slice(0, 5);
 
             // Village-level stats
             const villageLoans  = loans.filter(l =>
@@ -121,7 +141,7 @@ const CustomersPage = (() => {
                 </div>
 
                 <!-- View All / Show Less -->
-                ${filtered.length > 3 ? `
+                ${filtered.length > 5 ? `
                 <div class="village-footer">
                     <button class="btn btn-outline btn-sm" onclick="CustomersPage.toggleExpand('${_esc(village)}')">
                         ${isExpanded
@@ -138,7 +158,12 @@ const CustomersPage = (() => {
 
     // ── Single Customer Card ───────────────────────────────────────────────
     function _customerCard(c, loans) {
-        const firmBadge = FirmManager.getBadgeHtml(c?.firm_id);
+        let firmBadge = '';
+        if (c._allFirmIds && c._allFirmIds.length > 0) {
+            firmBadge = c._allFirmIds.map(fid => FirmManager.getBadgeHtml(fid)).join(' ');
+        } else {
+            firmBadge = FirmManager.getBadgeHtml(c?.firm_id);
+        }
         const activeLoans = loans.filter(l =>
             (l.customerId === c.id ||
              (c.mobile && c.mobile.length === 10 && l.mobile === c.mobile)) &&

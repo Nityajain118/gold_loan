@@ -400,37 +400,15 @@ const LoanDetailPage = (() => {
         return d;
     }
 
-    // ── Builds the full Ledger Card inner HTML (title + toggle buttons + table) ─
+    // ── Builds the full Ledger Card inner HTML (title + table) ─
     function _buildLedgerCardInner(loan, loanId) {
         try {
             const tl  = _ledgerT();
-            const isHi = (typeof I18n !== 'undefined') && I18n.getLang() === 'hi';
-            const modeLabel  = _ledgerMode === 'daily'
-                ? (isHi ? '📅 दिनवार' : tl.day_wise)
-                : (isHi ? '📆 मासिक'  : tl.monthly);
-            const basisLabel = _interestBasis === 360 ? '360-Day' : '365-Day';
-
             const ledgerHtml = _buildEventLedgerHTML(loan, _ledgerMode, loanId);
 
             return `
             <div class="ld-section-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                 ${tl.ledger_title}
-                <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">
-                    <button onclick="LoanDetailPage.toggleLedgerMode('${loanId}')"
-                        style="padding:4px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;
-                               border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-secondary);transition:all .2s;"
-                        onmouseover="this.style.background='var(--primary)';this.style.color='#fff';"
-                        onmouseout="this.style.background='var(--bg-input)';this.style.color='var(--text-secondary)';">
-                        ${modeLabel}
-                    </button>
-                    <button onclick="LoanDetailPage.toggleInterestBasis('${loanId}')"
-                        style="padding:4px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;
-                               border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-secondary);transition:all .2s;"
-                        onmouseover="this.style.background='var(--primary)';this.style.color='#fff';"
-                        onmouseout="this.style.background='var(--bg-input)';this.style.color='var(--text-secondary)';">
-                        ${basisLabel}
-                    </button>
-                </div>
             </div>
             ${ledgerHtml}`;
         } catch(err) {
@@ -555,7 +533,7 @@ const LoanDetailPage = (() => {
                     const m   = Math.floor(days / 30), rem = days % 30;
                     const dur = m > 0 ? (rem > 0 ? `${m}m ${rem}d` : `${m}m`) : `${days}d`;
                     const daysLabel = `${days}d • ${dur}`;
-                    intDisplay = `₹${Number(interest).toFixed(2)} <span style="font-size:0.65rem;color:var(--text-muted);margin-left:4px;font-weight:600;">(${daysLabel})</span>`;
+                    intDisplay = `${UI.currency(interest)} <span style="font-size:0.65rem;color:var(--text-muted);margin-left:4px;font-weight:600;">(${daysLabel})</span>`;
                 }
 
                 const baseLabel   = catLabel[e.type] || e.type;
@@ -566,10 +544,10 @@ const LoanDetailPage = (() => {
                 return `<tr>
                     <td style="font-size:0.82rem;">${UI.formatDate(e.date)}</td>
                     <td style="font-size:0.85rem;font-weight:600;font-family:'Noto Sans Devanagari','Inter',sans-serif;">${particulars}</td>
-                    <td style="${debitColor}font-weight:700;">${isDebit  ? `₹${Number(amt).toFixed(2)}` : '—'}</td>
+                    <td style="${debitColor}font-weight:700;">${isDebit  ? UI.currency(amt) : '—'}</td>
                     <td style="${intColor}font-weight:700;white-space:nowrap;">${intDisplay}</td>
-                    <td style="${creditColor}font-weight:700;">${isCredit ? `₹${Number(amt).toFixed(2)}` : '—'}</td>
-                    <td style="${balColor}font-weight:800;">₹${runningBal.toFixed(2)}</td>
+                    <td style="${creditColor}font-weight:700;">${isCredit ? UI.currency(amt) : '—'}</td>
+                    <td style="${balColor}font-weight:800;">${UI.currency(runningBal)}</td>
                 </tr>`;
             }).join('');
 
@@ -587,7 +565,7 @@ const LoanDetailPage = (() => {
                 <tbody>${rows}
                 <tr class="ld-tfoot-row">
                     <td colspan="5" style="font-weight:700;">${footerLabel}</td>
-                    <td style="font-weight:800;color:var(--primary);">₹${Number(netPayable).toFixed(2)}</td>
+                    <td style="font-weight:800;color:var(--primary);">${UI.currency(netPayable)}</td>
                 </tr>
                 </tbody>
             </table></div>`;
