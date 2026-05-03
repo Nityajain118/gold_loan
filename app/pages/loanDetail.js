@@ -650,6 +650,7 @@ const LoanDetailPage = (() => {
             </div>
             <div class="form-group mb-2"><label class="form-label">${t.date_label} *</label><input type="date" class="form-input" id="hk-p-dt" value="${today}" onchange="LoanDetailPage.updatePayInterest('${lid}')"></div>
             <div class="form-group mb-2"><label class="form-label">${t.amount_label} *</label><input type="number" class="form-input" id="hk-p-amt" min="0" step="0.001" value="${netPay}"></div>
+            <div class="form-group mb-2"><label class="form-label">${isHi ? 'छूट (Discount)' : 'Discount (₹)'}</label><input type="number" class="form-input" id="hk-p-disc" min="0" step="0.001" placeholder="Optional"></div>
             <div class="form-group mb-3"><label class="form-label">${t.note_label}</label><input type="text" class="form-input" id="hk-p-nt" maxlength="200"></div>
             <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:0.9rem;cursor:pointer;padding:8px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);border-radius:8px;">
                 <input type="checkbox" id="hk-p-settle" style="width:16px;height:16px;accent-color:var(--safe);">
@@ -678,6 +679,7 @@ const LoanDetailPage = (() => {
     }
     function doPay(lid) {
         const amt = parseFloat(document.getElementById('hk-p-amt')?.value);
+        const discAmt = parseFloat(document.getElementById('hk-p-disc')?.value) || 0;
         const dt = document.getElementById('hk-p-dt')?.value;
         const nt = document.getElementById('hk-p-nt')?.value?.trim() || '';
         const isSettle = document.getElementById('hk-p-settle')?.checked;
@@ -685,10 +687,15 @@ const LoanDetailPage = (() => {
         if (!dt) { UI.toast('Select date', 'error'); return; }
         const loan = DB.getLoan(lid); if (!loan) return; HisabKitaabPage.initHK(loan);
         
+        if (discAmt > 0) {
+            HisabKitaabPage.addEntry(loan, dt, 'discount', discAmt, (nt ? 'Discount with payment | ' + nt : 'Discount with payment'));
+            loan.totalDiscount = (loan.totalDiscount || 0) + discAmt;
+        }
+
         if (isSettle) {
             HisabKitaabPage.addEntry(loan, dt, 'settle', amt, nt);
             loan.status = 'closed';
-            loan.settlement = { date: new Date().toISOString(), totalAmount: loan.hisabKitaab[loan.hisabKitaab.length - 2]?.balance || 0, paidAmount: amt, discount: 0, status: 'CLOSED' };
+            loan.settlement = { date: new Date().toISOString(), totalAmount: loan.hisabKitaab[loan.hisabKitaab.length - 2]?.balance || 0, paidAmount: amt, discount: (loan.totalDiscount || 0), status: 'CLOSED' };
             DB.saveLoan(loan);
             document.getElementById('hk-modal')?.remove(); UI.toast('✅ Loan settled!', 'success');
         } else {
@@ -730,16 +737,26 @@ const LoanDetailPage = (() => {
         _hkModal(t.settle_loan,
             `<p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:10px;">${t.lbl_net}: <strong>₹${netPay.toFixed(2)}</strong></p>
             <div class="form-group mb-2"><label class="form-label">${t.amount_label} *</label><input type="number" class="form-input" id="hk-s-amt" min="0" value="${netPay}"></div>
+            <div class="form-group mb-2"><label class="form-label">${isHi ? 'छूट (Discount)' : 'Discount (₹)'}</label><input type="number" class="form-input" id="hk-s-disc" min="0" step="0.001" placeholder="Optional"></div>
             <div class="form-group mb-2"><label class="form-label">${t.date_label} *</label><input type="date" class="form-input" id="hk-s-dt" value="${today}"></div>
             <div class="form-group mb-3"><label class="form-label">${t.note_label}</label><input type="text" class="form-input" id="hk-s-nt" maxlength="200"></div>`,
             `LoanDetailPage.doSettle('${lid}')`);
     }
     function doSettle(lid) {
-        const amt = parseFloat(document.getElementById('hk-s-amt')?.value) || 0; const dt = document.getElementById('hk-s-dt')?.value; const nt = document.getElementById('hk-s-nt')?.value?.trim() || '';
+        const amt = parseFloat(document.getElementById('hk-s-amt')?.value) || 0; 
+        const discAmt = parseFloat(document.getElementById('hk-s-disc')?.value) || 0;
+        const dt = document.getElementById('hk-s-dt')?.value; 
+        const nt = document.getElementById('hk-s-nt')?.value?.trim() || '';
         if (!dt) { UI.toast('Select date', 'error'); return; }
         const loan = DB.getLoan(lid); if (!loan) return; HisabKitaabPage.initHK(loan);
+        
+        if (discAmt > 0) {
+            HisabKitaabPage.addEntry(loan, dt, 'discount', discAmt, (nt ? 'Discount with settlement | ' + nt : 'Discount with settlement'));
+            loan.totalDiscount = (loan.totalDiscount || 0) + discAmt;
+        }
+
         HisabKitaabPage.addEntry(loan, dt, 'settle', amt, nt); loan.status = 'closed';
-        loan.settlement = { date: new Date().toISOString(), totalAmount: loan.hisabKitaab[loan.hisabKitaab.length - 2]?.balance || 0, paidAmount: amt, discount: 0, status: 'CLOSED' };
+        loan.settlement = { date: new Date().toISOString(), totalAmount: loan.hisabKitaab[loan.hisabKitaab.length - 2]?.balance || 0, paidAmount: amt, discount: (loan.totalDiscount || 0), status: 'CLOSED' };
         DB.saveLoan(loan); document.getElementById('hk-modal')?.remove(); UI.toast('✅ Loan settled!', 'success'); render(document.getElementById('page-container'), lid);
     }
 
