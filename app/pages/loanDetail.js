@@ -243,26 +243,22 @@ const LoanDetailPage = (() => {
             ${loanStatus !== 'closed' ? `
             <div class="ld-card">
                 <div class="ld-section-title">📒 Hisaab / Adjustments</div>
-                <div class="ld-hisaab-grid">
-                    <button class="ld-action-btn red" onclick="LoanDetailPage.showAdjustModal('${loan.id}')">
-                        <span class="ld-action-btn-icon">➕</span>
-                        <span class="ld-action-btn-label">Add Adjustment</span>
-                        <span class="ld-action-btn-sub">Add manual adjustment</span>
+                <div class="hk-actions" style="margin-top:10px;">
+                    <button class="hk-action-btn hk-btn-add" onclick="LoanDetailPage.showAddMoneyModal('${loan.id}')">
+                        <span class="hk-btn-icon">➕</span>
+                        <span class="hk-btn-label">${(typeof I18n !== 'undefined' && I18n.getLang() === 'hi') ? 'उधार (Add Money)' : 'Udhar (Add Money)'}</span>
                     </button>
-                    <button class="ld-action-btn blue" onclick="LoanDetailPage.showPartialPaymentModal2('${loan.id}')">
-                        <span class="ld-action-btn-icon">💵</span>
-                        <span class="ld-action-btn-label">Payment</span>
-                        <span class="ld-action-btn-sub">Record payment</span>
+                    <button class="hk-action-btn hk-btn-payment" onclick="LoanDetailPage.showPayModal('${loan.id}')">
+                        <span class="hk-btn-icon">💰</span>
+                        <span class="hk-btn-label">${(typeof I18n !== 'undefined' && I18n.getLang() === 'hi') ? 'जमा (Receive)' : 'Jama (Receive)'}</span>
                     </button>
-                    <button class="ld-action-btn amber" onclick="LoanDetailPage.showDiscountModal('${loan.id}')">
-                        <span class="ld-action-btn-icon">🏷️</span>
-                        <span class="ld-action-btn-label">Discount</span>
-                        <span class="ld-action-btn-sub">Apply discount</span>
+                    <button class="hk-action-btn hk-btn-discount" onclick="LoanDetailPage.showDiscModal('${loan.id}')">
+                        <span class="hk-btn-icon">🎯</span>
+                        <span class="hk-btn-label">${(typeof I18n !== 'undefined' && I18n.getLang() === 'hi') ? 'छूट दें' : 'Discount'}</span>
                     </button>
-                    <button class="ld-action-btn purple" onclick="LoanDetailPage.showSettleModal2('${loan.id}')">
-                        <span class="ld-action-btn-icon">✅</span>
-                        <span class="ld-action-btn-label">Settle Loan</span>
-                        <span class="ld-action-btn-sub">Settle the loan</span>
+                    <button class="hk-action-btn hk-btn-settle" onclick="LoanDetailPage.showSettleModal('${loan.id}')">
+                        <span class="hk-btn-icon">✅</span>
+                        <span class="hk-btn-label">${(typeof I18n !== 'undefined' && I18n.getLang() === 'hi') ? 'लोन बंद करें' : 'Settle Loan'}</span>
                     </button>
                 </div>
             </div>` : ''}
@@ -573,139 +569,164 @@ const LoanDetailPage = (() => {
     }
 
 
-    // ── Modal: Adjust Amount ──────────────────────────────────────────────────
-    function showAdjustModal(loanId) {
-        document.getElementById('hisaab-modal')?.remove();
-        const overlay = document.createElement('div');
-        overlay.className = 'modal-overlay'; overlay.id = 'hisaab-modal';
-        overlay.innerHTML = `<div class="modal"><h3 class="modal-title">🔧 Adjust Amount</h3>
-            <p class="text-muted mb-2" style="font-size:0.85rem;">Enter positive value to increase balance, negative to decrease.</p>
-            <div class="form-group mb-2"><label class="form-label">Adjustment Amount (₹)</label>
-                <input type="number" class="form-input" id="adj-amount" placeholder="e.g. 500 or -500"></div>
-            <div class="form-group mb-2"><label class="form-label">Note</label>
-                <input type="text" class="form-input" id="adj-note" placeholder="Reason for adjustment"></div>
-            <div class="form-group mb-3"><label class="form-label">Date</label>
-                <input type="date" class="form-input" id="adj-date" value="${new Date().toISOString().split('T')[0]}"></div>
-            <div class="modal-actions">
-                <button class="btn btn-outline" onclick="document.getElementById('hisaab-modal').remove()">Cancel</button>
-                <button class="btn btn-gold" onclick="LoanDetailPage.processAdjust('${loanId}')">Apply Adjustment</button>
-            </div></div>`;
-        document.body.appendChild(overlay);
-        overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+    // ── Translation & Modal Helper for HK Modals ──────────────────────────────
+    function _hkT() {
+        const h = (typeof I18n !== 'undefined') && I18n.getLang() === 'hi';
+        return h ? {
+            add_money: '➕ उधार (Add Money)', receive_payment: '💰 जमा (Receive)',
+            give_discount: '🎯 छूट दें', settle_loan: '✅ लोन बंद करें',
+            amount_label: 'राशि (₹)', date_label: 'तारीख', note_label: 'नोट (वैकल्पिक)',
+            cancel: 'रद्द करें', confirm: 'पक्का करें',
+            lbl_net: 'कुल बाकी', rate_label: 'ब्याज दर(%)*', period_label: 'अवधि', type_label: 'प्रकार',
+            monthly_l: 'मासिक', yearly_l: 'वार्षिक', simple_l: 'साधारण', compound_l: 'चक्रवृद्धि'
+        } : {
+            add_money: '➕ Udhar (Add Money)', receive_payment: '💰 Jama (Receive)',
+            give_discount: '🎯 Discount', settle_loan: '✅ Settle Loan',
+            amount_label: 'Amount (₹)', date_label: 'Date', note_label: 'Note (Optional)',
+            cancel: 'Cancel', confirm: 'Confirm',
+            lbl_net: 'Net Payable', rate_label: 'Interest Rate(%)*', period_label: 'Period', type_label: 'Type',
+            monthly_l: 'Monthly', yearly_l: 'Yearly', simple_l: 'Simple', compound_l: 'Compound'
+        };
     }
 
-    function processAdjust(loanId) {
-        const loan = DB.getLoan(loanId); if (!loan) return;
-        const amount = parseFloat(document.getElementById('adj-amount')?.value);
-        const note   = document.getElementById('adj-note')?.value.trim() || 'Manual Adjustment';
-        const date   = document.getElementById('adj-date')?.value;
-        if (!amount || !date) { UI.toast('Enter amount and date', 'error'); return; }
+    function _hkModal(title, body, fn) {
+        document.getElementById('hk-modal')?.remove(); document.getElementById('hisaab-modal')?.remove();
+        const t = _hkT();
+        const ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'hk-modal';
+        ov.innerHTML = `<div class="modal" style="max-width:420px;"><h3 class="modal-title">${title}</h3>${body}<div class="modal-actions"><button class="btn btn-outline" onclick="document.getElementById('hk-modal').remove()">${t.cancel}</button><button class="btn btn-gold" onclick="${fn}">${t.confirm}</button></div></div>`;
+        document.body.appendChild(ov); ov.onclick = e => { if (e.target === ov) ov.remove(); };
+    }
+
+    // ── Add Money ─────────────────────────────────
+    function showAddMoneyModal(lid) {
+        const t = _hkT(); const loan = DB.getLoan(lid); const cr = loan?.interestRate || ''; const cp = loan?.interestPeriod || 'monthly'; const ct = loan?.interestType || 'simple';
+        _hkModal(t.add_money,
+            `<div class="form-group mb-2"><label class="form-label">${t.amount_label} *</label><input type="number" class="form-input" id="hk-a-amt" min="1" placeholder="e.g. 5000"></div>
+            <div class="form-group mb-2"><label class="form-label">${t.rate_label}</label><input type="number" class="form-input" id="hk-a-rate" step="0.01" min="0.01" value="${cr}"></div>
+            <div class="form-group mb-2"><label class="form-label">${t.period_label}</label><select class="form-input" id="hk-a-per"><option value="monthly" ${cp === 'monthly' ? 'selected' : ''}>${t.monthly_l}</option><option value="yearly" ${cp === 'yearly' ? 'selected' : ''}>${t.yearly_l}</option></select></div>
+            <div class="form-group mb-2"><label class="form-label">${t.type_label}</label><select class="form-input" id="hk-a-typ"><option value="simple" ${ct === 'simple' ? 'selected' : ''}>${t.simple_l}</option><option value="compound" ${ct === 'compound' ? 'selected' : ''}>${t.compound_l}</option></select></div>
+            <div class="form-group mb-2"><label class="form-label">${t.date_label} *</label><input type="date" class="form-input" id="hk-a-dt" value="${new Date().toISOString().split('T')[0]}"></div>
+            <div class="form-group mb-3"><label class="form-label">${t.note_label}</label><input type="text" class="form-input" id="hk-a-nt" maxlength="200"></div>`,
+            `LoanDetailPage.doAdd('${lid}')`);
+    }
+    function doAdd(lid) {
+        const amt = parseFloat(document.getElementById('hk-a-amt')?.value);
+        const dt = document.getElementById('hk-a-dt')?.value;
+        const nt = document.getElementById('hk-a-nt')?.value?.trim() || '';
+        const nr = parseFloat(document.getElementById('hk-a-rate')?.value);
+        const np = document.getElementById('hk-a-per')?.value || 'monthly';
+        const nty = document.getElementById('hk-a-typ')?.value || 'simple';
+        if (!amt || amt <= 0) { UI.toast('Enter valid amount', 'error'); return; }
+        if (!dt) { UI.toast('Select date', 'error'); return; }
+        if (!nr || nr <= 0) { UI.toast('Enter valid rate', 'error'); return; }
+        const loan = DB.getLoan(lid); if (!loan) return; HisabKitaabPage.initHK(loan);
+        HisabKitaabPage.addEntry(loan, dt, 'add_money', amt, nt);
+        loan.interestRate = nr; loan.interestPeriod = np; loan.interestType = nty;
+        loan.loanAmount = (loan.loanAmount || 0) + amt;
+        const le = loan.hisabKitaab[loan.hisabKitaab.length - 1];
+        const nmr = np === 'yearly' ? nr / 12 : nr; le.rate = Number(Number(nmr).toFixed(3));
+        le.note = (nt ? nt + ' | ' : '') + 'Rate:' + nr + '% ' + np + ',' + nty;
+        DB.saveLoan(loan); document.getElementById('hk-modal')?.remove();
+        UI.toast('✅ Amount added!', 'success'); render(document.getElementById('page-container'), lid);
+    }
+
+    // ── Receive Payment ───────────────────────────
+    function showPayModal(lid) {
+        const t = _hkT(); const loan = DB.getLoan(lid);
         HisabKitaabPage.initHK(loan);
-        // Positive = add money (debit), negative = reduce balance (treat as discount)
-        const type = amount > 0 ? 'add_money' : 'discount';
-        HisabKitaabPage.addEntry(loan, date, type, Math.abs(amount), note);
-        loan.totalAdjustment = (loan.totalAdjustment || 0) + amount;
-        DB.saveLoan(loan);
-        document.getElementById('hisaab-modal')?.remove();
-        UI.toast('Adjustment applied!', 'success');
-        render(document.getElementById('page-container'), loanId);
+        const hk = loan.hisabKitaab; const last = hk[hk.length - 1];
+        const savedBal = last ? last.balance : 0;
+        const mr = HisabKitaabPage.getMonthlyRate(loan);
+        const today = new Date().toISOString().split('T')[0];
+        const days = HisabKitaabPage.calcDays(last ? last.date : today, today);
+        const runInt = HisabKitaabPage.calcInterest(savedBal, mr, days);
+        const netPay = Number(Number(savedBal + runInt).toFixed(3));
+        const isHi = (typeof I18n !== 'undefined') && I18n.getLang() === 'hi';
+        _hkModal(t.receive_payment,
+            `<div style="background:var(--bg-input);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:0.88rem;line-height:2.2;">
+                <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-secondary)">${isHi ? 'पिछला बाकी' : 'Saved Balance'}</span><strong>₹${savedBal.toFixed(2)}</strong></div>
+                <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-secondary)" id="ld-p-int-lbl">${isHi ? 'ब्याज (' + days + ' दिन)' : 'Interest (' + days + ' days)'}</span><strong style="color:var(--monitor)" id="ld-p-int-val">₹${runInt.toFixed(2)}</strong></div>
+                <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border-light);padding-top:6px;margin-top:2px;"><span style="font-weight:700">${isHi ? 'कुल बाकी' : 'Net Payable'}</span><strong style="color:var(--safe);font-size:1.05rem;" id="ld-p-net-val">₹${netPay.toFixed(2)}</strong></div>
+            </div>
+            <div class="form-group mb-2"><label class="form-label">${t.date_label} *</label><input type="date" class="form-input" id="hk-p-dt" value="${today}" onchange="LoanDetailPage.updatePayInterest('${lid}')"></div>
+            <div class="form-group mb-2"><label class="form-label">${t.amount_label} *</label><input type="number" class="form-input" id="hk-p-amt" min="0" step="0.001" value="${netPay}"></div>
+            <div class="form-group mb-3"><label class="form-label">${t.note_label}</label><input type="text" class="form-input" id="hk-p-nt" maxlength="200"></div>`,
+            `LoanDetailPage.doPay('${lid}')`);
+    }
+    function updatePayInterest(lid) {
+        const loan = DB.getLoan(lid); if (!loan) return;
+        HisabKitaabPage.initHK(loan); const hk = loan.hisabKitaab;
+        const last = hk[hk.length - 1]; const savedBal = last ? last.balance : 0;
+        const mr = HisabKitaabPage.getMonthlyRate(loan);
+        const dt = document.getElementById('hk-p-dt')?.value || new Date().toISOString().split('T')[0];
+        const days = HisabKitaabPage.calcDays(last ? last.date : dt, dt);
+        const runInt = HisabKitaabPage.calcInterest(savedBal, mr, days);
+        const netPay = Number(Number(savedBal + runInt).toFixed(3));
+        const isHi = (typeof I18n !== 'undefined') && I18n.getLang() === 'hi';
+        const lblEl = document.getElementById('ld-p-int-lbl');
+        const intEl = document.getElementById('ld-p-int-val');
+        const netEl = document.getElementById('ld-p-net-val');
+        const amtEl = document.getElementById('hk-p-amt');
+        if (lblEl) lblEl.textContent = isHi ? 'ब्याज (' + days + ' दिन)' : 'Interest (' + days + ' days)';
+        if (intEl) intEl.textContent = '₹' + runInt.toFixed(2);
+        if (netEl) netEl.textContent = '₹' + netPay.toFixed(2);
+        if (amtEl) amtEl.value = netPay;
+    }
+    function doPay(lid) {
+        const amt = parseFloat(document.getElementById('hk-p-amt')?.value);
+        const dt = document.getElementById('hk-p-dt')?.value;
+        const nt = document.getElementById('hk-p-nt')?.value?.trim() || '';
+        if (!amt || amt <= 0) { UI.toast('Enter valid amount', 'error'); return; }
+        if (!dt) { UI.toast('Select date', 'error'); return; }
+        const loan = DB.getLoan(lid); if (!loan) return; HisabKitaabPage.initHK(loan);
+        HisabKitaabPage.addEntry(loan, dt, 'payment', amt, nt); DB.saveLoan(loan);
+        document.getElementById('hk-modal')?.remove(); UI.toast('✅ Payment recorded!', 'success');
+        render(document.getElementById('page-container'), lid);
     }
 
-    // ── Modal: Partial Payment ─────────────────────────────────────────────
-    function showPartialPaymentModal2(loanId) {
-        document.getElementById('hisaab-modal')?.remove();
-        const loan   = DB.getLoan(loanId);
-        const netDue = _hkNetPayable(loan);
-        const overlay = document.createElement('div');
-        overlay.className = 'modal-overlay'; overlay.id = 'hisaab-modal';
-        overlay.innerHTML = `<div class="modal"><h3 class="modal-title">💵 Payment</h3>
-            <p class="text-muted mb-2" style="font-size:0.85rem;">Net Payable (HK): <strong style="color:var(--safe);">${UI.currency(netDue)}</strong></p>
-            <div class="form-group mb-2"><label class="form-label">Payment Amount (₹) *</label>
-                <input type="number" class="form-input" id="pay-amount" placeholder="Enter amount" min="1" value="${netDue.toFixed(2)}"></div>
-            <div class="form-group mb-2"><label class="form-label">Payment Date *</label>
-                <input type="date" class="form-input" id="pay-date" value="${new Date().toISOString().split('T')[0]}"></div>
-            <div class="form-group mb-3"><label class="form-label">Notes (Optional)</label>
-                <textarea class="form-input" id="pay-note" rows="2" maxlength="250"
-                    placeholder="e.g. Advance payment, partial clearance…" style="resize:none;"></textarea></div>
-            <div class="modal-actions">
-                <button class="btn btn-outline" onclick="document.getElementById('hisaab-modal').remove()">Cancel</button>
-                <button class="btn btn-gold" onclick="LoanDetailPage.processPayment('${loanId}')">Confirm Payment</button>
-            </div></div>`;
-        document.body.appendChild(overlay);
-        overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+    // ── Discount ──────────────────────────────────
+    function showDiscModal(lid) {
+        const t = _hkT();
+        _hkModal(t.give_discount,
+            `<div class="form-group mb-2"><label class="form-label">${t.amount_label} *</label><input type="number" class="form-input" id="hk-d-amt" min="1"></div>
+            <div class="form-group mb-2"><label class="form-label">${t.date_label} *</label><input type="date" class="form-input" id="hk-d-dt" value="${new Date().toISOString().split('T')[0]}"></div>
+            <div class="form-group mb-3"><label class="form-label">${t.note_label}</label><input type="text" class="form-input" id="hk-d-nt" maxlength="200"></div>`,
+            `LoanDetailPage.doDisc('${lid}')`);
+    }
+    function doDisc(lid) {
+        const amt = parseFloat(document.getElementById('hk-d-amt')?.value); const dt = document.getElementById('hk-d-dt')?.value; const nt = document.getElementById('hk-d-nt')?.value?.trim() || '';
+        if (!amt || amt <= 0) { UI.toast('Enter valid amount', 'error'); return; } if (!dt) { UI.toast('Select date', 'error'); return; }
+        const loan = DB.getLoan(lid); if (!loan) return; HisabKitaabPage.initHK(loan);
+        HisabKitaabPage.addEntry(loan, dt, 'discount', amt, nt); loan.totalDiscount = (loan.totalDiscount || 0) + amt;
+        DB.saveLoan(loan); document.getElementById('hk-modal')?.remove(); UI.toast('✅ Discount applied!', 'success'); render(document.getElementById('page-container'), lid);
     }
 
-    // ── Modal: Discount ───────────────────────────────────────────────────────
-    function showDiscountModal(loanId) {
-        document.getElementById('hisaab-modal')?.remove();
-        const overlay = document.createElement('div');
-        overlay.className = 'modal-overlay'; overlay.id = 'hisaab-modal';
-        overlay.innerHTML = `<div class="modal"><h3 class="modal-title">🏷️ Give Discount</h3>
-            <div class="form-group mb-2"><label class="form-label">Discount Amount (₹) *</label>
-                <input type="number" class="form-input" id="disc-amount" placeholder="e.g. 500" min="1"></div>
-            <div class="form-group mb-3"><label class="form-label">Date</label>
-                <input type="date" class="form-input" id="disc-date" value="${new Date().toISOString().split('T')[0]}"></div>
-            <div class="modal-actions">
-                <button class="btn btn-outline" onclick="document.getElementById('hisaab-modal').remove()">Cancel</button>
-                <button class="btn btn-primary" onclick="LoanDetailPage.processDiscount('${loanId}')">Apply Discount</button>
-            </div></div>`;
-        document.body.appendChild(overlay);
-        overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
-    }
-
-    function processDiscount(loanId) {
-        const loan = DB.getLoan(loanId); if (!loan) return;
-        const amount = parseFloat(document.getElementById('disc-amount')?.value);
-        const date   = document.getElementById('disc-date')?.value;
-        if (!amount || amount <= 0 || !date) { UI.toast('Enter valid discount amount and date', 'error'); return; }
+    // ── Settle ────────────────────────────────────
+    function showSettleModal(lid) {
+        const t = _hkT(); const loan = DB.getLoan(lid);
         HisabKitaabPage.initHK(loan);
-        HisabKitaabPage.addEntry(loan, date, 'discount', amount, 'Discount');
-        loan.totalDiscount = (loan.totalDiscount || 0) + amount;
-        DB.saveLoan(loan);
-        document.getElementById('hisaab-modal')?.remove();
-        UI.toast('Discount applied!', 'success');
-        render(document.getElementById('page-container'), loanId);
+        const hk = loan.hisabKitaab; const last = hk[hk.length - 1];
+        const savedBal = last ? last.balance : 0;
+        const mr = HisabKitaabPage.getMonthlyRate(loan);
+        const today = new Date().toISOString().split('T')[0];
+        const days = HisabKitaabPage.calcDays(last ? last.date : today, today);
+        const runInt = HisabKitaabPage.calcInterest(savedBal, mr, days);
+        const netPay = Number(Number(savedBal + runInt).toFixed(3));
+        
+        _hkModal(t.settle_loan,
+            `<p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:10px;">${t.lbl_net}: <strong>₹${netPay.toFixed(2)}</strong></p>
+            <div class="form-group mb-2"><label class="form-label">${t.amount_label} *</label><input type="number" class="form-input" id="hk-s-amt" min="0" value="${netPay}"></div>
+            <div class="form-group mb-2"><label class="form-label">${t.date_label} *</label><input type="date" class="form-input" id="hk-s-dt" value="${today}"></div>
+            <div class="form-group mb-3"><label class="form-label">${t.note_label}</label><input type="text" class="form-input" id="hk-s-nt" maxlength="200"></div>`,
+            `LoanDetailPage.doSettle('${lid}')`);
     }
-
-    // ── Modal: Settle Loan ──────────────────────────────────────────────────────
-    function showSettleModal2(loanId) {
-        document.getElementById('hisaab-modal')?.remove();
-        const loan   = DB.getLoan(loanId);
-        const netDue = _hkNetPayable(loan);
-        const overlay = document.createElement('div');
-        overlay.className = 'modal-overlay'; overlay.id = 'hisaab-modal';
-        overlay.innerHTML = `<div class="modal"><h3 class="modal-title">✅ Settle Loan</h3>
-            <p class="text-muted mb-2" style="font-size:0.85rem;">Net Payable (HK): <strong style="color:var(--safe);">${UI.currency(netDue)}</strong></p>
-            <div class="form-group mb-2"><label class="form-label">Final Amount Received (₹) *</label>
-                <input type="number" class="form-input" id="settle-amount" placeholder="Amount received" min="0" value="${netDue.toFixed(2)}"></div>
-            <div class="form-group mb-3"><label class="form-label">Date</label>
-                <input type="date" class="form-input" id="settle-date" value="${new Date().toISOString().split('T')[0]}"></div>
-            <div class="modal-actions">
-                <button class="btn btn-outline" onclick="document.getElementById('hisaab-modal').remove()">Cancel</button>
-                <button class="btn btn-sm" style="background:rgba(16,185,129,0.2);border:1px solid var(--safe);color:var(--safe);" onclick="LoanDetailPage.processSettle('${loanId}',${netDue})">Confirm Settlement</button>
-            </div></div>`;
-        document.body.appendChild(overlay);
-        overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
-    }
-
-
-    async function processSettle(loanId, totalPayable) {
-        const loan = DB.getLoan(loanId); if (!loan) return;
-        const received = parseFloat(document.getElementById('settle-amount')?.value) || 0;
-        const date     = document.getElementById('settle-date')?.value;
-        if (!date) { UI.toast('Select settlement date', 'error'); return; }
-        if (!await UI.confirm('Settle Loan', `Mark loan as SETTLED? Received: ${UI.currency(received)}`)) return;
-        HisabKitaabPage.initHK(loan);
-        HisabKitaabPage.addEntry(loan, date, 'settle', received, 'Loan Settled');
-        const netDue = _hkNetPayable(loan);
-        const diff = Math.max(0, (totalPayable || netDue) - received);
-        if (diff > 0) { loan.totalDiscount = (loan.totalDiscount || 0) + diff; }
-        loan.status = 'closed';
-        loan.settlement = { date: new Date().toISOString(), totalAmount: totalPayable || netDue, paidAmount: received, discount: diff, adjustment: 0, status: 'CLOSED' };
-        DB.saveLoan(loan);
-        document.getElementById('hisaab-modal')?.remove();
-        UI.toast('Loan settled successfully!', 'success');
-        render(document.getElementById('page-container'), loanId);
+    function doSettle(lid) {
+        const amt = parseFloat(document.getElementById('hk-s-amt')?.value) || 0; const dt = document.getElementById('hk-s-dt')?.value; const nt = document.getElementById('hk-s-nt')?.value?.trim() || '';
+        if (!dt) { UI.toast('Select date', 'error'); return; }
+        const loan = DB.getLoan(lid); if (!loan) return; HisabKitaabPage.initHK(loan);
+        HisabKitaabPage.addEntry(loan, dt, 'settle', amt, nt); loan.status = 'closed';
+        loan.settlement = { date: new Date().toISOString(), totalAmount: loan.hisabKitaab[loan.hisabKitaab.length - 2]?.balance || 0, paidAmount: amt, discount: 0, status: 'CLOSED' };
+        DB.saveLoan(loan); document.getElementById('hk-modal')?.remove(); UI.toast('✅ Loan settled!', 'success'); render(document.getElementById('page-container'), lid);
     }
 
 
@@ -1280,12 +1301,12 @@ const LoanDetailPage = (() => {
         if (lbl) lbl.textContent = _riskVisible ? 'ON' : 'OFF';
     }
 
-    return { render, showPaymentModal, processPayment, sendWhatsApp, closeLoan, del,
+    return { render, showPaymentModal, sendWhatsApp, closeLoan, del,
              _netPayable, _getTotalPaid, _interestTillLastPayment, _buildEventLedgerHTML,
-             showAdjustModal, processAdjust,
-             showPartialPaymentModal2,
-             showDiscountModal, processDiscount,
-             showSettleModal2, processSettle,
+             showAddMoneyModal, doAdd,
+             showPayModal, updatePayInterest, doPay,
+             showDiscModal, doDisc,
+             showSettleModal, doSettle,
              showEditModal, verifyAndShowEditForm, processLoanEdit,
              showLockerEditModal, verifyAndEditLocker, processLockerEdit,
              showNoteEditModal, saveJewelleryNote,
