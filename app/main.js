@@ -179,6 +179,8 @@
             item.addEventListener('click', (e) => {
                 e.preventDefault();
                 UI.navigateTo(item.dataset.page);
+                // Scroll active item into view
+                setTimeout(() => _scrollActiveNavIntoView(), 80);
             });
         });
 
@@ -227,6 +229,18 @@
             document.getElementById('login-pin').value = '';
             document.getElementById('pin-login-error').textContent = '';
         });
+    }
+
+    // Scroll the active bottom-nav item into the center of the scroll track
+    function _scrollActiveNavIntoView() {
+        const activeItem = document.querySelector('.bottom-nav-item.active');
+        const scrollContainer = document.querySelector('.bottom-nav-scroll');
+        if (!activeItem || !scrollContainer) return;
+        const itemLeft   = activeItem.offsetLeft;
+        const itemWidth  = activeItem.offsetWidth;
+        const trackWidth = scrollContainer.offsetWidth;
+        const target = itemLeft - (trackWidth / 2) + (itemWidth / 2);
+        scrollContainer.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
     }
 
     // --- Dark Mode ---
