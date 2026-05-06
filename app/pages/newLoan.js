@@ -22,7 +22,22 @@ const NewLoanPage = (() => {
                 <form id="new-loan-form" onsubmit="return false;">
                     <h4 class="mb-1" style="color:var(--primary);font-size:0.9rem;" data-i18n="customer_info">${I18n.t('customer_info')}</h4>
                     <div class="form-grid mb-2">
-                        ${UI.formGroup(I18n.t('customer_name') + ' *', '<input type="text" class="form-input" id="nl-customer" required placeholder="' + I18n.t('customer_name') + '" autocomplete="off">')}
+                        ${UI.formGroup(I18n.t('customer_name') + ' *', `
+                            <div style="position:relative;">
+                                <input type="text" class="form-input" id="nl-customer" required
+                                    placeholder="${I18n.t('customer_name')}"
+                                    autocomplete="off"
+                                    oninput="NewLoanPage.onCustomerInput(this)"
+                                    onkeydown="NewLoanPage.onCustomerKeydown(event)"
+                                >
+                                <div id="nl-customer-dropdown"
+                                    style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;
+                                           background:var(--bg-card);border:1.5px solid var(--primary);
+                                           border-radius:10px;z-index:1100;max-height:220px;overflow-y:auto;
+                                           box-shadow:0 12px 32px rgba(0,0,0,0.35);">
+                                </div>
+                            </div>`)}
+
                         ${UI.formGroup(I18n.t('mobile_number'), `<input type="tel" class="form-input" id="nl-mobile" placeholder="10-digit number" maxlength="10" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/\\D/g,'').slice(0,10); NewLoanPage.checkMobile()">
                             <span id="nl-mobile-err" class="form-hint" style="color:var(--danger);display:none;">Enter a valid 10-digit mobile number</span>`)}
                         ${UI.formGroup(I18n.t('locker_name'), '<input type="text" class="form-input" id="nl-locker" placeholder="e.g., Locker A-12">')}
@@ -685,6 +700,172 @@ const NewLoanPage = (() => {
         _draft_active = false;
     }
 
+    // ─── CUSTOMER NAME AUTOCOMPLETE ────────────────────────────────────────────
+    // Builds a deduplicated list of customers from DB.getCustomers() + DB.getLoans().
+    let _custDropdownIndex = -1; // keyboard nav index
+
+    function _getCustomerSuggestions(query) {
+        const q = (query || '').trim().toLowerCase();
+        if (!q) return [];
+        const seen = new Map(); // key: mobile || name-lower → customer-like object
+        try {
+            // 1. Real customer records (preferred — have caste, locker, photo)
+            (DB.getCustomers() || []).forEach(c => {
+                if (!c.name) return;
+                const key = c.mobile ? 'mob:' + c.mobile : 'nm:' + c.name.toLowerCase();
+                if (!seen.has(key)) {
+                    seen.set(key, {
+                        name:   c.name,
+                        mobile: c.mobile || '',
+                        address:c.address || '',
+                        caste:  c.caste  || '',
+                        locker: c.lockerName || ''
+                    });
+                }
+            });
+            // 2. Past loans — fill in gaps (locker, caste)
+            (DB.getLoans() || []).forEach(l => {
+                if (!l.customerName) return;
+                const key = l.mobile ? 'mob:' + l.mobile : 'nm:' + l.customerName.toLowerCase();
+                if (!seen.has(key)) {
+                    seen.set(key, {
+                        name:   l.customerName,
+                        mobile: l.mobile   || '',
+                        address:l.address  || '',
+                        caste:  l.caste    || '',
+                        locker: l.lockerName || l.lockerNo || ''
+                    });
+                } else {
+                    // Enrich existing record with loan-specific data if missing
+                    const rec = seen.get(key);
+                    if (!rec.caste   && l.caste)   rec.caste   = l.caste;
+                    if (!rec.locker  && (l.lockerName || l.lockerNo)) rec.locker = l.lockerName || l.lockerNo;
+                    if (!rec.address && l.address) rec.address = l.address;
+                }
+            });
+        } catch(e) {}
+        return [...seen.values()]
+            .filter(c => c.name.toLowerCase().includes(q))
+            .sort((a, b) => {
+                // Exact-start matches first
+                const as = a.name.toLowerCase().startsWith(q) ? 0 : 1;
+                const bs = b.name.toLowerCase().startsWith(q) ? 0 : 1;
+                return as - bs || a.name.localeCompare(b.name);
+            })
+            .slice(0, 8);
+    }
+
+    function onCustomerInput(input) {
+        const dd = document.getElementById('nl-customer-dropdown');
+        if (!dd) return;
+        _custDropdownIndex = -1;
+        const query = (input.value || '').trim();
+        if (query.length < 1) { dd.style.display = 'none'; return; }
+        const matches = _getCustomerSuggestions(query);
+        if (!matches.length) { dd.style.display = 'none'; return; }
+
+        dd.innerHTML = matches.map((c, i) => {
+            const initials = (c.name.trim().split(' ')).map(w => w[0] || '').join('').toUpperCase().slice(0, 2);
+            const metaParts = [];
+            if (c.mobile)  metaParts.push('📞 ' + c.mobile);
+            if (c.address) metaParts.push('📍 ' + c.address);
+            if (c.caste)   metaParts.push('🏷️ ' + c.caste);
+            const safeData = JSON.stringify(c).replace(/"/g, '&quot;');
+            return `<div class="nl-cust-sugg-item" data-idx="${i}"
+                        style="display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;
+                               border-bottom:1px solid var(--border-color);transition:background 0.15s;"
+                        onmouseover="this.style.background='var(--bg-input)';NewLoanPage._setCustDDIndex(${i});"
+                        onmouseout="this.style.background='';"
+                        onclick="NewLoanPage.selectCustomerSuggestion(${i})">
+                <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--gold));
+                            display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;
+                            font-size:0.78rem;flex-shrink:0;">${initials}</div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-weight:700;font-size:0.9rem;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.name}</div>
+                    <div style="font-size:0.75rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${metaParts.join(' &nbsp;·&nbsp; ')}</div>
+                </div>
+                <div style="font-size:0.7rem;color:var(--primary);font-weight:600;flex-shrink:0;">Auto-fill →</div>
+            </div>`;
+        }).join('');
+
+        // Store matches for keyboard nav
+        dd._matches = matches;
+        dd.style.display = 'block';
+
+        // Hide when clicking outside
+        const hideDD = (e) => {
+            const inp = document.getElementById('nl-customer');
+            if (!dd.contains(e.target) && e.target !== inp) {
+                dd.style.display = 'none';
+                document.removeEventListener('click', hideDD);
+            }
+        };
+        document.addEventListener('click', hideDD);
+    }
+
+    function _setCustDDIndex(i) {
+        _custDropdownIndex = i;
+        document.querySelectorAll('.nl-cust-sugg-item').forEach((el, idx) => {
+            el.style.background = idx === i ? 'var(--bg-input)' : '';
+        });
+    }
+
+    function onCustomerKeydown(e) {
+        const dd = document.getElementById('nl-customer-dropdown');
+        if (!dd || dd.style.display === 'none') return;
+        const items = dd.querySelectorAll('.nl-cust-sugg-item');
+        if (!items.length) return;
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            _custDropdownIndex = Math.min(_custDropdownIndex + 1, items.length - 1);
+            _setCustDDIndex(_custDropdownIndex);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            _custDropdownIndex = Math.max(_custDropdownIndex - 1, 0);
+            _setCustDDIndex(_custDropdownIndex);
+        } else if (e.key === 'Enter' && _custDropdownIndex >= 0) {
+            e.preventDefault();
+            selectCustomerSuggestion(_custDropdownIndex);
+        } else if (e.key === 'Escape') {
+            dd.style.display = 'none';
+        }
+    }
+
+    function selectCustomerSuggestion(idx) {
+        const dd = document.getElementById('nl-customer-dropdown');
+        if (!dd || !dd._matches) return;
+        const c = dd._matches[idx];
+        if (!c) return;
+
+        // Fill all customer fields
+        const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+        set('nl-customer', c.name);
+        set('nl-mobile',   c.mobile);
+        set('nl-address',  c.address);
+        set('nl-caste',    c.caste);
+        if (c.locker) set('nl-locker', c.locker);
+
+        dd.style.display = 'none';
+        _custDropdownIndex = -1;
+
+        // Update mobile validation UI
+        checkMobile();
+
+        // Flash confirmation
+        const inp = document.getElementById('nl-customer');
+        if (inp) {
+            inp.style.transition = 'box-shadow 0.3s';
+            inp.style.boxShadow  = '0 0 0 3px rgba(99,102,241,0.4)';
+            setTimeout(() => { inp.style.boxShadow = ''; }, 900);
+        }
+        UI.toast(`✅ ${c.name} — details auto-filled!`, 'success');
+    }
+
+    function _hideCustomerDropdown() {
+        const dd = document.getElementById('nl-customer-dropdown');
+        if (dd) dd.style.display = 'none';
+    }
+
     // ─── ADDRESS AUTOCOMPLETE ──────────────────────────────────────────
     // Collects unique, non-empty addresses from all loans and customers in DB.
     function _getAddressHistory() {
@@ -715,7 +896,7 @@ const NewLoanPage = (() => {
             `<div style="padding:10px 14px;cursor:pointer;font-size:0.88rem;color:var(--text-primary);border-bottom:1px solid var(--border-color);transition:background 0.15s;"
                 onmouseover="this.style.background='var(--bg-input)'"
                 onmouseout="this.style.background=''"
-                onclick="document.getElementById('nl-address').value='${a.replace(/'/g, '\\&#39;')}'; document.getElementById('nl-address-dropdown').style.display='none';">
+                onclick="document.getElementById('nl-address').value='${a.replace(/'/g, '\\&#39;')}'; document.getElementById('nl-address-dropdown').style.display='none';"> 
                 📍 ${a}
             </div>`
         ).join('');
@@ -863,5 +1044,5 @@ const NewLoanPage = (() => {
         }
     }
 
-    return { render, addItem, removeItem, updateItem, updateCustomPurity, saveItemTypeNow, saveCustomPurityNow, checkMobile, onAddressInput, saveDraft, clearDraft, setPeriod, setType, setFreq, togglePanchang, saveOverride, recalc, save, blockInvalidKey, toggleBreakdown, _state, get _draft_active() { return _draft_active; } };
+    return { render, addItem, removeItem, updateItem, updateCustomPurity, saveItemTypeNow, saveCustomPurityNow, checkMobile, onAddressInput, onCustomerInput, onCustomerKeydown, selectCustomerSuggestion, _setCustDDIndex, _hideCustomerDropdown, saveDraft, clearDraft, setPeriod, setType, setFreq, togglePanchang, saveOverride, recalc, save, blockInvalidKey, toggleBreakdown, _state, get _draft_active() { return _draft_active; } };
 })();
