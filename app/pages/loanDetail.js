@@ -84,7 +84,12 @@ const LoanDetailPage = (() => {
         <div class="ld-page">
 
             <!-- Back -->
-            <button class="btn btn-ghost" style="align-self:flex-start;" onclick="UI.navigateTo('loans')">← Back to Loans</button>
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                <button class="btn btn-ghost" style="align-self:flex-start;" onclick="UI.navigateTo('loans')">← Back to Loans</button>
+                <button class="kn-compact-toggle ${typeof KeyNav !== 'undefined' && KeyNav.isCompact() ? 'active' : ''}" onclick="KeyNav.toggleCompact(); LoanDetailPage.render(document.getElementById('page-container'), '${loan.id}')">
+                    ${typeof KeyNav !== 'undefined' && KeyNav.isCompact() ? '📋 Full View' : '📐 Compact Mode'}
+                </button>
+            </div>
 
             <!-- A. Header Card -->
             <div class="ld-header">
@@ -102,14 +107,14 @@ const LoanDetailPage = (() => {
                 </div>
                 <div class="ld-header-right">
                     <span class="ld-badge ${badgeClass}">${badgeLabel}</span>
-                    <button class="ld-hdr-btn" style="background:linear-gradient(135deg,#f6d365,#fda085);color:#1a1a2e;font-weight:700;" onclick="UI.navigateTo('hisab-kitaab','${loan.id}')">📒 हिसाब किताब</button>
-                    <button class="ld-hdr-btn" onclick="Export.exportLoanPDF(DB.getLoan('${loan.id}'))">${I18n.t('export_pdf')}</button>
-                    <button class="ld-hdr-btn" onclick="LoanDetailPage.sendWhatsApp('${loan.id}')">${I18n.t('send_whatsapp')}</button>
+                    <button class="ld-hdr-btn kn-focusable" style="background:linear-gradient(135deg,#f6d365,#fda085);color:#1a1a2e;font-weight:700;" onclick="UI.navigateTo('hisab-kitaab','${loan.id}')">📒 हिसाब किताब</button>
+                    <button class="ld-hdr-btn kn-focusable" onclick="Export.exportLoanPDF(DB.getLoan('${loan.id}'))">${I18n.t('export_pdf')}</button>
+                    <button class="ld-hdr-btn kn-focusable" onclick="LoanDetailPage.sendWhatsApp('${loan.id}')">${I18n.t('send_whatsapp')}</button>
                 </div>
             </div>
 
             <!-- B. Loan Overview Card (Card-based layout) -->
-            <div class="ld-card">
+            <div class="ld-card kn-compact-section">
                 <div class="ld-section-title" style="display:flex;align-items:center;">📋 Loan Overview
                     <button onclick="LoanDetailPage.showEditModal('${loan.id}')"
                         style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;padding:4px 14px;border-radius:20px;font-size:0.75rem;font-weight:700;cursor:pointer;border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-secondary);transition:all .2s;"
@@ -206,7 +211,7 @@ const LoanDetailPage = (() => {
             </div>
 
             <!-- C. Jewellery Note Card -->
-            <div class="ld-card" id="jewellery-note-card-${loan.id}" style="border-left:3px solid var(--primary);">
+            <div class="ld-card kn-compact-section" id="jewellery-note-card-${loan.id}" style="border-left:3px solid var(--primary);">
                 <div class="ld-section-title" style="display:flex;align-items:center;gap:8px;">
                     📝 Jewellery Note
                     <button onclick="LoanDetailPage.showNoteEditModal('${loan.id}')"
@@ -223,7 +228,7 @@ const LoanDetailPage = (() => {
             </div>
 
             <!-- D. Jewelry Items Card -->
-            <div class="ld-card">
+            <div class="ld-card kn-compact-section">
                 <div class="ld-section-title">💍 Jewelry Items</div>
                 <div class="ld-table-wrap">
                     <table class="ld-table">
@@ -338,6 +343,9 @@ const LoanDetailPage = (() => {
             page.insertBefore(riskToggleRow, page.querySelector('.ld-action-bar'));
             page.insertBefore(riskWrapper, page.querySelector('.ld-action-bar'));
         }
+
+        // Apply compact mode if enabled
+        try { KeyNav.applyCompactIfNeeded(); } catch(e) {}
     }
 
     // ── Calculation Helpers ───────────────────────────────────────────────────

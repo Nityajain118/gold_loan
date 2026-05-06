@@ -46,7 +46,7 @@ const UI = (() => {
             'dashboard': 'Dashboard',
             'new-loan': 'New Loan Entry',
             'old-loan': 'Old Loan Entry (Migration)',
-            'loans': 'All Loans',
+            'loans': 'Girvi Return',
             'loan-detail': 'Loan Details',
             'customers': 'Customers',
             'customer-profile': 'Customer Profile',

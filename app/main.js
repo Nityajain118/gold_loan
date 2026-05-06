@@ -131,6 +131,9 @@
         // Try to fetch live rates
         Market.autoRefresh();
 
+        // ★ Init keyboard navigation system
+        try { KeyNav.init(); } catch(e) {}
+
         // Navigate to dashboard
         UI.navigateTo('dashboard');
 

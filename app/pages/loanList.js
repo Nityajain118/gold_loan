@@ -109,11 +109,17 @@ const LoanListPage = (() => {
         });
 
         container.innerHTML = `
+        <div class="kn-hints">
+            <span><span class="kn-hint-key">↑</span><span class="kn-hint-key">↓</span> Navigate</span>
+            <span><span class="kn-hint-key">Enter</span> Open</span>
+            <span><span class="kn-hint-key">/</span> Search</span>
+            <span><span class="kn-hint-key">Esc</span> Back</span>
+            <span><span class="kn-hint-key">Ctrl+N</span> New Loan</span>
+        </div>
         <div class="flex-between mb-2" style="flex-wrap:wrap;gap:8px;">
             <span style="font-size:0.88rem;color:var(--text-secondary);">${keys.length} customer${keys.length !== 1 ? 's' : ''} · ${DB.getLoans().length} loans</span>
             <div class="flex gap-1">
                 <button class="btn btn-gold btn-sm" onclick="UI.navigateTo('new-loan')" data-i18n="new_loan">${I18n.t('new_loan')}</button>
-                <button class="btn btn-primary btn-sm" onclick="UI.navigateTo('old-loan')" data-i18n="nav_old_loan">${I18n.t('nav_old_loan')}</button>
             </div>
         </div>
         <div class="filter-bar mb-3" style="gap:8px;flex-wrap:wrap;">
@@ -166,7 +172,7 @@ const LoanListPage = (() => {
                 : `<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--gold));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:1.1rem;flex-shrink:0;">${(info.name||'?')[0].toUpperCase()}</div>`;
 
             return `
-            <div class="loan-card" data-key="${_esc(key)}" style="cursor:pointer;transition:transform .15s,box-shadow .15s;" onclick="LoanListPage.drillCustomer('${_esc(key)}')"
+            <div class="loan-card kn-focusable" data-key="${_esc(key)}" style="cursor:pointer;transition:transform .15s,box-shadow .15s;" onclick="LoanListPage.drillCustomer('${_esc(key)}')"
                  onmouseenter="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(0,0,0,0.25)'"
                  onmouseleave="this.style.transform='';this.style.boxShadow=''">
                 <div class="loan-card-header">
@@ -317,7 +323,7 @@ const LoanListPage = (() => {
                 const statusIcon = loan.status==='closed'?'✅':loan.status==='migrated'?'🔄':'🟢';
                 const shortId = (loan.id||'').slice(-6).toUpperCase();
                 return `
-                <div class="loan-card" style="margin-bottom:12px;">
+                <div class="loan-card kn-focusable" style="margin-bottom:12px;">
                     <div class="loan-card-header">
                         <div>
                             <div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:2px;">Loan #${shortId}</div>

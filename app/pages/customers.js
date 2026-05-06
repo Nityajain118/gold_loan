@@ -172,7 +172,7 @@ const CustomersPage = (() => {
         const hasSettlements = c.settlements && c.settlements.length > 0;
 
         return `
-        <div class="vc-card" data-id="${c.id}">
+        <div class="vc-card kn-focusable" data-id="${c.id}" onclick="UI.navigateTo('customer-ledger', '${c.id}')" style="cursor:pointer;">
             <div class="vc-top">
                 <div class="vc-avatar">
                     ${c.photo
