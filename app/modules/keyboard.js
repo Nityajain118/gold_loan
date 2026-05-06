@@ -1,39 +1,50 @@
 /* ============================================
-   KeyNav — Keyboard Navigation System
+   KeyNav — Keyboard Navigation System v2
    Power-user keyboard-first navigation controller
+   with sidebar zone + content zone support
    ============================================ */
 const KeyNav = (() => {
     // ── State ─────────────────────────────────────────────────────────────────
     let _focusedIndex = -1;
     let _focusableEls = [];
+    let _zone = 'content';        // 'sidebar' | 'content'
+    let _sidebarIndex = -1;
+    let _sidebarItems = [];
     let _isCompactMode = localStorage.getItem('GV_compactMode') === 'true';
     let _enabled = true;
-    let _lastPage = '';
 
     // ── Init — attach global listener ─────────────────────────────────────────
     function init() {
         document.addEventListener('keydown', _handleKey);
-        // Re-scan after any page render settles
+        // Hook into UI.navigateTo to auto-rescan after page change
         const origNav = UI.navigateTo;
-        const wrappedNav = function(page, data) {
+        UI.navigateTo = function(page, data) {
             origNav.call(this, page, data);
-            _lastPage = page;
-            // Let DOM settle, then scan for focusables
-            setTimeout(() => _scanFocusables(), 120);
+            _zone = 'content';
+            setTimeout(() => {
+                _scanFocusables();
+                _scanSidebar();
+            }, 150);
         };
-        UI.navigateTo = wrappedNav;
+        // Initial sidebar scan
+        setTimeout(() => _scanSidebar(), 300);
+    }
+
+    // ── Scan sidebar items ────────────────────────────────────────────────────
+    function _scanSidebar() {
+        _sidebarItems = Array.from(document.querySelectorAll('.nav-list .nav-item'));
     }
 
     // ── Scan page for focusable elements ──────────────────────────────────────
     function _scanFocusables() {
-        _focusableEls = Array.from(document.querySelectorAll('.kn-focusable'));
+        _focusableEls = Array.from(document.querySelectorAll('#page-container .kn-focusable'));
         _focusedIndex = -1;
         _clearFocus();
     }
 
     // Manually trigger a rescan (called by pages after dynamic renders)
     function rescan() {
-        _focusableEls = Array.from(document.querySelectorAll('.kn-focusable'));
+        _focusableEls = Array.from(document.querySelectorAll('#page-container .kn-focusable'));
     }
 
     // ── Focus management ──────────────────────────────────────────────────────
@@ -46,6 +57,15 @@ const KeyNav = (() => {
         _clearFocus();
         _focusedIndex = idx;
         const el = _focusableEls[idx];
+        el.classList.add('kn-focused');
+        el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    function _setSidebarFocus(idx) {
+        if (idx < 0 || idx >= _sidebarItems.length) return;
+        _clearFocus();
+        _sidebarIndex = idx;
+        const el = _sidebarItems[idx];
         el.classList.add('kn-focused');
         el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
@@ -84,21 +104,63 @@ const KeyNav = (() => {
         // If typing, only let Escape through
         if (isTyping && e.key !== 'Escape') return;
 
-        // ── Navigation keys ───────────────────────────────────────────────────
+        // ── Zone-aware navigation ─────────────────────────────────────────────
         switch (e.key) {
             case 'ArrowDown':
                 e.preventDefault();
-                _moveDown();
+                if (_zone === 'sidebar') {
+                    _sidebarDown();
+                } else {
+                    _moveDown();
+                }
                 break;
 
             case 'ArrowUp':
                 e.preventDefault();
-                _moveUp();
+                if (_zone === 'sidebar') {
+                    _sidebarUp();
+                } else {
+                    _moveUp();
+                }
+                break;
+
+            case 'ArrowRight':
+                e.preventDefault();
+                if (_zone === 'sidebar') {
+                    // Move from sidebar to content
+                    _zone = 'content';
+                    _clearFocus();
+                    // Activate the selected sidebar page first
+                    if (_sidebarIndex >= 0 && _sidebarIndex < _sidebarItems.length) {
+                        const page = _sidebarItems[_sidebarIndex].dataset.page;
+                        if (page) UI.navigateTo(page);
+                    }
+                    setTimeout(() => {
+                        _scanFocusables();
+                        if (_focusableEls.length > 0) _setFocus(0);
+                    }, 200);
+                }
+                break;
+
+            case 'ArrowLeft':
+                e.preventDefault();
+                // Move from content to sidebar
+                _zone = 'sidebar';
+                _clearFocus();
+                _scanSidebar();
+                // Find currently active sidebar item
+                const activeIdx = _sidebarItems.findIndex(el => el.classList.contains('active'));
+                _sidebarIndex = activeIdx >= 0 ? activeIdx : 0;
+                _setSidebarFocus(_sidebarIndex);
                 break;
 
             case 'Enter':
                 e.preventDefault();
-                _activateFocused();
+                if (_zone === 'sidebar') {
+                    _activateSidebar();
+                } else {
+                    _activateFocused();
+                }
                 break;
 
             case 'Escape':
@@ -107,7 +169,6 @@ const KeyNav = (() => {
                 break;
 
             case '/':
-                // Don't trigger if already in input
                 if (!isTyping) {
                     e.preventDefault();
                     _focusSearch();
@@ -116,7 +177,32 @@ const KeyNav = (() => {
         }
     }
 
-    // ── Movement ──────────────────────────────────────────────────────────────
+    // ── Sidebar movement ──────────────────────────────────────────────────────
+    function _sidebarDown() {
+        if (!_sidebarItems.length) _scanSidebar();
+        if (!_sidebarItems.length) return;
+        const next = _sidebarIndex < _sidebarItems.length - 1 ? _sidebarIndex + 1 : 0;
+        _setSidebarFocus(next);
+    }
+
+    function _sidebarUp() {
+        if (!_sidebarItems.length) _scanSidebar();
+        if (!_sidebarItems.length) return;
+        const prev = _sidebarIndex > 0 ? _sidebarIndex - 1 : _sidebarItems.length - 1;
+        _setSidebarFocus(prev);
+    }
+
+    function _activateSidebar() {
+        if (_sidebarIndex < 0 || _sidebarIndex >= _sidebarItems.length) return;
+        const el = _sidebarItems[_sidebarIndex];
+        const page = el.dataset.page;
+        if (page) {
+            _zone = 'content';
+            UI.navigateTo(page);
+        }
+    }
+
+    // ── Content movement ──────────────────────────────────────────────────────
     function _moveDown() {
         if (!_focusableEls.length) _scanFocusables();
         if (!_focusableEls.length) return;
@@ -135,7 +221,6 @@ const KeyNav = (() => {
     function _activateFocused() {
         if (_focusedIndex < 0 || _focusedIndex >= _focusableEls.length) return;
         const el = _focusableEls[_focusedIndex];
-        // Trigger click
         el.click();
     }
 
@@ -151,11 +236,18 @@ const KeyNav = (() => {
             return;
         }
 
+        // If in sidebar zone, switch to content
+        if (_zone === 'sidebar') {
+            _zone = 'content';
+            _clearFocus();
+            return;
+        }
+
         // Try to click a back button
         const backBtn = document.querySelector('[onclick*="goBack"]') ||
+                        document.querySelector('.btn-ghost[onclick*="Back"]') ||
                         document.querySelector('[onclick*="navigateTo(\'loans\')"]') ||
-                        document.querySelector('[onclick*="navigateTo(\'dashboard\')"]') ||
-                        document.querySelector('.btn-ghost[onclick*="Back"]');
+                        document.querySelector('[onclick*="navigateTo(\'customers\')"]');
         if (backBtn) { backBtn.click(); return; }
 
         // Default: go to dashboard
@@ -164,10 +256,12 @@ const KeyNav = (() => {
 
     // ── Search Focus (/ or Ctrl+K) ────────────────────────────────────────────
     function _focusSearch() {
+        _zone = 'content';
+        _clearFocus();
         const searchInputs = [
             document.getElementById('loan-search'),
             document.getElementById('cust-global-search'),
-            document.querySelector('.search-input')
+            document.querySelector('#page-container .search-input')
         ];
         for (const inp of searchInputs) {
             if (inp && inp.offsetParent !== null) {
@@ -176,8 +270,7 @@ const KeyNav = (() => {
                 return;
             }
         }
-        // No search on this page — show a toast hint
-        UI.toast('💡 Press Ctrl+L for Loans, Ctrl+Shift+C for Customers', 'info', 2000);
+        UI.toast('💡 No search bar on this page. Try Ctrl+L for Loans', 'info', 2000);
     }
 
     // ── Compact Mode ──────────────────────────────────────────────────────────
@@ -189,18 +282,16 @@ const KeyNav = (() => {
         _isCompactMode = !_isCompactMode;
         localStorage.setItem('GV_compactMode', _isCompactMode ? 'true' : 'false');
         _applyCompactMode();
-        UI.toast(_isCompactMode ? '📐 Compact Mode ON — Showing essentials only' : '📋 Full Mode — All sections visible', 'info', 2000);
+        UI.toast(_isCompactMode ? '📐 Compact Mode ON' : '📋 Full Mode ON', 'info', 2000);
     }
 
     function _applyCompactMode() {
         document.querySelectorAll('.kn-compact-section').forEach(el => {
             el.style.display = _isCompactMode ? 'none' : '';
         });
-        // Re-scan focusables after toggling (hidden items are no longer navigable)
         setTimeout(() => _scanFocusables(), 100);
     }
 
-    // Call after Loan Detail renders to apply compact state
     function applyCompactIfNeeded() {
         if (_isCompactMode) _applyCompactMode();
     }

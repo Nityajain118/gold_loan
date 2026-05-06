@@ -71,14 +71,14 @@ const CustomerLedgerPage = (() => {
                 ${allLoans.sort((a, b) => new Date(b.loanStartDate) - new Date(a.loanStartDate)).map(loan => {
                     const rate = loan.metalType === 'gold' ? settings.currentGoldRate : settings.currentSilverRate;
                     const d = Calculator.calcLoanDetails(loan, rate);
-                    return `<tr>
+                    return `<tr class="kn-focusable" style="cursor:pointer;" onclick="UI.navigateTo('loan-detail','${loan.id}')">
                         <td>${UI.formatDate(loan.loanStartDate)}</td>
                         <td>${_buildMetalAndItemLabel(loan)}</td>
                         <td class="text-gold font-semibold">${UI.currency(d.metalValue)}</td>
                         <td>${loan.status === 'closed' ? '—' : UI.currency(d.remainingPrincipal)}</td>
                         <td class="font-semibold text-danger">${loan.status === 'closed' ? '—' : UI.currency(d.totalPayable)}</td>
                         <td><span class="status-badge ${loan.status}">${loan.status}</span></td>
-                        <td><button class="btn btn-outline btn-xs" onclick="UI.navigateTo('loan-detail','${loan.id}')">View</button></td>
+                        <td><button class="btn btn-outline btn-xs" onclick="event.stopPropagation(); UI.navigateTo('loan-detail','${loan.id}')">View</button></td>
                     </tr>`;
                 }).join('')}
                 </tbody></table></div>`}

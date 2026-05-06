@@ -186,10 +186,10 @@ const DashboardPage = (() => {
                 <h3 class="section-title" data-i18n="quick_actions">${I18n.t('quick_actions')}</h3>
             </div>
             <div class="flex gap-2" style="flex-wrap: wrap;">
-                <button class="btn btn-gold" onclick="UI.navigateTo('new-loan')" data-i18n="new_loan">${I18n.t('new_loan')}</button>
-                <button class="btn btn-outline" onclick="Export.exportLoansCSV()" data-i18n="export_csv">${I18n.t('export_csv')}</button>
-                <button class="btn btn-outline" onclick="Export.exportBackup()" data-i18n="backup">${I18n.t('backup')}</button>
-                <button class="btn btn-outline" onclick="UI.navigateTo('firms')">🏢 Manage Firms</button>
+                <button class="btn btn-gold kn-focusable" onclick="UI.navigateTo('new-loan')" data-i18n="new_loan">${I18n.t('new_loan')}</button>
+                <button class="btn btn-outline kn-focusable" onclick="Export.exportLoansCSV()" data-i18n="export_csv">${I18n.t('export_csv')}</button>
+                <button class="btn btn-outline kn-focusable" onclick="Export.exportBackup()" data-i18n="backup">${I18n.t('backup')}</button>
+                <button class="btn btn-outline kn-focusable" onclick="UI.navigateTo('firms')">🏢 Manage Firms</button>
             </div>
         `;
 

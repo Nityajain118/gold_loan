@@ -146,6 +146,23 @@ body {
     50%      { box-shadow: 0 0 0 6px rgba(99, 102, 241, 0); }
 }
 
+/* Focused table rows */
+tr.kn-focused {
+    outline: none !important;
+    background: rgba(99, 102, 241, 0.15) !important;
+    box-shadow: inset 3px 0 0 var(--primary) !important;
+}
+tr.kn-focused::after { display: none; }
+
+/* Focused sidebar nav items */
+.nav-item.kn-focused {
+    outline: none !important;
+    background: rgba(99, 102, 241, 0.2) !important;
+    box-shadow: inset 3px 0 0 var(--primary) !important;
+    border-radius: 8px;
+}
+.nav-item.kn-focused::after { display: none; }
+
 /* Compact mode toggle */
 .kn-compact-toggle {
     display: inline-flex;
