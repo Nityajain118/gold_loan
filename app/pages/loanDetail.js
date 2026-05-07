@@ -227,9 +227,10 @@ const LoanDetailPage = (() => {
                     </div>
                 </div>
             </div>
+            </div>
 
             <!-- C. Jewellery Note Card -->
-            <div class="ld-card kn-compact-section" id="jewellery-note-card-${loan.id}" style="border-left:3px solid var(--primary);">
+            <div class="ld-card kn-compact-section" id="jewellery-note-card-${loan.id}" style="border-left:3px solid var(--primary);${_detailsVisible ? '' : 'display:none;'}">
                 <div class="ld-section-title" style="display:flex;align-items:center;gap:8px;">
                     📝 Jewellery Note
                     <button onclick="LoanDetailPage.showNoteEditModal('${loan.id}')"
@@ -246,7 +247,7 @@ const LoanDetailPage = (() => {
             </div>
 
             <!-- D. Jewelry Items Card -->
-            <div class="ld-card kn-compact-section">
+            <div class="ld-card kn-compact-section" style="${_detailsVisible ? '' : 'display:none;'}">
                 <div class="ld-section-title">💍 Jewelry Items</div>
                 <div class="ld-table-wrap">
                     <table class="ld-table">
@@ -1362,7 +1363,12 @@ const LoanDetailPage = (() => {
         UI.navigateTo(_backTarget.page, _backTarget.data);
     }
 
-    return { render, setBackTarget, goBack, showPaymentModal, sendWhatsApp, closeLoan, del,
+    function toggleDetails(loanId) {
+        _detailsVisible = !_detailsVisible;
+        render(document.getElementById('page-container'), loanId);
+    }
+
+    return { render, setBackTarget, goBack, toggleDetails, showPaymentModal, sendWhatsApp, closeLoan, del,
              _netPayable, _getTotalPaid, _interestTillLastPayment, _buildEventLedgerHTML,
              showAddMoneyModal, doAdd,
              showPayModal, updatePayInterest, doPay,
