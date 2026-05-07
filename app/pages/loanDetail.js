@@ -2,6 +2,15 @@
    Loan Detail Page — Premium Dashboard UI v2
    ============================================ */
 const LoanDetailPage = (() => {
+    // Track navigation origin for smart back button
+    let _backTarget = { page: 'loans', data: null, label: 'Back to Loans' };
+    // Toggle for Loan Overview / Jewellery / Items sections
+    let _detailsVisible = true;
+
+    function setBackTarget(page, data, label) {
+        _backTarget = { page: page || 'loans', data: data || null, label: label || 'Back to Loans' };
+    }
+
     function render(container, loanId) {
         const loan = DB.getLoan(loanId);
         if (!loan) {
@@ -85,7 +94,7 @@ const LoanDetailPage = (() => {
 
             <!-- Back -->
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-                <button class="btn btn-ghost" style="align-self:flex-start;" onclick="UI.navigateTo('loans')">← Back to Loans</button>
+                <button class="btn btn-ghost" style="align-self:flex-start;" onclick="LoanDetailPage.goBack()">← ${_backTarget.label}</button>
                 <button class="kn-compact-toggle ${typeof KeyNav !== 'undefined' && KeyNav.isCompact() ? 'active' : ''}" onclick="KeyNav.toggleCompact(); LoanDetailPage.render(document.getElementById('page-container'), '${loan.id}')">
                     ${typeof KeyNav !== 'undefined' && KeyNav.isCompact() ? '📋 Full View' : '📐 Compact Mode'}
                 </button>
@@ -115,13 +124,22 @@ const LoanDetailPage = (() => {
 
             <!-- B. Loan Overview Card (Card-based layout) -->
             <div class="ld-card kn-compact-section">
-                <div class="ld-section-title" style="display:flex;align-items:center;">📋 Loan Overview
+                <div class="ld-section-title" style="display:flex;align-items:center;gap:8px;">📋 Loan Overview
+                    <button onclick="LoanDetailPage.toggleDetails('${loan.id}')"
+                        style="display:inline-flex;align-items:center;gap:5px;padding:3px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;border:none;transition:all .25s;
+                        background:${_detailsVisible ? 'var(--safe)' : 'rgba(148,163,184,0.22)'};
+                        color:${_detailsVisible ? '#fff' : 'var(--text-secondary)'};"
+                        title="${_detailsVisible ? 'Hide details' : 'Show details'}">
+                        <span style="width:7px;height:7px;border-radius:50%;background:${_detailsVisible ? '#fff' : 'var(--text-muted)'};display:inline-block;"></span>
+                        ${_detailsVisible ? 'ON' : 'OFF'}
+                    </button>
                     <button onclick="LoanDetailPage.showEditModal('${loan.id}')"
                         style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;padding:4px 14px;border-radius:20px;font-size:0.75rem;font-weight:700;cursor:pointer;border:1px solid var(--border-color);background:var(--bg-input);color:var(--text-secondary);transition:all .2s;"
                         onmouseover="this.style.background='var(--primary)';this.style.color='#fff';"
                         onmouseout="this.style.background='var(--bg-input)';this.style.color='var(--text-secondary)';">✏️ Edit</button>
                 </div>
 
+                <div id="ld-details-body" style="${_detailsVisible ? '' : 'display:none;'}">
                 <!-- Row 1: Start Date, Maturity Date, Loan Amount, Interest Rate -->
                 <div class="ld-info-cards-grid">
                     <div class="ld-info-card">
@@ -1340,7 +1358,11 @@ const LoanDetailPage = (() => {
         if (lbl) lbl.textContent = _riskVisible ? 'ON' : 'OFF';
     }
 
-    return { render, showPaymentModal, sendWhatsApp, closeLoan, del,
+    function goBack() {
+        UI.navigateTo(_backTarget.page, _backTarget.data);
+    }
+
+    return { render, setBackTarget, goBack, showPaymentModal, sendWhatsApp, closeLoan, del,
              _netPayable, _getTotalPaid, _interestTillLastPayment, _buildEventLedgerHTML,
              showAddMoneyModal, doAdd,
              showPayModal, updatePayInterest, doPay,

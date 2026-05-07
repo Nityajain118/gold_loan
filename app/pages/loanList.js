@@ -290,75 +290,130 @@ const LoanListPage = (() => {
         </div>`;
     }
 
-    // ── VIEW C: Loan Cards Under Type ─────────────────────────────────────────
+    // ── VIEW C: Loan Cards (All — Gold + Silver sectioned) ───────────────────
     function _renderLoans(container) {
         const group = _groups[_state.groupKey];
         if (!group) { _state.view='customers'; render(container); return; }
         const { info, loans } = group;
         const metal = _state.metal;
-        
-        const filtered = loans.filter(l => {
+        const settings = DB.getSettings();
+
+        // Classify loans
+        function _classify(l) {
             const hasG = l.items && l.items.length > 0 ? l.items.some(i => i.metalType === 'gold') : (l.metalType === 'gold');
             const hasS = l.items && l.items.length > 0 ? l.items.some(i => i.metalType === 'silver') : (l.metalType === 'silver');
-            if (metal === 'mixed') return hasG && hasS;
-            if (metal === 'silver') return hasS && !hasG;
-            return hasG && !hasS; // gold
-        });
-        
-        const settings = DB.getSettings();
-        const metalLabel = metal === 'gold' ? '🥇 Gold' : (metal === 'silver' ? '🥈 Silver' : '🔗 Mixed Metal');
+            if (hasG && hasS) return 'mixed';
+            if (hasS) return 'silver';
+            return 'gold';
+        }
+
+        // Build filtered list
+        let filtered;
+        if (metal === 'all') {
+            filtered = [...loans];
+        } else if (metal === 'mixed') {
+            filtered = loans.filter(l => _classify(l) === 'mixed');
+        } else if (metal === 'silver') {
+            filtered = loans.filter(l => _classify(l) === 'silver');
+        } else {
+            filtered = loans.filter(l => _classify(l) === 'gold');
+        }
+
+        // Loan card renderer
+        function _loanCard(loan) {
+            const rate = loan.metalType==='gold' ? settings.currentGoldRate : settings.currentSilverRate;
+            let d;
+            try { d = Calculator.calcLoanDetails(loan, rate); } catch(e) { d = {totalPayable:loan.loanAmount||0,ltv:0,riskLabel:'—',riskLevel:'safe'}; }
+            const statusIcon = loan.status==='closed'?'✅':loan.status==='migrated'?'🔄':'🟢';
+            const shortId = (loan.id||'').slice(-6).toUpperCase();
+            return `
+            <div class="loan-card kn-focusable" style="margin-bottom:12px;">
+                <div class="loan-card-header">
+                    <div>
+                        <div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:2px;">Loan #${shortId}</div>
+                        <div style="font-weight:700;font-size:1rem;">${UI.currency(loan.loanAmount||0)}</div>
+                        <div style="font-size:0.8rem;color:var(--text-secondary);">${loan.metalSubType||''} · ${loan.weightGrams||0}g · Started ${UI.formatDate(loan.loanStartDate)}</div>
+                        ${FirmManager.getBadgeHtml(loan?.firm_id)}
+                    </div>
+                    <span class="status-badge ${loan.status||'active'}">${statusIcon} ${(loan.status||'active').toUpperCase()}</span>
+                </div>
+                <div class="loan-card-body">
+                    <div class="loan-stat"><span class="label" data-i18n="payable">${I18n.t('payable')}</span><span class="value" style="color:var(--gold);font-weight:700;">${UI.currency(d.totalPayable)}</span></div>
+                    <div class="loan-stat"><span class="label" data-i18n="weight">${I18n.t('weight')}</span><span class="value">${loan.weightGrams||0}g</span></div>
+                    <div class="loan-stat ${d.ltv>80?'danger':d.ltv>60?'monitor':'safe'}"><span class="label" data-i18n="ltv">${I18n.t('ltv')}</span><span class="value">${UI.pct(d.ltv)}</span></div>
+                    <div class="loan-stat"><span class="label" data-i18n="locker">${I18n.t('locker')}</span><span class="value">${loan.lockerName||'—'}</span></div>
+                </div>
+                ${loan.status==='closed'&&loan.settlement?`
+                <div style="background:rgba(16,185,129,0.06);padding:8px 12px;border-radius:6px;margin:8px 0;font-size:0.83rem;">
+                    Settled — Paid: <strong>${UI.currency(loan.settlement.paidAmount)}</strong>
+                    ${loan.settlement.discount>0?` · Discount: <strong>${UI.currency(loan.settlement.discount)}</strong>`:''}
+                </div>`:''}
+                <div class="loan-card-footer">
+                    <button class="btn btn-gold btn-sm" onclick="UI.navigateTo('loan-detail','${loan.id}')" data-i18n="view_details">${I18n.t('view_details')}</button>
+                    <button class="btn btn-ghost btn-xs" onclick="Export.exportLoanPDF(DB.getLoan('${loan.id}'))">📄 PDF</button>
+                    <button class="btn btn-ghost btn-xs text-danger" onclick="LoanListPage.del('${loan.id}')" data-i18n="delete_loan">${I18n.t('delete_loan')}</button>
+                </div>
+            </div>`;
+        }
+
+        // For 'all' mode — split into sections
+        const goldLoans   = filtered.filter(l => _classify(l) === 'gold').sort((a,b) => new Date(b.loanStartDate)-new Date(a.loanStartDate));
+        const silverLoans = filtered.filter(l => _classify(l) === 'silver').sort((a,b) => new Date(b.loanStartDate)-new Date(a.loanStartDate));
+        const mixedLoans  = filtered.filter(l => _classify(l) === 'mixed').sort((a,b) => new Date(b.loanStartDate)-new Date(a.loanStartDate));
+
+        function _sectionHtml(sectionLoans, label, color, borderColor, bgColor, icon) {
+            if (sectionLoans.length === 0) return '';
+            const activeCount = sectionLoans.filter(l=>(l.status||'active')==='active').length;
+            const totalAmt    = sectionLoans.reduce((s,l)=>s+(l.loanAmount||0),0);
+            return `
+            <div style="margin-bottom:24px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:10px 14px;
+                            background:${bgColor};border:1.5px solid ${borderColor};border-radius:10px;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="font-size:1.4rem;">${icon}</span>
+                        <div>
+                            <div style="font-weight:700;font-size:0.95rem;color:${color};">${label} — ${info.name} <span style="font-weight:400;font-size:0.78rem;color:var(--text-muted);">Jay</span></div>
+                            <div style="font-size:0.78rem;color:var(--text-secondary);">${sectionLoans.length} Loan${sectionLoans.length!==1?'s':''} · ${activeCount} Active · Total: ${UI.currency(totalAmt)}</div>
+                        </div>
+                    </div>
+                </div>
+                ${sectionLoans.map(_loanCard).join('')}
+            </div>`;
+        }
+
+        let bodyHtml;
+        if (metal === 'all') {
+            if (filtered.length === 0) {
+                bodyHtml = '<div class="empty-state"><p class="text-muted">No loans found.</p></div>';
+            } else {
+                bodyHtml =
+                    _sectionHtml(goldLoans,   '🥇 Gold Loan',        'var(--gold)',  'rgba(212,175,55,0.4)',  'rgba(212,175,55,0.07)',  '🥇') +
+                    _sectionHtml(silverLoans, '🥈 Silver Loan',      '#94a3b8',     'rgba(148,163,184,0.4)', 'rgba(148,163,184,0.07)', '🥈') +
+                    _sectionHtml(mixedLoans,  '🔗 Mixed Metal Loan', '#6366f1',     'rgba(99,102,241,0.4)',  'rgba(99,102,241,0.07)',  '🔗');
+            }
+        } else {
+            const sortedFiltered = filtered.sort((a,b) => new Date(b.loanStartDate)-new Date(a.loanStartDate));
+            bodyHtml = sortedFiltered.length === 0
+                ? '<div class="empty-state"><p class="text-muted">No loans found.</p></div>'
+                : sortedFiltered.map(_loanCard).join('');
+        }
+
+        const titleLabel = metal === 'all' ? `All Loans` : (metal === 'gold' ? '🥇 Gold Loans' : metal === 'silver' ? '🥈 Silver Loans' : '🔗 Mixed Metal Loans');
 
         container.innerHTML = `
-        <button class="btn btn-ghost mb-2" onclick="LoanListPage.goBackTypes()">← Back to ${info.name}</button>
+        <button class="btn btn-ghost mb-2" onclick="LoanListPage.goBack()">← Back to Customers</button>
         <div style="margin-bottom:16px;">
-            <h3 style="font-size:1rem;color:var(--text-primary);font-weight:700;">${metalLabel} Loans — ${info.name}</h3>
+            <h3 style="font-size:1rem;color:var(--text-primary);font-weight:700;">${titleLabel} — ${info.name}</h3>
             <span class="text-muted" style="font-size:0.85rem;">${filtered.length} loan${filtered.length!==1?'s':''}</span>
         </div>
-        <div id="loans-container">
-        ${filtered.length === 0 ? '<div class="empty-state"><p class="text-muted">No loans found.</p></div>' :
-            filtered.sort((a,b) => new Date(b.loanStartDate) - new Date(a.loanStartDate)).map(loan => {
-                const rate = loan.metalType==='gold' ? settings.currentGoldRate : settings.currentSilverRate;
-                let d;
-                try { d = Calculator.calcLoanDetails(loan, rate); } catch(e) { d = {totalPayable:loan.loanAmount||0,ltv:0,riskLabel:'—',riskLevel:'safe'}; }
-                const statusIcon = loan.status==='closed'?'✅':loan.status==='migrated'?'🔄':'🟢';
-                const shortId = (loan.id||'').slice(-6).toUpperCase();
-                return `
-                <div class="loan-card kn-focusable" style="margin-bottom:12px;">
-                    <div class="loan-card-header">
-                        <div>
-                            <div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:2px;">Loan #${shortId}</div>
-                            <div style="font-weight:700;font-size:1rem;">${UI.currency(loan.loanAmount||0)}</div>
-                            <div style="font-size:0.8rem;color:var(--text-secondary);">${loan.metalSubType||''} · ${loan.weightGrams||0}g · Started ${UI.formatDate(loan.loanStartDate)}</div>
-                            ${FirmManager.getBadgeHtml(loan?.firm_id)}
-                        </div>
-                        <span class="status-badge ${loan.status||'active'}">${statusIcon} ${(loan.status||'active').toUpperCase()}</span>
-                    </div>
-                    <div class="loan-card-body">
-                        <div class="loan-stat"><span class="label" data-i18n="payable">${I18n.t('payable')}</span><span class="value" style="color:var(--gold);font-weight:700;">${UI.currency(d.totalPayable)}</span></div>
-                        <div class="loan-stat"><span class="label" data-i18n="weight">${I18n.t('weight')}</span><span class="value">${loan.weightGrams||0}g</span></div>
-                        <div class="loan-stat ${d.ltv>80?'danger':d.ltv>60?'monitor':'safe'}"><span class="label" data-i18n="ltv">${I18n.t('ltv')}</span><span class="value">${UI.pct(d.ltv)}</span></div>
-                        <div class="loan-stat"><span class="label" data-i18n="locker">${I18n.t('locker')}</span><span class="value">${loan.lockerName||'—'}</span></div>
-                    </div>
-                    ${loan.status==='closed'&&loan.settlement?`
-                    <div style="background:rgba(16,185,129,0.06);padding:8px 12px;border-radius:6px;margin:8px 0;font-size:0.83rem;">
-                        Settled — Paid: <strong>${UI.currency(loan.settlement.paidAmount)}</strong>
-                        ${loan.settlement.discount>0?` · Discount: <strong>${UI.currency(loan.settlement.discount)}</strong>`:''}
-                    </div>`:''}
-                    <div class="loan-card-footer">
-                        <button class="btn btn-gold btn-sm" onclick="UI.navigateTo('loan-detail','${loan.id}')" data-i18n="view_details">${I18n.t('view_details')}</button>
-                        <button class="btn btn-ghost btn-xs" onclick="Export.exportLoanPDF(DB.getLoan('${loan.id}'))">📄 PDF</button>
-                        <button class="btn btn-ghost btn-xs text-danger" onclick="LoanListPage.del('${loan.id}')" data-i18n="delete_loan">${I18n.t('delete_loan')}</button>
-                    </div>
-                </div>`;
-            }).join('')
-        }
-        </div>`;
+        <div id="loans-container">${bodyHtml}</div>`;
     }
 
     // ── Drill-down controls ────────────────────────────────────────────────────
     function drillCustomer(key) {
         _state.groupKey = key;
-        _state.view = 'types';
+        _state.metal    = 'all'; // skip types page — show all loans directly
+        _state.view     = 'loans';
         render(document.getElementById('page-container'));
     }
 
@@ -376,8 +431,10 @@ const LoanListPage = (() => {
     }
 
     function goBackTypes() {
-        _state.view  = 'types';
-        _state.metal = null;
+        // Now goes directly back to customers (types page is skipped)
+        _state.view     = 'customers';
+        _state.groupKey = null;
+        _state.metal    = null;
         render(document.getElementById('page-container'));
     }
 

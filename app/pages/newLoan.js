@@ -191,12 +191,38 @@ const NewLoanPage = (() => {
     }
 
     function defaultItem() {
-        return { metalType: 'gold', purity: '22K', customPurity: '', itemType: 'Ring', customItemType: '', weightGrams: '' };
+        return { metalType: 'gold', purity: '22K', customPurity: '', itemType: 'Ring', customItemType: '', weightGrams: '', grossWeight: '', lessWeight: '' };
     }
 
     // Block e, +, - in number inputs
     function blockInvalidKey(e) {
         if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
+    }
+
+    // ── Weight field handler (Gross / Less → auto Net) ───────────────────────
+    function updateWeight(index, field, value) {
+        const item = _state.items[index];
+        if (!item) return;
+        if (field === 'gross') item.grossWeight = value;
+        else if (field === 'less') item.lessWeight = value;
+
+        // Effective weight = gross − less (if less provided), else just gross
+        const g = parseFloat(item.grossWeight) || 0;
+        const l = parseFloat(item.lessWeight) || 0;
+        item.weightGrams = l > 0 ? Math.max(0, g - l) : g;
+
+        if (field === 'less') {
+            // Re-render to update net field styling
+            renderItems();
+        } else {
+            // Just update net display value live
+            const netEl = document.getElementById('nl-net-weight-' + index);
+            if (netEl) {
+                const l2 = parseFloat(item.lessWeight) || 0;
+                netEl.value = l2 > 0 ? Math.max(0, g - l2).toFixed(2) : (g > 0 ? g.toFixed(2) : '');
+            }
+            updateSummary();
+        }
     }
 
     function renderItems() {
@@ -206,6 +232,12 @@ const NewLoanPage = (() => {
 
         list.innerHTML = _state.items.map((item, i) => {
             const types = Calculator.getJewelryTypes(item.metalType);
+            const grossW = parseFloat(item.grossWeight) || 0;
+            const lessW  = parseFloat(item.lessWeight)  || 0;
+            const netW   = lessW > 0 ? Math.max(0, grossW - lessW) : grossW;
+            const hasLess = lessW > 0 && grossW > 0;
+            // Sync effective weight
+            if (item.weightGrams === '' || item.weightGrams === undefined) item.weightGrams = grossW;
             const weight = parseFloat(item.weightGrams) || 0;
             const rate = item.metalType === 'gold' ? rates.gold : rates.silver;
             const purityFactor = item.purity === 'custom'
@@ -237,34 +269,56 @@ const NewLoanPage = (() => {
                         </datalist>
                     </div>
                     <div class="form-group">
-                        <label class="form-label" data-i18n="purity">${I18n.t('purity')}</label>
+                        <label class="form-label">Tunch <span style="color:var(--text-muted);font-size:0.82em;font-weight:500;">(टंच)</span></label>
                         <select class="form-select" onchange="NewLoanPage.updateItem(${i},'purity',this.value)">
                             ${Calculator.buildItemPurityOptions(item.metalType, item.purity)}
                         </select>
                     </div>
                     ${isCustomPurity ? `
                     <div class="form-group">
-                        <label class="form-label">Custom Purity (%)</label>
+                        <label class="form-label">Custom Tunch (%)</label>
                         <input type="number" class="form-input" value="${item.customPurity}" step="0.1" min="1" max="100"
                             placeholder="e.g., 87.5"
                             onkeydown="NewLoanPage.blockInvalidKey(event)"
                             oninput="NewLoanPage.updateCustomPurity(${i}, this.value)"
                             onblur="NewLoanPage.saveCustomPurityNow(${i})">
-                        <span class="form-hint">Enter purity as % (1–100)</span>
+                        <span class="form-hint">Enter tunch as % (1–100)</span>
                     </div>` : ''}
-                    <div class="form-group">
-                        <label class="form-label" data-i18n="weight_g">${I18n.t('weight_g')}</label>
-                        <input type="number" class="form-input" value="${item.weightGrams}" step="0.01" min="0.01" placeholder="0.00"
-                            onkeydown="NewLoanPage.blockInvalidKey(event)"
-                            oninput="NewLoanPage.updateItem(${i},'weightGrams',this.value)">
+                    <div class="form-group" style="grid-column:1/-1;">
+                        <label class="form-label">⚖️ Weight (g)</label>
+                        <div style="display:flex;gap:6px;align-items:flex-end;">
+                            <div style="flex:1;">
+                                <div style="font-size:0.7rem;font-weight:600;color:var(--text-secondary);margin-bottom:3px;">Gross</div>
+                                <input type="number" class="form-input" style="padding:6px 8px;font-size:0.88rem;"
+                                    value="${item.grossWeight}" step="0.01" min="0.01" placeholder="0.00"
+                                    onkeydown="NewLoanPage.blockInvalidKey(event)"
+                                    oninput="NewLoanPage.updateWeight(${i},'gross',this.value)">
+                            </div>
+                            <div style="flex:1;">
+                                <div style="font-size:0.7rem;font-weight:600;color:var(--text-muted);margin-bottom:3px;">Less <em style="font-weight:400;">opt</em></div>
+                                <input type="number" class="form-input" style="padding:6px 8px;font-size:0.88rem;"
+                                    value="${item.lessWeight}" step="0.01" min="0" placeholder="0.00"
+                                    onkeydown="NewLoanPage.blockInvalidKey(event)"
+                                    oninput="NewLoanPage.updateWeight(${i},'less',this.value)">
+                            </div>
+                            <div style="flex:1;">
+                                <div style="font-size:0.7rem;font-weight:600;color:${hasLess?'var(--primary)':'var(--text-muted)'};margin-bottom:3px;">Net ${hasLess?'':'<em style="font-weight:400;">opt</em>'}</div>
+                                <input type="number" class="form-input" id="nl-net-weight-${i}"
+                                    style="padding:6px 8px;font-size:0.88rem;${hasLess?'border-color:var(--primary);color:var(--primary);font-weight:700;background:rgba(99,102,241,0.04);':''}"
+                                    value="${hasLess ? netW.toFixed(2) : (item.grossWeight || '')}"
+                                    step="0.01" min="0" placeholder="auto" readonly
+                                    title="Auto: Gross − Less">
+                            </div>
+                        </div>
+                        ${hasLess ? `<div style="font-size:0.72rem;color:var(--text-secondary);margin-top:4px;padding:3px 8px;background:rgba(99,102,241,0.05);border-radius:6px;">${grossW}g − ${lessW}g = <strong style="color:var(--primary);">${netW.toFixed(2)}g</strong> net (used for calculation)</div>` : ''}
                     </div>
                 </div>
                 <div class="form-group mt-1">
                     <label class="form-label" data-i18n="item_photo">${I18n.t('item_photo')}</label>
-                    ${ImageUpload.renderUploader('nl-item-photo-' + i, item.photo || null, { label: 'Upload Gold Item Photo', compact: true, type: 'gold' })}
+                    ${ImageUpload.renderUploader('nl-item-photo-' + i, item.photo || null, { label: 'Upload Item Photo', compact: true, type: 'gold' })}
                 </div>
                 <div id="nl-item-value-${i}">
-                    ${weight > 0 ? `<div class="jewelry-item-value">Value: ${UI.currency(val)} (@ ₹${rate.toLocaleString('en-IN')}/g · ${(purityFactor * 100).toFixed(1)}% purity)</div>` : ''}
+                    ${weight > 0 ? `<div class="jewelry-item-value">Value: ${UI.currency(val)} (@ ₹${rate.toLocaleString('en-IN')}/g · ${(purityFactor * 100).toFixed(1)}% tunch)${hasLess ? ` <span style="font-size:0.75em;color:var(--text-muted);">· Net ${netW.toFixed(2)}g of ${grossW}g gross</span>` : ''}</div>` : ''}
                 </div>
             </div>`;
         }).join('');
@@ -367,14 +421,21 @@ const NewLoanPage = (() => {
             const purityFactor = i.purity === 'custom'
                 ? (parseFloat(i.customPurity) || 0) / 100
                 : Calculator.getPurityFactor(i.purity);
-            const w = parseFloat(i.weightGrams) || 0;
+            const grossW = parseFloat(i.grossWeight) || 0;
+            const lessW  = parseFloat(i.lessWeight)  || 0;
+            const hasLess = lessW > 0 && grossW > 0;
+            const netW   = hasLess ? Math.max(0, grossW - lessW) : grossW;
+            // Always use effective weight (net)
+            const w = netW;
+            // Keep weightGrams in sync
+            i.weightGrams = w;
             const rate = i.metalType === 'gold' ? rates.gold : rates.silver;
             const val = w * purityFactor * rate;
 
             const valEl = document.getElementById(`nl-item-value-${idx}`);
             if (valEl) {
                 if (w > 0) {
-                    valEl.innerHTML = `<div class="jewelry-item-value">Value: ${UI.currency(val)} (@ ₹${rate.toLocaleString('en-IN')}/g · ${(purityFactor * 100).toFixed(1)}% purity)</div>`;
+                    valEl.innerHTML = `<div class="jewelry-item-value">Value: ${UI.currency(val)} (@ ₹${rate.toLocaleString('en-IN')}/g · ${(purityFactor * 100).toFixed(1)}% tunch)${hasLess ? ` <span style="font-size:0.75em;color:var(--text-muted);">· Net ${netW.toFixed(2)}g of ${grossW}g gross</span>` : ''}</div>`;
                 } else {
                     valEl.innerHTML = '';
                 }
@@ -1044,5 +1105,5 @@ const NewLoanPage = (() => {
         }
     }
 
-    return { render, addItem, removeItem, updateItem, updateCustomPurity, saveItemTypeNow, saveCustomPurityNow, checkMobile, onAddressInput, onCustomerInput, onCustomerKeydown, selectCustomerSuggestion, _setCustDDIndex, _hideCustomerDropdown, saveDraft, clearDraft, setPeriod, setType, setFreq, togglePanchang, saveOverride, recalc, save, blockInvalidKey, toggleBreakdown, _state, get _draft_active() { return _draft_active; } };
+    return { render, addItem, removeItem, updateItem, updateWeight, updateCustomPurity, saveItemTypeNow, saveCustomPurityNow, checkMobile, onAddressInput, onCustomerInput, onCustomerKeydown, selectCustomerSuggestion, _setCustDDIndex, _hideCustomerDropdown, saveDraft, clearDraft, setPeriod, setType, setFreq, togglePanchang, saveOverride, recalc, save, blockInvalidKey, toggleBreakdown, _state, get _draft_active() { return _draft_active; } };
 })();
