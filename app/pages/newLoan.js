@@ -287,24 +287,24 @@ const NewLoanPage = (() => {
                     <div class="form-group" style="grid-column:1/-1;">
                         <label class="form-label">⚖️ Weight (g)</label>
                         <div style="display:flex;gap:6px;align-items:flex-end;">
-                            <div style="flex:1;">
-                                <div style="font-size:0.7rem;font-weight:600;color:var(--text-secondary);margin-bottom:3px;">Gross</div>
-                                <input type="number" class="form-input" style="padding:6px 8px;font-size:0.88rem;"
+                            <div style="flex:1; min-width: 0;">
+                                <div style="font-size:0.7rem;font-weight:600;color:var(--text-secondary);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Gross</div>
+                                <input type="number" class="form-input" style="padding:6px 8px;font-size:0.88rem;width:100%;box-sizing:border-box;"
                                     value="${item.grossWeight}" step="0.01" min="0.01" placeholder="0.00"
                                     onkeydown="NewLoanPage.blockInvalidKey(event)"
                                     oninput="NewLoanPage.updateWeight(${i},'gross',this.value)">
                             </div>
-                            <div style="flex:1;">
-                                <div style="font-size:0.7rem;font-weight:600;color:var(--text-muted);margin-bottom:3px;">Less <em style="font-weight:400;">opt</em></div>
-                                <input type="number" class="form-input" style="padding:6px 8px;font-size:0.88rem;"
+                            <div style="flex:1; min-width: 0;">
+                                <div style="font-size:0.7rem;font-weight:600;color:var(--text-muted);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Less <em style="font-weight:400;">opt</em></div>
+                                <input type="number" class="form-input" style="padding:6px 8px;font-size:0.88rem;width:100%;box-sizing:border-box;"
                                     value="${item.lessWeight}" step="0.01" min="0" placeholder="0.00"
                                     onkeydown="NewLoanPage.blockInvalidKey(event)"
                                     oninput="NewLoanPage.updateWeight(${i},'less',this.value)">
                             </div>
-                            <div style="flex:1;">
-                                <div style="font-size:0.7rem;font-weight:600;color:${hasLess?'var(--primary)':'var(--text-muted)'};margin-bottom:3px;">Net ${hasLess?'':'<em style="font-weight:400;">opt</em>'}</div>
+                            <div style="flex:1; min-width: 0;">
+                                <div style="font-size:0.7rem;font-weight:600;color:${hasLess?'var(--primary)':'var(--text-muted)'};margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Net ${hasLess?'':'<em style="font-weight:400;">opt</em>'}</div>
                                 <input type="number" class="form-input" id="nl-net-weight-${i}"
-                                    style="padding:6px 8px;font-size:0.88rem;${hasLess?'border-color:var(--primary);color:var(--primary);font-weight:700;background:rgba(99,102,241,0.04);':''}"
+                                    style="padding:6px 8px;font-size:0.88rem;width:100%;box-sizing:border-box;${hasLess?'border-color:var(--primary);color:var(--primary);font-weight:700;background:rgba(99,102,241,0.04);':''}"
                                     value="${hasLess ? netW.toFixed(2) : (item.grossWeight || '')}"
                                     step="0.01" min="0" placeholder="auto" readonly
                                     title="Auto: Gross − Less">

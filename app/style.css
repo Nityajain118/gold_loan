@@ -871,6 +871,8 @@ tr.kn-focused::after { display: none; }
 .form-input,
 .form-select,
 .form-textarea {
+    width: 100%;
+    box-sizing: border-box;
     padding:  12px 14px;
     background: var(--bg-input);
     border: 1px solid var(--border-color);
