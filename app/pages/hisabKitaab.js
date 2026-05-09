@@ -63,8 +63,8 @@ const HisabKitaabPage = (() => {
     function _typeIcon(ty) { return { loan_given: '📋', add_money: '➕', interest: '📈', payment: '💰', discount: '🎯', settle: '✅', running: '🟢' }[ty] || '•'; }
 
     // ── Precision helpers ─────────────────────────
-    function _p(v) { return Number(Number(v).toFixed(3)); }
-    function _cur3(v) { if (!v && v !== 0) return '₹0.000'; const n = Number(v); return '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 }); }
+    function _p(v) { return Number(Number(v).toFixed(2)); }
+    function _cur3(v) { if (!v && v !== 0) return '₹0.00'; const n = Number(v); return '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
     // ── Duration Formatter — "244 days (8 months 4 days)" ────────────────────
     function _formatDuration(days) {
@@ -112,15 +112,19 @@ const HisabKitaabPage = (() => {
             const primary = hk.filter(e =>
                 e.type === 'loan_given' || e.type === 'add_money' ||
                 e.type === 'payment'    || e.type === 'discount'  ||
-                e.type === 'settle'
+                e.type === 'settle'     || (e.type === 'interest' && e.note && e.note.indexOf('Manual interest') >= 0)
             ).slice().sort((a, b) => new Date(a.date) - new Date(b.date));
 
             primary.forEach(e => {
                 const isDebit = (e.type === 'loan_given' || e.type === 'add_money');
+                const isCustomInt = (e.type === 'interest');
                 const amount  = safeNumber(isDebit ? (e.principal || e.amount) : (e.paid || e.amount));
 
                 let interest = 0, days = 0;
-                if (isDebit && amount > 0 && mr > 0) {
+                if (isCustomInt) {
+                    interest = safeNumber(e.interest);
+                    totalInterest += interest;
+                } else if (isDebit && amount > 0 && mr > 0) {
                     const d1 = new Date(e.date); d1.setHours(0, 0, 0, 0);
                     const d2 = new Date(today);  d2.setHours(0, 0, 0, 0);
                     days     = Math.max(0, Math.floor((d2 - d1) / 864e5));
@@ -244,12 +248,13 @@ const HisabKitaabPage = (() => {
             hk.push({ sr: sr++, date: actionDate, type: 'interest', fromDate: last.date, toDate: actionDate, days, rate: _p(mr), interest, principal: 0, paid: 0, balance: bal, note: '' });
         }
         // Action row
-        let pv = 0, pd = 0, nb = bal;
+        let pv = 0, pd = 0, nb = bal, actInt = 0;
         if (type === 'add_money') { pv = amount; nb = _p(bal + amount); }
         else if (type === 'payment') { pd = amount; nb = _p(Math.max(0, bal - amount)); }
         else if (type === 'discount') { pd = amount; nb = _p(Math.max(0, bal - amount)); }
         else if (type === 'settle') { pd = amount; nb = _p(Math.max(0, bal - amount)); }
-        hk.push({ sr, date: actionDate, type, fromDate: actionDate, toDate: actionDate, days: 0, rate: _p(mr), interest: 0, principal: pv, paid: pd, balance: nb, note: note || '' });
+        else if (type === 'interest') { actInt = amount; nb = _p(bal + amount); }
+        hk.push({ sr, date: actionDate, type, fromDate: actionDate, toDate: actionDate, days: 0, rate: _p(mr), interest: actInt, principal: pv, paid: pd, balance: nb, note: note || '' });
         return nb;
     }
 
@@ -298,6 +303,11 @@ const HisabKitaabPage = (() => {
             const cardClass = isDebit ? 'hk-card-udhar' : (isDiscount ? 'hk-card-discount' : 'hk-card-jama');
             const icon = _typeIcon(e.type);
             const label = _typeLabel(e.type);
+            // Mark custom/manual interest entries with (Cus) badge
+            const isCusInt = e.type === 'interest' && e.note && e.note.indexOf('Manual interest') >= 0;
+            const displayLabel = isCusInt
+                ? (label + ' <span style="font-size:0.65rem;background:var(--monitor);color:#000;padding:1px 5px;border-radius:4px;margin-left:4px;font-weight:700;">Cus</span>')
+                : label;
             const chk = isSelectable ? `<input type="checkbox" class="hk-card-cb hk-select-cb" data-idx="${idx}" data-lid="${loanId}" onclick="event.stopPropagation()">` : '';
             const amt = isDebit ? e.principal : e.paid;
             const tithiStr = _getTithi(e.date);
@@ -320,7 +330,7 @@ const HisabKitaabPage = (() => {
 
             const card = `<div class="hk-card ${cardClass}" id="hk-card-${idx}" onclick="HisabKitaabPage.toggleCard(this, '${loanId}')">
                 <div class="hk-card-header">
-                    <div class="hk-card-title">${label}</div>
+                    <div class="hk-card-title">${displayLabel}</div>
                     <div class="hk-card-amount">${_cur3(amt)}</div>
                 </div>
                 <div class="hk-card-body">
@@ -551,8 +561,32 @@ const HisabKitaabPage = (() => {
     function _modal(title, body, fn) {
         document.getElementById('hk-modal')?.remove(); const t = _t();
         const ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'hk-modal';
-        ov.innerHTML = `<div class="modal" style="max-width:420px;"><h3 class="modal-title">${title}</h3>${body}<div class="modal-actions"><button class="btn btn-outline" onclick="document.getElementById('hk-modal').remove()">${t.cancel}</button><button class="btn btn-gold" onclick="${fn}">${t.confirm}</button></div></div>`;
-        document.body.appendChild(ov); ov.onclick = e => { if (e.target === ov) ov.remove(); };
+        ov.innerHTML = `<div class="modal" style="max-width:420px;"><h3 class="modal-title">${title}</h3>${body}<div class="modal-actions"><button class="btn btn-outline" onclick="document.getElementById('hk-modal').remove()">${t.cancel}</button><button class="btn btn-gold" id="hk-modal-confirm-btn" onclick="${fn}">${t.confirm}</button></div></div>`;
+        document.body.appendChild(ov);
+        ov.onclick = e => { if (e.target === ov) ov.remove(); };
+        // Wire Enter key: move to next input field; confirm only on last field or confirm button
+        setTimeout(() => {
+            const modal = document.querySelector('#hk-modal .modal');
+            if (modal) {
+                modal.addEventListener('keydown', e => {
+                    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+                        e.preventDefault();
+                        const inputs = Array.from(modal.querySelectorAll('input:not([type=checkbox]), select'));
+                        const idx = inputs.indexOf(e.target);
+                        if (idx >= 0 && idx < inputs.length - 1) {
+                            // Move to next field
+                            inputs[idx + 1].focus();
+                            if (inputs[idx + 1].type === 'number' || inputs[idx + 1].type === 'text') {
+                                inputs[idx + 1].select();
+                            }
+                        } else {
+                            // Last field or not in inputs — confirm
+                            document.getElementById('hk-modal-confirm-btn')?.click();
+                        }
+                    }
+                });
+            }
+        }, 50);
     }
 
     // ── Add Money ─────────────────────────────────
@@ -594,12 +628,15 @@ const HisabKitaabPage = (() => {
         _initHK(loan);
         const hk = loan.hisabKitaab; const last = hk[hk.length - 1];
         const savedBal = last ? last.balance : 0;
+        const loanRate = parseFloat(loan.interestRate) || 0;
         const mr = _getMonthlyRate(loan);
         const today = new Date().toISOString().split('T')[0];
         const days = _calcDays(last ? last.date : today, today);
         const runInt = _calcInterest(savedBal, mr, days);
         const netPay = _p(savedBal + runInt);
         const isHi = (typeof I18n !== 'undefined') && I18n.getLang() === 'hi';
+        // Store context for live recalculation
+        HisabKitaabPage._payCtx = { lid, savedBal, days, loanPeriod: loan.interestPeriod || 'monthly' };
         _modal('💰 ' + t.receive_payment,
             `<div style="background:var(--bg-input);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:0.88rem;line-height:2.2;">
                 <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-secondary)">${isHi ? 'पिछला बाकी' : 'Saved Balance'}</span><strong>${_cur3(savedBal)}</strong></div>
@@ -607,8 +644,23 @@ const HisabKitaabPage = (() => {
                 <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border-light);padding-top:6px;margin-top:2px;"><span style="font-weight:700">${isHi ? 'कुल बाकी' : 'Net Payable'}</span><strong style="color:var(--safe);font-size:1.05rem;" id="hk-p-net-val">${_cur3(netPay)}</strong></div>
             </div>
             <div class="form-group mb-2"><label class="form-label">${t.date_label} *</label><input type="date" class="form-input" id="hk-p-dt" value="${today}" onchange="HisabKitaabPage.updatePayInterest('${lid}')"></div>
-            <div class="form-group mb-2"><label class="form-label">${t.amount_label} *</label><input type="number" class="form-input" id="hk-p-amt" min="0" step="0.001" value="${netPay}"></div>
-            <div class="form-group mb-2"><label class="form-label">${isHi ? 'छूट (Discount)' : 'Discount (₹)'}</label><input type="number" class="form-input" id="hk-p-disc" min="0" step="0.001" placeholder="Optional"></div>
+            <div class="form-group mb-2">
+                <label class="form-label" style="display:flex;justify-content:space-between;align-items:center;">
+                    <span>${isHi ? 'ब्याज दर (%)' : 'Interest Rate (%)'}</span>
+                    <span style="font-size:0.72rem;color:var(--text-muted);font-weight:400;">${isHi ? 'दर बदलने पर ब्याज बदलेगा' : 'Change rate to recalculate'}</span>
+                </label>
+                <input type="number" class="form-input" id="hk-p-rate" min="0" step="0.01" value="${loanRate}" placeholder="e.g. 2" oninput="HisabKitaabPage._recalcJamaInterest()" style="border-color:var(--primary);">
+            </div>
+            <div class="form-group mb-2">
+                <label class="form-label" style="display:flex;justify-content:space-between;align-items:center;">
+                    <span>${isHi ? 'ब्याज (₹)' : 'Interest (₹)'}</span>
+                    <span style="font-size:0.75rem;color:var(--primary);font-weight:400;cursor:pointer;" onclick="HisabKitaabPage._recalcJamaInterest()">${isHi ? 'ऑटो भरें' : 'Auto-fill'}</span>
+                </label>
+                <input type="number" class="form-input" id="hk-p-int" min="0" step="0.01" value="${runInt.toFixed(2)}" placeholder="0.00" oninput="HisabKitaabPage._updateJamaNet()" style="border-color:var(--monitor);">
+                <span style="font-size:0.72rem;color:var(--text-muted);margin-top:3px;display:block;">${isHi ? 'दर बदलें या सीधे राशि डालें' : 'Change rate above or enter amount directly'}</span>
+            </div>
+            <div class="form-group mb-2"><label class="form-label">${t.amount_label} *</label><input type="number" class="form-input" id="hk-p-amt" min="0" step="0.01" value="${netPay.toFixed(2)}" oninput="HisabKitaabPage._updateJamaNet()"></div>
+            <div class="form-group mb-2"><label class="form-label">${isHi ? 'छूट (Discount)' : 'Discount (₹)'}</label><input type="number" class="form-input" id="hk-p-disc" min="0" step="0.01" placeholder="Optional"></div>
             <div class="form-group mb-3"><label class="form-label">${t.note_label}</label><input type="text" class="form-input" id="hk-p-nt" maxlength="200"></div>
             <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:0.9rem;cursor:pointer;padding:8px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);border-radius:8px;">
                 <input type="checkbox" id="hk-p-settle" style="width:16px;height:16px;accent-color:var(--safe);">
@@ -620,23 +672,70 @@ const HisabKitaabPage = (() => {
         const loan = DB.getLoan(lid); if (!loan) return;
         _initHK(loan); const hk = loan.hisabKitaab;
         const last = hk[hk.length - 1]; const savedBal = last ? last.balance : 0;
-        const mr = _getMonthlyRate(loan);
+        const userRate = parseFloat(document.getElementById('hk-p-rate')?.value);
+        const rateToUse = (userRate > 0) ? userRate : (parseFloat(loan.interestRate) || 0);
+        const mr = (loan.interestPeriod === 'yearly') ? rateToUse / 12 : rateToUse;
         const dt = document.getElementById('hk-p-dt')?.value || new Date().toISOString().split('T')[0];
         const days = _calcDays(last ? last.date : dt, dt);
         const runInt = _calcInterest(savedBal, mr, days);
         const netPay = _p(savedBal + runInt);
         const isHi = (typeof I18n !== 'undefined') && I18n.getLang() === 'hi';
+        // Update context for recalc
+        if (HisabKitaabPage._payCtx) { HisabKitaabPage._payCtx.days = days; }
         const lblEl = document.getElementById('hk-p-int-lbl');
         const intEl = document.getElementById('hk-p-int-val');
         const netEl = document.getElementById('hk-p-net-val');
         const amtEl = document.getElementById('hk-p-amt');
+        const intInpEl = document.getElementById('hk-p-int');
         if (lblEl) lblEl.textContent = isHi ? 'ब्याज (' + days + ' दिन)' : 'Interest (' + days + ' days)';
         if (intEl) intEl.textContent = _cur3(runInt);
         if (netEl) netEl.textContent = _cur3(netPay);
-        if (amtEl) amtEl.value = netPay;
+        if (intInpEl) intInpEl.value = runInt.toFixed(2);
+        if (amtEl) amtEl.value = netPay.toFixed(2);
+    }
+    // Recalculate interest when user changes rate %
+    function _recalcJamaInterest() {
+        const ctx = HisabKitaabPage._payCtx;
+        if (!ctx) return;
+        const userRate = parseFloat(document.getElementById('hk-p-rate')?.value) || 0;
+        const mr = (ctx.loanPeriod === 'yearly') ? userRate / 12 : userRate;
+        const loan = DB.getLoan(ctx.lid); if (!loan) return;
+        _initHK(loan); const hk = loan.hisabKitaab; const last = hk[hk.length - 1];
+        const dt = document.getElementById('hk-p-dt')?.value || new Date().toISOString().split('T')[0];
+        const days = _calcDays(last ? last.date : dt, dt);
+        const savedBal = last ? last.balance : 0;
+        const runInt = _calcInterest(savedBal, mr, days);
+        const netPay = _p(savedBal + runInt);
+        const intInpEl = document.getElementById('hk-p-int');
+        const amtEl = document.getElementById('hk-p-amt');
+        const intEl = document.getElementById('hk-p-int-val');
+        const netEl = document.getElementById('hk-p-net-val');
+        if (intInpEl) intInpEl.value = runInt.toFixed(2);
+        if (amtEl) amtEl.value = netPay.toFixed(2);
+        if (intEl) intEl.textContent = _cur3(runInt);
+        if (netEl) netEl.textContent = _cur3(netPay);
+    }
+    // Update Net Payable display when user manually edits Interest or Amount
+    function _updateJamaNet() {
+        const intVal = parseFloat(document.getElementById('hk-p-int')?.value) || 0;
+        const ctx = HisabKitaabPage._payCtx;
+        const amtEl  = document.getElementById('hk-p-amt');
+        const netEl  = document.getElementById('hk-p-net-val');
+        const intEl  = document.getElementById('hk-p-int-val');
+        // Auto-update Amount = Saved Balance + Interest
+        if (ctx && amtEl) {
+            const newAmt = _p(ctx.savedBal + intVal);
+            amtEl.value = newAmt.toFixed(2);
+            if (netEl) netEl.textContent = _cur3(newAmt);
+        } else {
+            const amtVal = parseFloat(amtEl?.value) || 0;
+            if (netEl) netEl.textContent = _cur3(amtVal);
+        }
+        if (intEl) intEl.textContent = _cur3(intVal);
     }
     function doPay(lid) {
         const amt      = parseFloat(document.getElementById('hk-p-amt')?.value);
+        const intAmt   = parseFloat(document.getElementById('hk-p-int')?.value) || 0; // manual interest
         const discAmt  = parseFloat(document.getElementById('hk-p-disc')?.value) || 0;
         const dt       = document.getElementById('hk-p-dt')?.value;
         const nt       = document.getElementById('hk-p-nt')?.value?.trim() || '';
@@ -645,14 +744,25 @@ const HisabKitaabPage = (() => {
         if (!dt) { UI.toast('Select date', 'error'); return; }
         const loan = DB.getLoan(lid); if (!loan) return; _initHK(loan);
 
+        // 1) Freeze manual interest as an interest entry if user entered it
+        if (intAmt > 0) {
+            _addEntry(loan, dt, 'interest', intAmt, (nt ? 'Manual interest | ' + nt : 'Manual interest'));
+        }
+
         // Apply discount first if provided
         if (discAmt > 0) {
             _addEntry(loan, dt, 'discount', discAmt, (nt ? 'Discount with payment | ' + nt : 'Discount with payment'));
             loan.totalDiscount = (loan.totalDiscount || 0) + discAmt;
         }
 
+        // Prepare note for payment/settle row to show the custom interest
+        let payNote = nt;
+        if (intAmt > 0) {
+            payNote = payNote ? `${payNote} | (Cus Int: ₹${intAmt})` : `(Cus Int: ₹${intAmt})`;
+        }
+
         if (isSettle) {
-            _addEntry(loan, dt, 'settle', amt, nt);
+            _addEntry(loan, dt, 'settle', amt, payNote);
             loan.status = 'closed';
             loan.settlement = { date: new Date().toISOString(), totalAmount: loan.hisabKitaab[loan.hisabKitaab.length - 2]?.balance || 0, paidAmount: amt, discount: (loan.totalDiscount || 0), status: 'CLOSED' };
             
@@ -662,7 +772,7 @@ const HisabKitaabPage = (() => {
             document.getElementById('hk-modal')?.remove();
             UI.toast('✅ Loan settled!', 'success');
         } else {
-            _addEntry(loan, dt, 'payment', amt, nt);
+            _addEntry(loan, dt, 'payment', amt, payNote);
             
             _generateInterestGSTInvoice(loan, amt, dt);
             
@@ -891,7 +1001,7 @@ const HisabKitaabPage = (() => {
         }
     }
 
-    return { render, showAddMoneyModal, doAdd, showPayModal, updatePayInterest, doPay,
+    return { render, showAddMoneyModal, doAdd, showPayModal, updatePayInterest, doPay, _updateJamaNet, _recalcJamaInterest,
              showDiscModal, doDisc, showSettleModal, doSettle, showTimeline, onSelect,
              toggleCard, toggleTithiMode,
              // Settlement & Secure Delete (new):
