@@ -38,7 +38,7 @@ const HisabKitaabPage = (() => {
             sr: 'Sr', date: 'Date', type: 'Type', from: 'From', to: 'To',
             days: 'Days', rate: 'Rate%', interest: 'Interest', principal: 'Principal',
             paid: 'Paid', balance: 'Balance',
-            loan_given: 'Loan Given', add_money_type: 'Add Money',
+            ledger_title: '📒 Loan Khata', add_money_type: 'Add Money',
             interest_type: 'Interest', payment_type: 'Payment',
             discount_type: 'Discount', settle_type: 'Loan Settled',
             running_type: '🟢 Running Interest (Till Today)',
@@ -443,7 +443,7 @@ const HisabKitaabPage = (() => {
             </div>
             
             <div class="hk-live-summary hk-khata-summary">
-                <div class="hk-khata-summary-title">${I18n.t('active_khata_summary')} <a href="#" style="float:right; font-size:0.8rem; color:var(--primary); text-decoration:none;" onclick="HisabKitaabPage.showTimeline('${loan.id}')">View Full Ledger</a></div>
+                <div class="hk-khata-summary-title">${I18n.t('active_khata_summary')} <a href="#" style="float:right; font-size:0.8rem; color:var(--primary); text-decoration:none;" onclick="HisabKitaabPage.showTimeline('${loan.id}')">View Full Khata</a></div>
                 <div class="hk-live-row"><span class="hk-live-label" data-i18n="net_principal">${I18n.t('net_principal')}</span><span class="hk-live-val">${_cur3(netGlobalPrin)}</span></div>
                 <div class="hk-live-row"><span class="hk-live-label" data-i18n="interest_till_today">${I18n.t('interest_till_today')}</span><span class="hk-live-val" style="color:var(--monitor)">${netGlobalInt >= 0 ? '+' : ''} ${_cur3(netGlobalInt)}</span></div>
                 <div class="hk-live-row hk-live-net"><span class="hk-live-label" data-i18n="final_payable">${I18n.t('final_payable')}</span><span class="hk-live-val">${_cur3(finalGlobalPayable)}</span></div>

@@ -6,7 +6,8 @@ const CustomersPage = (() => {
     const _state = {
         expanded: {},   // { village: true/false }
         sortOrder: {},  // { village: 'asc'/'desc' }
-        searches: {}    // { village: 'query' }
+        searches: {},   // { village: 'query' }
+        globalSearchQuery: '' // stores global search to persist across renders
     };
 
     // ── Main Render ──────────────────────────────────────────────────────────
@@ -61,25 +62,37 @@ const CustomersPage = (() => {
 
         const villageKeys = Object.keys(grouped).sort();
 
-        // ── Global header + global search ────────────────────────────────────
-        let html = `
-        <div class="flex justify-between align-center mb-3">
-            <div class="page-title" data-i18n="customers">${I18n.t('customers')}
-                <span class="text-muted font-normal" style="font-size:0.9rem;margin-left:6px;">(${customers.length})</span>
+        // Check if skeleton is already rendered
+        const isUpdate = !!container.querySelector('#village-sections');
+
+        if (!isUpdate) {
+            container.innerHTML = `
+            <div class="flex justify-between align-center mb-3">
+                <div class="page-title" data-i18n="customers">${I18n.t('customers')}
+                    <span class="text-muted font-normal" style="font-size:0.9rem;margin-left:6px;" id="cust-count-badge">(${customers.length})</span>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="CustomersPage.showAdd()" data-i18n="add_customer">${I18n.t('add_customer')}</button>
             </div>
-            <button class="btn btn-primary btn-sm" onclick="CustomersPage.showAdd()" data-i18n="add_customer">${I18n.t('add_customer')}</button>
-        </div>
-        <div class="filter-bar mb-3" style="position: sticky; top: 0; z-index: 100; background: var(--bg); padding-bottom: 10px; padding-top: 5px;">
-            <div style="position: relative;">
-                <input type="text" class="search-input full-width" id="cust-global-search"
-                    placeholder="Search by Name, Mobile, Address, Loan #..."
-                    oninput="CustomersPage.globalSearch(this.value)"
-                    onkeydown="CustomersPage.handleSearchKey(event)"
-                    autocomplete="off">
-                <div id="global-search-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--bg-card); border:1.5px solid var(--primary); border-radius:10px; z-index:1100; max-height:280px; overflow-y:auto; box-shadow:0 12px 32px rgba(0,0,0,0.35);"></div>
+            <div class="filter-bar mb-3" style="position: sticky; top: 0; z-index: 100; background: var(--bg); padding-bottom: 10px; padding-top: 5px;">
+                <div style="position: relative;">
+                    <input type="text" class="search-input full-width" id="cust-global-search"
+                        placeholder="Search by Name, Mobile, Address, Loan #..."
+                        value="${_state.globalSearchQuery || ''}"
+                        oninput="CustomersPage.globalSearch(this.value)"
+                        onkeydown="CustomersPage.handleSearchKey(event)"
+                        onblur="setTimeout(() => { const dd = document.getElementById('global-search-dropdown'); if(dd) dd.style.display = 'none'; }, 200)"
+                        autocomplete="off">
+                    <div id="global-search-dropdown" class="search-dropdown-overlay" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--bg-card); border:1.5px solid var(--border-color); border-radius:10px; z-index:1100; max-height:280px; overflow-y:auto; box-shadow:0 12px 32px rgba(0,0,0,0.35); opacity:0; transform:translateY(-10px); transition:opacity 0.2s, transform 0.2s;"></div>
+                </div>
             </div>
-        </div>
-        <div id="village-sections">`;
+            <div id="village-sections"></div>`;
+        } else {
+            // Update the count badge
+            const badge = container.querySelector('#cust-count-badge');
+            if (badge) badge.textContent = `(${customers.length})`;
+        }
+
+        let sectionsHtml = '';
 
         villageKeys.forEach(village => {
             const rawList  = grouped[village];
@@ -88,11 +101,28 @@ const CustomersPage = (() => {
             const isExpanded = !!_state.expanded[village];
 
             const sorted   = sortCustomers(rawList, sortOrd);
-            const filtered = query
+            let filtered = query
                 ? sorted.filter(c =>
                     c.name.toLowerCase().includes(query) ||
                     (c.mobile || '').includes(query))
                 : sorted;
+
+            // Apply Global Search filter at data level so slicing works correctly
+            if (_state.globalSearchQuery) {
+                const gq = _state.globalSearchQuery.toLowerCase().trim();
+                filtered = filtered.filter(c => {
+                    const cLoans = loans.filter(l => l.customerId === c.id || (c.mobile && l.mobile === c.mobile));
+                    const loanMatched = cLoans.some(l => l.id.toLowerCase().includes(gq) || (l.lockerName || '').toLowerCase().includes(gq));
+                    return (c.name || '').toLowerCase().includes(gq) ||
+                           (c.mobile || '').includes(gq) ||
+                           (c.address || '').toLowerCase().includes(gq) ||
+                           (c.caste || '').toLowerCase().includes(gq) ||
+                           (c.gstin || '').toLowerCase().includes(gq) ||
+                           loanMatched;
+                });
+            }
+
+            if (filtered.length === 0) return; // Skip rendering this village entirely if no matches
 
             const displayed = (isExpanded || filtered.length <= 5)
                 ? filtered
@@ -107,7 +137,7 @@ const CustomersPage = (() => {
             );
             const totalLent = villageLoans.reduce((s, l) => s + l.loanAmount, 0);
 
-            html += `
+            sectionsHtml += `
             <div class="village-section mb-4" id="vs-${_slugify(village)}">
                 <!-- Village Header -->
                 <div class="village-header">
@@ -157,8 +187,15 @@ const CustomersPage = (() => {
             </div>`;
         });
 
-        html += `</div>`; // #village-sections
-        container.innerHTML = html;
+        const sectionsContainer = container.querySelector('#village-sections');
+        if (sectionsContainer) {
+            sectionsContainer.innerHTML = sectionsHtml || `<div style="text-align:center; padding: 40px; color: var(--text-muted);">No customers found matching "${_state.globalSearchQuery}"</div>`;
+        }
+
+        // Apply highlighting to the newly rendered cards if a global search is active
+        if (_state.globalSearchQuery) {
+            document.querySelectorAll('.vc-card').forEach(card => card.classList.add('search-highlight'));
+        }
     }
 
     // ── Single Customer Card ───────────────────────────────────────────────
@@ -199,7 +236,7 @@ const CustomersPage = (() => {
             </div>
             <div class="vc-actions">
                 <button class="btn btn-outline btn-sm" style="flex:1;"
-                    onclick="UI.navigateTo('customer-ledger', '${c.id}')">📘 Ledger</button>
+                    onclick="UI.navigateTo('customer-ledger', '${c.id}')">📒 Khata</button>
                 <button class="btn btn-sm" style="flex:1;background:rgba(212,175,55,0.12);border:1px solid rgba(212,175,55,0.4);color:var(--gold-dark);"
                     onclick="CustomersPage.openHisab('${c.id}')">🤝 Hisab</button>
                 <button class="btn btn-ghost btn-sm text-danger"
@@ -281,6 +318,12 @@ const CustomersPage = (() => {
     let _searchSelectedIndex = -1;
 
     function globalSearch(query) {
+        _state.globalSearchQuery = query; 
+        
+        // Re-render sections immediately to apply the filter to the lists
+        // Since we separated the header, this won't lose input focus!
+        render(document.getElementById('page-container'));
+
         clearTimeout(_searchDebounceTimer);
         const dd = document.getElementById('global-search-dropdown');
         if (!dd) return;
@@ -288,10 +331,9 @@ const CustomersPage = (() => {
         const q = query.toLowerCase().trim();
         if (!q) {
             dd.style.display = 'none';
+            dd.classList.remove('show');
             _searchSuggestions = [];
             _searchSelectedIndex = -1;
-            document.querySelectorAll('.vc-card').forEach(c => c.style.display = '');
-            document.querySelectorAll('.village-section').forEach(s => s.style.display = '');
             return;
         }
 
@@ -315,8 +357,29 @@ const CustomersPage = (() => {
             if (_searchSuggestions.length === 0) {
                 dd.innerHTML = `<div style="padding:16px;text-align:center;color:var(--text-muted);">No matching customers found.</div>`;
                 dd.style.display = 'block';
+                
+                // Hide all cards since no match
+                document.querySelectorAll('.vc-card').forEach(c => c.style.display = 'none');
+                document.querySelectorAll('.village-section').forEach(s => s.style.display = 'none');
                 return;
             }
+
+            // Priority sorting: Exact Name > Exact Village > Partial Name > Partial Addr > Mobile
+            _searchSuggestions.sort((a, b) => {
+                const aN = (a.name || '').toLowerCase(), bN = (b.name || '').toLowerCase();
+                const aA = (a.address || '').toLowerCase(), bA = (b.address || '').toLowerCase();
+                const aM = a.mobile || '', bM = b.mobile || '';
+                
+                const getScore = (name, addr, mob) => {
+                    if (name === q) return 100;
+                    if (addr === q) return 90;
+                    if (name.includes(q)) return 80;
+                    if (addr.includes(q)) return 70;
+                    if (mob.includes(q)) return 60;
+                    return 50;
+                };
+                return getScore(bN, bA, bM) - getScore(aN, aA, aM);
+            });
 
             const topResults = _searchSuggestions.slice(0, 7);
             
@@ -342,17 +405,9 @@ const CustomersPage = (() => {
             
             _searchSelectedIndex = -1;
             dd.style.display = 'block';
-
-            // Background filtering
-            document.querySelectorAll('.vc-card').forEach(card => {
-                const id = card.dataset.id;
-                const match = topResults.some(c => c.id === id);
-                card.style.display = match ? '' : 'none';
-            });
-            document.querySelectorAll('.village-section').forEach(sec => {
-                const visible = [...sec.querySelectorAll('.vc-card')].some(c => c.style.display !== 'none');
-                sec.style.display = visible ? '' : 'none';
-            });
+            setTimeout(() => dd.classList.add('show'), 10);
+            
+            // Note: Background filtering is now handled natively by render() above!
 
         }, 150);
     }

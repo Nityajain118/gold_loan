@@ -18,7 +18,7 @@ const Export = (() => {
             startDate: 'Start Date', maturityDate: 'Maturity Date', duration: 'Duration', months: 'Months',
             paymentSummary: 'Payment Summary', totalInterest: 'Total Interest (so far)', paidInterest: 'Paid Interest',
             remainingInterest: 'Remaining Interest', totalPayable: 'Total Payable Amount',
-            loanLedger: 'Loan Ledger Details', dateCol: 'Date', particularsCol: 'Particulars',
+            loanLedger: 'Loan Khata Details', dateCol: 'Date', particularsCol: 'Particulars',
             debitCol: 'Debit (₹)', interestCol: 'Interest (₹)', creditCol: 'Credit (₹)', netPayableCol: 'Net Payable (₹)',
             totalRow: 'Total', settleDetails: 'Settlement Details', totalAmount: 'Total Amount',
             paidAmount: 'Paid Amount', discountGiven: 'Discount Given', finalStatus: 'Final Status',

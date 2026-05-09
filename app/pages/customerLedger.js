@@ -87,7 +87,7 @@ const CustomerLedgerPage = (() => {
 
             <!-- Payment Ledger -->
             <div class="card mb-2">
-                <h3 class="card-title mb-2">📜 Combined Payment Ledger</h3>
+                <h3 class="card-title mb-2">📜 Combined Payment Khata</h3>
                 ${allPayments.length === 0 ? '<p class="text-muted">No payments recorded yet.</p>' : `
                 <div class="table-container"><table class="data-table"><thead><tr>
                     <th>Payment Date</th><th>Loan Focus</th><th>Paid Amount</th><th>Interest Deducted</th><th>Principal Reduced</th>

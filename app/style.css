@@ -4805,3 +4805,12 @@ input:checked + .hk-slider:before {
     box-shadow: 0 3px 10px rgba(239,68,68,0.3);
 }
 
+
+.search-dropdown-overlay.show { opacity: 1 !important; transform: translateY(0) !important; }
+
+.vc-card.search-highlight {
+    border-color: var(--primary) !important;
+    background: rgba(218, 165, 32, 0.05) !important;
+    box-shadow: 0 0 10px rgba(218, 165, 32, 0.2) !important;
+    transform: scale(1.01);
+}

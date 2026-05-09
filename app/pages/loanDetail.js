@@ -287,7 +287,7 @@ const LoanDetailPage = (() => {
                 </div>
             </div>` : ''}
 
-            <!-- F. Loan Ledger -->
+            <!-- F. Loan Khata -->
             <div class="ld-card" id="ledger-card-${loan.id}">
                 ${_buildLedgerCardInner(loan, loan.id)}
             </div>
@@ -476,7 +476,7 @@ const LoanDetailPage = (() => {
             };
         }
         return {
-            ledger_title: '📒 Loan Ledger',
+            ledger_title: '📒 Loan Khata',
             day_wise:     '📅 Day-wise',
             monthly:      '📆 Monthly',
             date:         'Date',

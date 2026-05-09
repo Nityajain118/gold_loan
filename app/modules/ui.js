@@ -66,7 +66,7 @@ const UI = (() => {
             'loan-detail': 'Loan Details',
             'customers': 'Customers',
             'customer-profile': 'Customer Profile',
-            'customer-ledger': 'Customer Ledger',
+            'customer-ledger': 'Customer Khata',
             'inventory': 'Inventory',
             'market': 'Market Rates',
             'settings': 'Settings',
