@@ -655,11 +655,17 @@ const HisabKitaabPage = (() => {
             _addEntry(loan, dt, 'settle', amt, nt);
             loan.status = 'closed';
             loan.settlement = { date: new Date().toISOString(), totalAmount: loan.hisabKitaab[loan.hisabKitaab.length - 2]?.balance || 0, paidAmount: amt, discount: (loan.totalDiscount || 0), status: 'CLOSED' };
+            
+            _generateInterestGSTInvoice(loan, amt, dt);
+            
             DB.saveLoan(loan);
             document.getElementById('hk-modal')?.remove();
             UI.toast('✅ Loan settled!', 'success');
         } else {
             _addEntry(loan, dt, 'payment', amt, nt);
+            
+            _generateInterestGSTInvoice(loan, amt, dt);
+            
             DB.saveLoan(loan);
             document.getElementById('hk-modal')?.remove();
             UI.toast('✅ Payment recorded!', 'success');
@@ -700,6 +706,9 @@ const HisabKitaabPage = (() => {
         const loan = DB.getLoan(lid); if (!loan) return; _initHK(loan);
         _addEntry(loan, dt, 'settle', amt, nt); loan.status = 'closed';
         loan.settlement = { date: new Date().toISOString(), totalAmount: loan.hisabKitaab[loan.hisabKitaab.length - 2]?.balance || 0, paidAmount: amt, discount: 0, status: 'CLOSED' };
+        
+        _generateInterestGSTInvoice(loan, amt, dt);
+        
         DB.saveLoan(loan); document.getElementById('hk-modal')?.remove(); UI.toast('✅ Loan settled!', 'success'); render(document.getElementById('page-container'), lid);
     }
 
@@ -754,6 +763,8 @@ const HisabKitaabPage = (() => {
                 loan.status = 'closed';
                 loan.settlement = { date: new Date().toISOString(), totalAmount: totalToSettle, paidAmount: totalToSettle, discount: 0, status: 'CLOSED' };
             }
+
+            _generateInterestGSTInvoice(loan, totalToSettle, today);
 
             DB.saveLoan(loan);
             UI.toast(isHi ? '✅ सेटलमेंट पूर्ण!' : '✅ Settlement completed!', 'success');
@@ -842,6 +853,42 @@ const HisabKitaabPage = (() => {
             UI.toast('✅ Entry deleted successfully', 'success');
             render(document.getElementById('page-container'), loanId);
         } catch(err) { UI.toast('Error: ' + err.message, 'error'); }
+    }
+
+    // ── GST Helper ────────────────────────────────────────────────────────────
+    function _generateInterestGSTInvoice(loan, amountPaid, dateStr) {
+        if (typeof GST === 'undefined' || !GST.isEnabled() || !GST.getSettings().taxableCharges.interest) return;
+        
+        // Calculate how much of the paid amount goes to interest
+        const summary = calculateSummary(loan, dateStr);
+        let interestCollected = 0;
+        
+        const totalDebit = summary.totalDebit;
+        const totalInterest = summary.totalInterest;
+        const totalCreditBeforeThis = summary.totalCredit - amountPaid;
+        
+        const unpaidInterest = Math.max(0, totalInterest - Math.max(0, totalCreditBeforeThis - totalDebit));
+        interestCollected = Math.min(unpaidInterest, amountPaid);
+        
+        if (interestCollected > 0) {
+            const customer = DB.getCustomer(loan.customerId);
+            const customerState = customer?.stateCode || '';
+            const customerGstin = customer?.gstin || '';
+            
+            const gstCalc = GST.calculateForCharge('interest', interestCollected, customerState);
+            if (gstCalc.totalGst > 0) {
+                GST.generateInvoice({
+                    loanId: loan.id,
+                    customerId: loan.customerId,
+                    customerName: loan.customerName,
+                    customerGstin: customerGstin,
+                    customerState: customerState,
+                    chargeType: 'interest',
+                    description: `Interest Collection for Loan ${loan.id.substring(0,6)}`,
+                    gstCalc: gstCalc
+                });
+            }
+        }
     }
 
     return { render, showAddMoneyModal, doAdd, showPayModal, updatePayInterest, doPay,

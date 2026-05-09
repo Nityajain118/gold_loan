@@ -2,6 +2,9 @@
    UI Module — DOM Helpers & Utilities
    ============================================ */
 const UI = (() => {
+    let _history = [];
+    let _forwardStack = [];
+    let _currentPage = { page: 'dashboard', data: null };
 
     /**
      * Show a toast notification
@@ -28,8 +31,21 @@ const UI = (() => {
 
     /**
      * Navigate to a page
+     * @param {string} page - Route name
+     * @param {any} data - Context data
+     * @param {boolean} isHistoryNav - Internal flag to prevent pushing to history stack
      */
-    function navigateTo(page, data = null) {
+    function navigateTo(page, data = null, isHistoryNav = false) {
+        if (!isHistoryNav) {
+            // Push current state to history before changing
+            if (_currentPage.page) {
+                _history.push({ page: _currentPage.page, data: _currentPage.data });
+                // If we navigate manually, clear the forward stack
+                _forwardStack = [];
+            }
+        }
+        
+        _currentPage = { page, data };
         const container = document.getElementById('page-container');
         const title = document.getElementById('page-title');
 
@@ -54,6 +70,8 @@ const UI = (() => {
             'inventory': 'Inventory',
             'market': 'Market Rates',
             'settings': 'Settings',
+            'gst-settings': '⚙️ GST Settings',
+            'gst-reports': '📊 GST Reports',
             'common-customers': '🔗 Common Customers',
             'hisab-kitaab': 'Hisab Kitaab',
             'firms': '🏢 Firms & Branches'
@@ -74,6 +92,8 @@ const UI = (() => {
             'inventory': () => InventoryPage.render(container),
             'market': () => MarketPage.render(container),
             'settings': () => SettingsPage.render(container),
+            'gst-settings': () => GSTSettingsPage.render(container),
+            'gst-reports': () => GSTReportsPage.render(container),
             'common-customers': () => CommonCustomersPage.render(container),
             'hisab-kitaab': () => HisabKitaabPage.render(container, data),
             'firms': () => FirmsPage.render(container)
@@ -88,6 +108,33 @@ const UI = (() => {
 
         // Update session
         DB.setSession();
+    }
+
+    /**
+     * Go Back in history
+     */
+    function goBack() {
+        if (_history.length > 0) {
+            _forwardStack.push({ page: _currentPage.page, data: _currentPage.data });
+            const prev = _history.pop();
+            navigateTo(prev.page, prev.data, true);
+        } else {
+            // Fallback to dashboard
+            if (_currentPage.page !== 'dashboard') {
+                navigateTo('dashboard');
+            }
+        }
+    }
+
+    /**
+     * Go Forward in history
+     */
+    function goForward() {
+        if (_forwardStack.length > 0) {
+            _history.push({ page: _currentPage.page, data: _currentPage.data });
+            const next = _forwardStack.pop();
+            navigateTo(next.page, next.data, true);
+        }
     }
 
     /**
@@ -162,6 +209,36 @@ const UI = (() => {
                 }
             };
         });
+    }
+
+    /**
+     * Show a generic modal
+     */
+    function showModal(title, bodyHtml) {
+        hideModal(); // Ensure no duplicates
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.id = 'generic-modal';
+        overlay.innerHTML = `
+            <div class="modal" style="max-width:700px; width:95%;">
+                <h3 class="modal-title">${title}</h3>
+                <div class="modal-body" style="max-height:80vh; overflow-y:auto; margin-top:10px;">${bodyHtml}</div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        
+        // Click outside to close
+        overlay.onclick = (e) => {
+            if (e.target === overlay) hideModal();
+        };
+    }
+
+    /**
+     * Hide generic modal
+     */
+    function hideModal() {
+        const el = document.getElementById('generic-modal');
+        if (el) el.remove();
     }
 
     /**
@@ -357,8 +434,8 @@ const UI = (() => {
     }
 
     return {
-        toast, navigateTo, currency, formatDate, pct, html, confirm, formGroup,
+        toast, navigateTo, goBack, goForward, currency, formatDate, pct, html, confirm, formGroup,
         formatTithi, formatDuration, enlargeImage, showImageOptions, promptImageUpload,
-        renderFirmSelector, switchFirm
+        renderFirmSelector, switchFirm, showModal, hideModal
     };
 })();

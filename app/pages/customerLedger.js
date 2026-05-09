@@ -45,6 +45,7 @@ const CustomerLedgerPage = (() => {
                     <div>
                         <h2 class="card-title" style="font-size:1.6rem;">${customer.name}</h2>
                         <span class="text-muted">📱 ${customer.mobile || 'No Mobile'} | 🏠 ${customer.address || 'No Address'}</span>
+                        ${customer.gstin ? `<div class="mt-1" style="font-size:0.8rem;color:var(--primary);font-weight:600;">🏛️ GSTIN: ${customer.gstin} | State: ${typeof GST !== 'undefined' && GST.STATE_CODES[customer.stateCode] ? GST.STATE_CODES[customer.stateCode] : customer.stateCode || 'Unknown'}</div>` : ''}
                     </div>
                     <div class="flex gap-1 align-center">
                         <span class="status-badge active">${activeLoansCount} Active Loan${activeLoansCount !== 1 ? 's' : ''}</span>

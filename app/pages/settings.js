@@ -25,6 +25,23 @@ const SettingsPage = (() => {
                 <button class="btn btn-primary mt-2" onclick="SettingsPage.saveGeneral()" data-i18n="save_settings">${I18n.t('save_settings')}</button>
             </div>
 
+            <!-- GST Management Card -->
+            <div class="card mb-2" style="border-left: 4px solid var(--primary);">
+                <h3 class="card-title mb-2">🏛️ GST Management</h3>
+                <p class="text-muted" style="font-size:0.85rem;margin-bottom:12px;">Configure GSTIN, billing state, and taxable charges for invoicing.</p>
+                <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-input);padding:10px 14px;border-radius:8px;margin-bottom:12px;">
+                    <div>
+                        <div style="font-weight:600;font-size:0.85rem;">GST Status</div>
+                        <div style="font-size:0.75rem;color:var(--text-muted);">${(typeof GST !== 'undefined' && GST.isEnabled()) ? '<span class="text-safe">✅ Enabled</span>' : '<span class="text-danger">❌ Disabled</span>'}</div>
+                    </div>
+                    <div>
+                        <div style="font-weight:600;font-size:0.85rem;">GSTIN</div>
+                        <div style="font-size:0.75rem;color:var(--text-muted);">${(typeof GST !== 'undefined' && GST.getSettings().gstin) ? GST.getSettings().gstin : 'Not Set'}</div>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="UI.navigateTo('gst-settings')">Manage GST Settings →</button>
+            </div>
+
             <div class="card mb-2">
                 <h3 class="card-title mb-2" data-i18n="shop_branding">${I18n.t('shop_branding')}</h3>
                 <div class="form-grid">

@@ -79,6 +79,25 @@ const KeyNav = (() => {
         const isTyping = (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT');
 
         // ── Global shortcuts (always active) ──────────────────────────────────
+        // Alt Shortcuts
+        if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+            switch (e.key) {
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    if (typeof UI.goBack === 'function') UI.goBack();
+                    return;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    if (typeof UI.goForward === 'function') UI.goForward();
+                    return;
+                case 'h':
+                case 'H':
+                    e.preventDefault();
+                    UI.navigateTo('dashboard');
+                    return;
+            }
+        }
+
         if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
             switch (e.key.toLowerCase()) {
                 case 'k':
@@ -93,6 +112,19 @@ const KeyNav = (() => {
                     e.preventDefault();
                     UI.navigateTo('new-loan');
                     return;
+                case 'c':
+                    // Only intercept if user isn't copying text
+                    if (!window.getSelection().toString()) {
+                        e.preventDefault();
+                        if (typeof CustomersPage !== 'undefined' && CustomersPage.showAddCustomerModal) {
+                            UI.navigateTo('customers');
+                            setTimeout(() => CustomersPage.showAddCustomerModal(), 200);
+                        } else {
+                            UI.navigateTo('customers');
+                        }
+                        return;
+                    }
+                    break;
             }
         }
         if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'c') {
@@ -233,6 +265,9 @@ const KeyNav = (() => {
         // If search is focused, blur it
         if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
             document.activeElement.blur();
+            // Also hide customer search dropdown if exists
+            const dd = document.getElementById('global-search-dropdown');
+            if (dd) dd.style.display = 'none';
             return;
         }
 
@@ -243,7 +278,13 @@ const KeyNav = (() => {
             return;
         }
 
-        // Try to click a back button
+        // Use UI history stack if available
+        if (typeof UI.goBack === 'function') {
+            UI.goBack();
+            return;
+        }
+
+        // Try to click a back button fallback
         const backBtn = document.querySelector('[onclick*="goBack"]') ||
                         document.querySelector('.btn-ghost[onclick*="Back"]') ||
                         document.querySelector('[onclick*="navigateTo(\'loans\')"]') ||

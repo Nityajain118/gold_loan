@@ -69,10 +69,15 @@ const CustomersPage = (() => {
             </div>
             <button class="btn btn-primary btn-sm" onclick="CustomersPage.showAdd()" data-i18n="add_customer">${I18n.t('add_customer')}</button>
         </div>
-        <div class="filter-bar mb-3">
-            <input type="text" class="search-input full-width" id="cust-global-search"
-                placeholder="${I18n.t('search_customers')}"
-                oninput="CustomersPage.globalSearch(this.value)">
+        <div class="filter-bar mb-3" style="position: sticky; top: 0; z-index: 100; background: var(--bg); padding-bottom: 10px; padding-top: 5px;">
+            <div style="position: relative;">
+                <input type="text" class="search-input full-width" id="cust-global-search"
+                    placeholder="Search by Name, Mobile, Address, Loan #..."
+                    oninput="CustomersPage.globalSearch(this.value)"
+                    onkeydown="CustomersPage.handleSearchKey(event)"
+                    autocomplete="off">
+                <div id="global-search-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--bg-card); border:1.5px solid var(--primary); border-radius:10px; z-index:1100; max-height:280px; overflow-y:auto; box-shadow:0 12px 32px rgba(0,0,0,0.35);"></div>
+            </div>
         </div>
         <div id="village-sections">`;
 
@@ -271,25 +276,126 @@ const CustomersPage = (() => {
         }
     }
 
+    let _searchDebounceTimer = null;
+    let _searchSuggestions = [];
+    let _searchSelectedIndex = -1;
+
     function globalSearch(query) {
+        clearTimeout(_searchDebounceTimer);
+        const dd = document.getElementById('global-search-dropdown');
+        if (!dd) return;
+
         const q = query.toLowerCase().trim();
-        document.querySelectorAll('.vc-card').forEach(card => {
-            const id   = card.dataset.id;
-            const cust = DB.getCustomer(id);
-            if (!cust) return;
-            const match = !q ||
-                (cust.name    || '').toLowerCase().includes(q) ||
-                (cust.mobile  || '').includes(q) ||
-                (cust.address || '').toLowerCase().includes(q) ||
-                (cust.caste   || '').toLowerCase().includes(q);
-            card.style.display = match ? '' : 'none';
-        });
-        // Hide village sections where all cards are hidden
-        document.querySelectorAll('.village-section').forEach(sec => {
-            const visible = [...sec.querySelectorAll('.vc-card')].some(
-                c => c.style.display !== 'none'
-            );
-            sec.style.display = visible ? '' : 'none';
+        if (!q) {
+            dd.style.display = 'none';
+            _searchSuggestions = [];
+            _searchSelectedIndex = -1;
+            document.querySelectorAll('.vc-card').forEach(c => c.style.display = '');
+            document.querySelectorAll('.village-section').forEach(s => s.style.display = '');
+            return;
+        }
+
+        _searchDebounceTimer = setTimeout(() => {
+            const customers = DB.getCustomers();
+            const loans = DB.getLoans();
+            
+            // Powerful string matching
+            _searchSuggestions = customers.filter(cust => {
+                const cLoans = loans.filter(l => l.customerId === cust.id || (cust.mobile && l.mobile === cust.mobile));
+                const loanMatched = cLoans.some(l => l.id.toLowerCase().includes(q) || (l.lockerName || '').toLowerCase().includes(q));
+                
+                return (cust.name || '').toLowerCase().includes(q) ||
+                       (cust.mobile || '').includes(q) ||
+                       (cust.address || '').toLowerCase().includes(q) ||
+                       (cust.caste || '').toLowerCase().includes(q) ||
+                       (cust.gstin || '').toLowerCase().includes(q) ||
+                       loanMatched;
+            });
+
+            if (_searchSuggestions.length === 0) {
+                dd.innerHTML = `<div style="padding:16px;text-align:center;color:var(--text-muted);">No matching customers found.</div>`;
+                dd.style.display = 'block';
+                return;
+            }
+
+            const topResults = _searchSuggestions.slice(0, 7);
+            
+            dd.innerHTML = topResults.map((cust, idx) => {
+                const cLoans = loans.filter(l => (l.customerId === cust.id || (cust.mobile && l.mobile === cust.mobile)) && l.status !== 'closed');
+                const badge = cLoans.length > 0 ? `<span class="badge badge-primary" style="margin-left:8px;font-size:0.7rem;">${cLoans.length} Active</span>` : '';
+                return `
+                    <div class="search-dropdown-item" data-idx="${idx}" data-id="${cust.id}" onclick="UI.navigateTo('customer-ledger', '${cust.id}')"
+                         style="padding:12px 16px; border-bottom:1px solid var(--border-color); cursor:pointer; display:flex; align-items:center; transition:background 0.2s;">
+                        <div style="flex:1;">
+                            <div style="font-weight:700; color:var(--text-primary); font-size:0.95rem;">
+                                ${cust.name.replace(new RegExp(q, 'gi'), match => `<span style="color:var(--primary);">${match}</span>`)}
+                                ${badge}
+                            </div>
+                            <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">
+                                📞 ${cust.mobile ? cust.mobile.replace(new RegExp(q, 'gi'), match => `<span style="font-weight:bold;color:var(--text-primary);">${match}</span>`) : 'No Mobile'} 
+                                ${cust.address ? ` • 📍 ${cust.address.replace(new RegExp(q, 'gi'), match => `<span style="font-weight:bold;color:var(--text-primary);">${match}</span>`)}` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            _searchSelectedIndex = -1;
+            dd.style.display = 'block';
+
+            // Background filtering
+            document.querySelectorAll('.vc-card').forEach(card => {
+                const id = card.dataset.id;
+                const match = topResults.some(c => c.id === id);
+                card.style.display = match ? '' : 'none';
+            });
+            document.querySelectorAll('.village-section').forEach(sec => {
+                const visible = [...sec.querySelectorAll('.vc-card')].some(c => c.style.display !== 'none');
+                sec.style.display = visible ? '' : 'none';
+            });
+
+        }, 150);
+    }
+
+    function handleSearchKey(e) {
+        const dd = document.getElementById('global-search-dropdown');
+        if (!dd || dd.style.display === 'none' || _searchSuggestions.length === 0) return;
+
+        const items = dd.querySelectorAll('.search-dropdown-item');
+        const max = Math.min(_searchSuggestions.length, 7);
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            _searchSelectedIndex = (_searchSelectedIndex + 1) % max;
+            _updateSearchHighlight(items);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            _searchSelectedIndex = (_searchSelectedIndex - 1 + max) % max;
+            _updateSearchHighlight(items);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (_searchSelectedIndex >= 0 && _searchSelectedIndex < max) {
+                items[_searchSelectedIndex].click();
+            } else if (max === 1) {
+                items[0].click();
+            }
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            dd.style.display = 'none';
+            document.getElementById('cust-global-search').blur();
+        }
+    }
+
+    function _updateSearchHighlight(items) {
+        items.forEach((item, idx) => {
+            if (idx === _searchSelectedIndex) {
+                item.style.background = 'rgba(59, 130, 246, 0.1)';
+                item.style.borderLeft = '3px solid var(--primary)';
+                item.scrollIntoView({ block: 'nearest' });
+            } else {
+                item.style.background = 'transparent';
+                item.style.borderLeft = 'none';
+            }
         });
     }
 
@@ -453,6 +559,21 @@ const CustomersPage = (() => {
                     ${firms.map(f => `<option value="${f.id}" ${f.id === defaultFirmId ? 'selected' : ''}>${f.name}${f.isMain ? ' (Main)' : ''}</option>`).join('')}
                 </select>
             </div>` : ''}
+            
+            <div style="border-top: 1px solid var(--border-color); margin: 12px 0; padding-top: 12px;">
+                <h4 style="font-size: 0.9rem; color: var(--primary); margin-bottom: 8px;">🏛️ GST Details (Optional)</h4>
+                <div class="form-group mb-2">
+                    <label class="form-label">GSTIN</label>
+                    <input type="text" class="form-input" id="add-cust-gstin" maxlength="15" placeholder="15-digit GSTIN" style="text-transform:uppercase">
+                </div>
+                <div class="form-group mb-2">
+                    <label class="form-label">Billing State Code</label>
+                    <select class="form-select" id="add-cust-state">
+                        <option value="">-- Select State --</option>
+                        ${typeof GST !== 'undefined' ? Object.entries(GST.STATE_CODES).map(([code, name]) => `<option value="${code}">${code} - ${name}</option>`).join('') : ''}
+                    </select>
+                </div>
+            </div>
             <div class="form-group mb-2">
                 <label class="form-label">📸 Customer Photo</label>
                 ${ImageUpload.renderUploader('add-cust-photo', null, { label: 'Upload Photo', compact: true, type: 'customer' })}
@@ -481,8 +602,11 @@ const CustomersPage = (() => {
         const address = document.getElementById('add-cust-address').value.trim();
         const firmEl  = document.getElementById('add-cust-firm');
         const firm_id = firmEl ? firmEl.value : FirmManager.getDefaultFirmId();
+        
+        const gstin = document.getElementById('add-cust-gstin')?.value.toUpperCase().trim() || '';
+        const stateCode = document.getElementById('add-cust-state')?.value || '';
 
-        const newCust = DB.saveCustomer({ name, mobile, address, photo: photo || '', totalLoans: 0, firm_id });
+        const newCust = DB.saveCustomer({ name, mobile, address, photo: photo || '', totalLoans: 0, firm_id, gstin, stateCode });
 
         if (typeof JewelleryDataService !== 'undefined') {
             JewelleryDataService.upsertMaster({ name, mobile, village: address, moduleId: 'gold', sourceId: newCust.id });
@@ -502,7 +626,7 @@ const CustomersPage = (() => {
     }
 
     return {
-        render, filter, globalSearch,
+        render, filter, globalSearch, handleSearchKey,
         toggleSort, toggleExpand, villageSearch,
         showAdd, saveNew, del,
         openHisab, updateSettlementDiff, processSettlement
