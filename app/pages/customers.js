@@ -7,8 +7,78 @@ const CustomersPage = (() => {
         expanded: {},   // { village: true/false }
         sortOrder: {},  // { village: 'asc'/'desc' }
         searches: {},   // { village: 'query' }
-        globalSearchQuery: '' // stores global search to persist across renders
+        globalSearchQuery: '', // stores global search to persist across renders
+        selectedCustomerId: sessionStorage.getItem('GV_selectedCustomerId') || null
     };
+
+    // ── Scroll-to-Selected Helper ────────────────────────────────────────────
+    // Smart scroll: keeps the selected card visible with padding, respects sticky headers
+    let _scrollRAF = null;
+    function _scrollToSelectedCard(customerId, behavior = 'smooth') {
+        if (!customerId) return;
+        if (_scrollRAF) cancelAnimationFrame(_scrollRAF);
+        _scrollRAF = requestAnimationFrame(() => {
+            const card = document.querySelector(`.vc-card[data-id="${customerId}"]`);
+            if (!card) return;
+
+            // Find the scrollable container (.main-content)
+            const scrollContainer = card.closest('.main-content') || document.querySelector('.main-content');
+            if (!scrollContainer) {
+                // Fallback: plain scrollIntoView
+                card.scrollIntoView({ behavior, block: 'nearest' });
+                return;
+            }
+
+            const cardRect = card.getBoundingClientRect();
+            const containerRect = scrollContainer.getBoundingClientRect();
+
+            // Calculate effective top considering sticky elements (top-bar, filter-bar, village-header)
+            const stickyTopBar = document.querySelector('.top-bar');
+            const filterBar = document.querySelector('.filter-bar');
+            const villageHeader = card.closest('.village-section')?.querySelector('.village-header');
+
+            let stickyTopOffset = 0;
+            if (stickyTopBar) stickyTopOffset += stickyTopBar.getBoundingClientRect().height;
+            if (filterBar) stickyTopOffset += filterBar.getBoundingClientRect().height;
+            if (villageHeader) stickyTopOffset += villageHeader.getBoundingClientRect().height;
+
+            const PADDING = 20; // comfortable visual padding
+            const effectiveTop = containerRect.top + stickyTopOffset + PADDING;
+            const effectiveBottom = containerRect.bottom - PADDING - 60; // 60px for bottom nav
+
+            // Check if card is already fully visible with padding
+            if (cardRect.top >= effectiveTop && cardRect.bottom <= effectiveBottom) {
+                return; // Already visible, no scroll needed
+            }
+
+            // Calculate scroll amount
+            let scrollDelta = 0;
+            if (cardRect.top < effectiveTop) {
+                // Card is above visible area — scroll up
+                scrollDelta = cardRect.top - effectiveTop;
+            } else if (cardRect.bottom > effectiveBottom) {
+                // Card is below visible area — scroll down
+                scrollDelta = cardRect.bottom - effectiveBottom;
+            }
+
+            scrollContainer.scrollBy({
+                top: scrollDelta,
+                behavior: behavior
+            });
+        });
+    }
+
+    // ── Select & Track Customer ──────────────────────────────────────────────
+    function _selectCustomer(customerId) {
+        if (!customerId || _state.selectedCustomerId === customerId) return;
+        _state.selectedCustomerId = customerId;
+        sessionStorage.setItem('GV_selectedCustomerId', customerId);
+
+        // Update visual selection
+        document.querySelectorAll('.vc-card.vc-selected').forEach(el => el.classList.remove('vc-selected'));
+        const card = document.querySelector(`.vc-card[data-id="${customerId}"]`);
+        if (card) card.classList.add('vc-selected');
+    }
 
     // ── Main Render ──────────────────────────────────────────────────────────
     function render(container) {
@@ -196,6 +266,41 @@ const CustomersPage = (() => {
         if (_state.globalSearchQuery) {
             document.querySelectorAll('.vc-card').forEach(card => card.classList.add('search-highlight'));
         }
+
+        // ── Restore selection & scroll after render ──────────────────────────
+        _restoreSelectionAfterRender();
+    }
+
+    // ── Auto-expand village + scroll to previously selected customer ─────
+    function _restoreSelectionAfterRender() {
+        const savedId = _state.selectedCustomerId;
+        if (!savedId) return;
+
+        // Check if the card is already rendered
+        let card = document.querySelector(`.vc-card[data-id="${savedId}"]`);
+
+        // If not visible, check if it's in a collapsed village group
+        if (!card) {
+            // Find which village contains this customer and expand it
+            const allCustomers = DB.getCustomers();
+            const cust = allCustomers.find(c => c.id === savedId);
+            if (cust) {
+                const village = (cust.address && cust.address.trim()) ? cust.address.trim() : 'Unknown / No Address';
+                if (!_state.expanded[village]) {
+                    _state.expanded[village] = true;
+                    // Re-render to expand, then try again
+                    render(document.getElementById('page-container'));
+                    return; // render will call this function again
+                }
+            }
+        }
+
+        // Apply visual selection and scroll
+        if (card || (card = document.querySelector(`.vc-card[data-id="${savedId}"]`))) {
+            card.classList.add('vc-selected');
+            // Use a short delay so the DOM is fully laid out
+            setTimeout(() => _scrollToSelectedCard(savedId, 'auto'), 100);
+        }
     }
 
     // ── Single Customer Card ───────────────────────────────────────────────
@@ -213,8 +318,9 @@ const CustomersPage = (() => {
         );
         const hasSettlements = c.settlements && c.settlements.length > 0;
 
+        const isSelected = _state.selectedCustomerId === c.id;
         return `
-        <div class="vc-card kn-focusable" data-id="${c.id}" onclick="UI.navigateTo('customer-ledger', '${c.id}')" style="cursor:pointer;">
+        <div class="vc-card kn-focusable${isSelected ? ' vc-selected' : ''}" data-id="${c.id}" onclick="CustomersPage.selectAndOpen('${c.id}')" style="cursor:pointer;">
             <div class="vc-top">
                 <div class="vc-avatar">
                     ${c.photo
@@ -236,11 +342,11 @@ const CustomersPage = (() => {
             </div>
             <div class="vc-actions">
                 <button class="btn btn-outline btn-sm" style="flex:1;"
-                    onclick="UI.navigateTo('customer-ledger', '${c.id}')">📒 Khata</button>
+                    onclick="event.stopPropagation(); CustomersPage.selectAndOpen('${c.id}')">📒 Khata</button>
                 <button class="btn btn-sm" style="flex:1;background:rgba(212,175,55,0.12);border:1px solid rgba(212,175,55,0.4);color:var(--gold-dark);"
-                    onclick="CustomersPage.openHisab('${c.id}')">🤝 Hisab</button>
+                    onclick="event.stopPropagation(); CustomersPage.openHisab('${c.id}')">🤝 Hisab</button>
                 <button class="btn btn-ghost btn-sm text-danger"
-                    onclick="CustomersPage.del('${c.id}')">🗑️</button>
+                    onclick="event.stopPropagation(); CustomersPage.del('${c.id}')">🗑️</button>
             </div>
         </div>`;
     }
@@ -680,10 +786,17 @@ const CustomersPage = (() => {
         }
     }
 
+    // ── Select and navigate to customer ledger ─────────────────────────────
+    function selectAndOpen(customerId) {
+        _selectCustomer(customerId);
+        UI.navigateTo('customer-ledger', customerId);
+    }
+
     return {
         render, filter, globalSearch, handleSearchKey,
         toggleSort, toggleExpand, villageSearch,
         showAdd, saveNew, del,
-        openHisab, updateSettlementDiff, processSettlement
+        openHisab, updateSettlementDiff, processSettlement,
+        selectAndOpen
     };
 })();

@@ -3274,6 +3274,9 @@ html, body {
     padding: 14px 20px;
     background: linear-gradient(135deg, var(--primary-light) 0%, var(--bg-card) 100%);
     border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .village-header-left {
@@ -4816,3 +4819,23 @@ input:checked + .hk-slider:before {
     box-shadow: 0 0 10px rgba(218, 165, 32, 0.2) !important;
     transform: scale(1.01);
 }
+
+/* ── Selected / Tracked Customer Card ──────────────────────────────────── */
+.vc-card.vc-selected {
+    border-color: var(--primary) !important;
+    border-left: 3px solid var(--primary) !important;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(99, 102, 241, 0.02)) !important;
+    box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.15), 0 4px 12px rgba(99, 102, 241, 0.1) !important;
+    transform: translateX(2px);
+    transition: all 0.2s ease;
+}
+
+.vc-card.vc-selected .vc-name {
+    color: var(--primary);
+}
+
+[data-theme="dark"] .vc-card.vc-selected {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(99, 102, 241, 0.04)) !important;
+    box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.25), 0 4px 16px rgba(99, 102, 241, 0.15) !important;
+}
+

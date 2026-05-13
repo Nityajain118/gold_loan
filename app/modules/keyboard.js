@@ -58,7 +58,56 @@ const KeyNav = (() => {
         _focusedIndex = idx;
         const el = _focusableEls[idx];
         el.classList.add('kn-focused');
-        el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+        // Track selection for customer cards (sync with CustomersPage state)
+        if (el.classList.contains('vc-card') && el.dataset.id) {
+            document.querySelectorAll('.vc-card.vc-selected').forEach(c => c.classList.remove('vc-selected'));
+            el.classList.add('vc-selected');
+            try {
+                sessionStorage.setItem('GV_selectedCustomerId', el.dataset.id);
+            } catch(e) {}
+        }
+
+        // Smart scroll: account for sticky headers and bottom nav
+        _smartScrollIntoView(el);
+    }
+
+    // Smart scroll that respects sticky top-bar, filter-bar, village-headers & bottom nav
+    function _smartScrollIntoView(el) {
+        const scrollContainer = el.closest('.main-content') || document.querySelector('.main-content');
+        if (!scrollContainer) {
+            el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            return;
+        }
+
+        const elRect = el.getBoundingClientRect();
+        const containerRect = scrollContainer.getBoundingClientRect();
+
+        // Sum up sticky offsets at the top
+        let stickyTop = 0;
+        const topBar = document.querySelector('.top-bar');
+        if (topBar) stickyTop += topBar.getBoundingClientRect().height;
+        const filterBar = document.querySelector('.filter-bar');
+        if (filterBar) stickyTop += filterBar.getBoundingClientRect().height;
+        // If element is inside a village section, account for its sticky header
+        const villageHeader = el.closest('.village-section')?.querySelector('.village-header');
+        if (villageHeader) stickyTop += villageHeader.getBoundingClientRect().height;
+
+        const PADDING = 16;
+        const effectiveTop = containerRect.top + stickyTop + PADDING;
+        const effectiveBottom = containerRect.bottom - PADDING - 60; // bottom nav
+
+        // Already fully visible? Skip.
+        if (elRect.top >= effectiveTop && elRect.bottom <= effectiveBottom) return;
+
+        let scrollDelta = 0;
+        if (elRect.top < effectiveTop) {
+            scrollDelta = elRect.top - effectiveTop;
+        } else if (elRect.bottom > effectiveBottom) {
+            scrollDelta = elRect.bottom - effectiveBottom;
+        }
+
+        scrollContainer.scrollBy({ top: scrollDelta, behavior: 'smooth' });
     }
 
     function _setSidebarFocus(idx) {
