@@ -146,13 +146,62 @@ const UI = (() => {
     }
 
     /**
-     * Format date
+     * Format date — GLOBALLY TITHI-AWARE.
+     *
+     * When timeMode is 'normal': returns standard Gregorian date string.
+     * When timeMode is 'tithi':  returns BOTH dates as stacked HTML —
+     *     Gregorian date first (primary), Tithi below in smaller muted text.
+     *
+     * Format in Tithi mode:
+     *     20 Apr 2026
+     *     Samvat 2083 • Magha • Shukla Chaturthi
+     *
+     * Every page already calls UI.formatDate() so this propagates everywhere.
+     *
+     * @param {string} dateStr  - ISO date string or any Date-parseable string
+     * @returns {string}  Plain string in normal mode; HTML string in Tithi mode
      */
     function formatDate(dateStr) {
         if (!dateStr) return 'N/A';
-        return new Date(dateStr).toLocaleDateString('en-IN', {
-            day: '2-digit', month: 'short', year: 'numeric'
-        });
+
+        // Always compute the Gregorian string first
+        let greg = 'N/A';
+        try {
+            greg = new Date(dateStr).toLocaleDateString('en-IN', {
+                day: '2-digit', month: 'short', year: 'numeric'
+            });
+        } catch (e) { greg = 'N/A'; }
+
+        // Check global Tithi mode
+        try {
+            const mode = (typeof DB !== 'undefined')
+                ? (DB.getSettings().timeMode || 'normal')
+                : 'normal';
+
+            if (mode === 'tithi' && typeof Tithi !== 'undefined') {
+                const tithi = Tithi.formatTithi(dateStr);
+                // Return both: Gregorian on top, Tithi below in smaller muted style
+                return `${greg}<br><span style="font-size:0.78em;color:var(--text-muted,#94a3b8);font-weight:400;letter-spacing:0.01em;">🪔 ${tithi}</span>`;
+            }
+        } catch (e) { /* fall through */ }
+
+        return greg;
+    }
+
+    /**
+     * Always returns a Gregorian-formatted date, regardless of the global timeMode.
+     * Use this for PDF exports, print views, and other contexts where Gregorian is required.
+     *
+     * @param {string} dateStr
+     * @returns {string}
+     */
+    function formatDateGregorian(dateStr) {
+        if (!dateStr) return 'N/A';
+        try {
+            return new Date(dateStr).toLocaleDateString('en-IN', {
+                day: '2-digit', month: 'short', year: 'numeric'
+            });
+        } catch (e) { return 'N/A'; }
     }
 
     /**
@@ -255,11 +304,18 @@ const UI = (() => {
     }
 
     /**
-     * Format Tithi info for display
+     * Format Tithi info object for display (used for stored tithiInfo on loans).
+     * For converting raw date strings, use UI.formatDate() or Tithi.formatTithi().
      */
     function formatTithi(tithiInfo) {
         if (!tithiInfo) return '';
-        return tithiInfo.formatted || `${tithiInfo.tithi} (${tithiInfo.paksha}) · ${tithiInfo.lunarMonth}`;
+        // If it's a stored tithiInfo object with samvat/lunarMonth/paksha/tithi fields,
+        // render in the correct Samvat format.
+        if (tithiInfo.samvat && tithiInfo.lunarMonth && tithiInfo.paksha && tithiInfo.tithi) {
+            return `Samvat ${tithiInfo.samvat} \u2022 ${tithiInfo.lunarMonth} \u2022 ${tithiInfo.paksha} ${tithiInfo.tithi}`;
+        }
+        // Fallback to legacy formatted field
+        return tithiInfo.formatted || `${tithiInfo.tithi || ''} (${tithiInfo.paksha || ''}) \u00b7 ${tithiInfo.lunarMonth || ''}`;
     }
 
     /**
@@ -275,6 +331,22 @@ const UI = (() => {
             return m > 0 ? `${y}y ${m}m` : `${y} year${y > 1 ? 's' : ''}`;
         }
         return `${Math.round(months)} month${months !== 1 ? 's' : ''}`;
+    }
+
+    /**
+     * Re-render the currently visible page in-place without pushing to navigation history.
+     *
+     * Called by the moon toggle (time mode switch) to instantly refresh all visible dates
+     * when the user switches between Gregorian and Tithi mode.
+     */
+    function rerenderCurrentPage() {
+        try {
+            const page = _currentPage.page || 'dashboard';
+            const data = _currentPage.data || null;
+            navigateTo(page, data, true); // isHistoryNav=true — no history push
+        } catch (e) {
+            console.warn('rerenderCurrentPage failed:', e);
+        }
     }
 
     /**
@@ -435,7 +507,8 @@ const UI = (() => {
 
     return {
         toast, navigateTo, goBack, goForward, currency, formatDate, pct, html, confirm, formGroup,
-        formatTithi, formatDuration, enlargeImage, showImageOptions, promptImageUpload,
+        formatTithi, formatDuration, formatDateGregorian, rerenderCurrentPage,
+        enlargeImage, showImageOptions, promptImageUpload,
         renderFirmSelector, switchFirm, showModal, hideModal
     };
 })();

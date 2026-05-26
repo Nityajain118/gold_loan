@@ -64,8 +64,6 @@ const Tithi = (() => {
      */
     function getLunarMonthIndex(date) {
         const jd = dateToJD(date);
-        const daysSinceRef = jd - REF_NEW_MOON_JD;
-        const lunarMonths = daysSinceRef / SYNODIC_MONTH;
         // Approximate: Chaitra starts around March/April
         // Reference: Chaitra 2000 started ~April 4, 2000 (JD ~2451639)
         const chaitraRefJD = 2451639.0;
@@ -77,7 +75,7 @@ const Tithi = (() => {
     /**
      * Get full Tithi information for a date
      * @param {Date|string} dateInput — Date object or ISO string
-     * @returns {object} { tithi, tithiNumber, paksha, lunarMonth, lunarMonthIndex, formatted }
+     * @returns {object} { tithi, tithiNumber, paksha, lunarMonth, lunarMonthIndex, samvat, formatted }
      */
     function getTithiInfo(dateInput) {
         try {
@@ -91,8 +89,9 @@ const Tithi = (() => {
             const tithiName = isShukla ? TITHI_NAMES[tithiIndex] : TITHI_NAMES_KRISHNA[tithiIndex];
             const lunarMonthIdx = getLunarMonthIndex(date);
             const lunarMonth = LUNAR_MONTHS[lunarMonthIdx];
-            
-            // Standard Samvat calculation (approximate transition around mid-March)
+
+            // Vikram Samvat: approximately Gregorian year + 57
+            // Adjust for months before Chaitra (Hindu New Year ~mid-March)
             let samvat = date.getFullYear() + 57;
             if (date.getMonth() < 2 || (date.getMonth() === 2 && date.getDate() < 15)) {
                 samvat -= 1;
@@ -106,12 +105,58 @@ const Tithi = (() => {
                 lunarMonth,
                 lunarMonthIndex: lunarMonthIdx,
                 samvat,
+                // Legacy formatted field (kept for backward compat with existing callers)
                 formatted: `📅 Samvat ${samvat} | ${lunarMonth}<br/>🌙 Tithi: ${paksha} ${tithiName}`
             };
         } catch (e) {
             console.warn('Tithi calculation failed:', e);
             return null;
         }
+    }
+
+    /**
+     * Format a date as a proper Vikram Samvat / Panchang string.
+     *
+     * Returns:  "Samvat 2083 • Magha • Shukla Chaturdashi"
+     *
+     * This is the CORRECT format required by the app.
+     * It replaces the broken Intl.DateTimeFormat('hi-IN-u-ca-indian') approach
+     * which outputs Shaka calendar format like "30 Chaitra 1948 Shaka".
+     *
+     * @param {Date|string} dateInput
+     * @returns {string}
+     */
+    function formatTithi(dateInput) {
+        try {
+            const info = getTithiInfo(dateInput);
+            if (!info) return _gregFallback(dateInput);
+            return `Samvat ${info.samvat} \u2022 ${info.lunarMonth} \u2022 ${info.paksha} ${info.tithi}`;
+        } catch (e) {
+            return _gregFallback(dateInput);
+        }
+    }
+
+    /**
+     * Compact single-line Tithi label for tight UI spaces.
+     * Returns: "Sam.2083 • Shukla Chaturdashi"
+     */
+    function formatTithiShort(dateInput) {
+        try {
+            const info = getTithiInfo(dateInput);
+            if (!info) return _gregFallback(dateInput);
+            return `Sam.${info.samvat} \u2022 ${info.paksha} ${info.tithi}`;
+        } catch (e) {
+            return _gregFallback(dateInput);
+        }
+    }
+
+    /** Internal: Gregorian fallback if Tithi calc fails */
+    function _gregFallback(dateInput) {
+        try {
+            return new Date(dateInput).toLocaleDateString('en-IN', {
+                day: '2-digit', month: 'short', year: 'numeric'
+            });
+        } catch (e) { return 'N/A'; }
     }
 
     /**
@@ -189,6 +234,8 @@ const Tithi = (() => {
         getTithiInfo,
         getTithiDuration,
         getCalcMonths,
+        formatTithi,
+        formatTithiShort,
         renderBadge,
         TITHI_NAMES,
         LUNAR_MONTHS

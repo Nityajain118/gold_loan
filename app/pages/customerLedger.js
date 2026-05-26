@@ -289,6 +289,42 @@ const CustomerLedgerPage = (() => {
         document.body.appendChild(overlay);
         overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 
+        // ── Enter key → next field inside Add Loan modal ──────────────────────
+        // This is a dedicated handler scoped to this modal so it works independently
+        // of the global setupEnterNavigation (which excludes modals by default).
+        overlay.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter') return;
+            const tag = e.target.tagName;
+            if (tag !== 'INPUT' && tag !== 'SELECT') return;
+            if (e.target.type === 'submit' || e.target.type === 'button' || e.target.type === 'checkbox') return;
+            if (e.target.tagName === 'TEXTAREA') return;
+
+            e.preventDefault();
+            e.stopPropagation(); // prevent the global handler from also firing
+
+            // Collect all visible, enabled inputs/selects inside the modal
+            const focusable = Array.from(overlay.querySelectorAll(
+                'input:not([disabled]):not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), select:not([disabled])'
+            )).filter(el => {
+                // Skip hidden elements (e.g. inside collapsed sections)
+                return el.offsetParent !== null;
+            });
+
+            const idx = focusable.indexOf(e.target);
+            if (idx > -1 && idx < focusable.length - 1) {
+                const next = focusable[idx + 1];
+                next.focus();
+                // Auto-select text in number/text fields for easy overwrite
+                if (next.type === 'number' || next.type === 'text' || next.type === 'tel') {
+                    next.select();
+                }
+            } else if (idx === focusable.length - 1) {
+                // Last field — trigger Save
+                const saveBtn = overlay.querySelector('.btn-gold.btn-lg');
+                if (saveBtn) saveBtn.click();
+            }
+        });
+
         // Boot NewLoanPage state into the modal's form
         NewLoanPage._state.items = [{ metalType: 'gold', purity: '22K', customPurity: '', itemType: 'Ring', customItemType: '', weightGrams: '' }];
         NewLoanPage._state.interestPeriod = 'monthly';

@@ -327,7 +327,7 @@ const LoanListPage = (() => {
             const statusIcon = loan.status==='closed'?'✅':loan.status==='migrated'?'🔄':'🟢';
             const shortId = (loan.id||'').slice(-6).toUpperCase();
             return `
-            <div class="loan-card kn-focusable" style="margin-bottom:12px;cursor:pointer;" onclick="UI.navigateTo('loan-detail','${loan.id}')">
+            <div class="loan-card kn-focusable" style="margin-bottom:12px;cursor:pointer;" onclick="LoanDetailPage.setBackTarget('loans', null, 'Back to Customers'); UI.navigateTo('loan-detail','${loan.id}')">
                 <div class="loan-card-header">
                     <div>
                         <div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:2px;">Loan #${shortId}</div>
@@ -349,7 +349,7 @@ const LoanListPage = (() => {
                     ${loan.settlement.discount>0?` · Discount: <strong>${UI.currency(loan.settlement.discount)}</strong>`:''}
                 </div>`:''}
                 <div class="loan-card-footer">
-                    <button class="btn btn-gold btn-sm" onclick="event.stopPropagation(); UI.navigateTo('loan-detail','${loan.id}')" data-i18n="view_details">${I18n.t('view_details')}</button>
+                    <button class="btn btn-gold btn-sm" onclick="event.stopPropagation(); LoanDetailPage.setBackTarget('loans', null, 'Back to Customers'); UI.navigateTo('loan-detail','${loan.id}')" data-i18n="view_details">${I18n.t('view_details')}</button>
                     <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation(); Export.exportLoanPDF(DB.getLoan('${loan.id}'))">📄 PDF</button>
                     <button class="btn btn-ghost btn-xs text-danger" onclick="event.stopPropagation(); LoanListPage.del('${loan.id}')" data-i18n="delete_loan">${I18n.t('delete_loan')}</button>
                 </div>

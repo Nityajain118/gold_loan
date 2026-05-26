@@ -4,6 +4,8 @@
 const LoanDetailPage = (() => {
     // Track navigation origin for smart back button
     let _backTarget = { page: 'loans', data: null, label: 'Back to Loans' };
+    // Track the last rendered loan so we can detect context switches
+    let _lastRenderedLoanId = null;
     // Toggle for Loan Overview / Jewellery / Items sections
     let _detailsVisible = true;
 
@@ -12,6 +14,36 @@ const LoanDetailPage = (() => {
     }
 
     function render(container, loanId) {
+        // ── Auto-reset back target when a NEW/DIFFERENT loan is opened ────────
+        // Only corrects the back target when it is ACTIVELY pointing to the wrong
+        // customer-ledger (i.e. a stale previous customer). Does NOT touch back
+        // targets that point to the loans/girvi-return page (data === null is valid
+        // for those callers — overriding it caused 'Customer not found').
+        if (loanId && loanId !== _lastRenderedLoanId) {
+            try {
+                const loanForCtx = DB.getLoan(loanId);
+                if (loanForCtx && loanForCtx.customerId) {
+                    const custForCtx = DB.getCustomer(loanForCtx.customerId);
+                    if (custForCtx) {
+                        // Only override when the stored back target is pointing to a
+                        // DIFFERENT customer's ledger — never touch loans-page targets.
+                        const backIsWrongCustomer =
+                            _backTarget.page === 'customer-ledger' &&
+                            _backTarget.data &&
+                            _backTarget.data !== loanForCtx.customerId;
+                        if (backIsWrongCustomer) {
+                            _backTarget = {
+                                page:  'customer-ledger',
+                                data:  custForCtx.id,
+                                label: 'Back to ' + custForCtx.name
+                            };
+                        }
+                    }
+                }
+            } catch(e) {}
+            _lastRenderedLoanId = loanId;
+        }
+
         const loan = DB.getLoan(loanId);
         if (!loan) {
             container.innerHTML = '<div class="empty-state"><h3>Loan not found</h3><button class="btn btn-primary" onclick="UI.navigateTo(\'loans\')">← Back</button></div>';

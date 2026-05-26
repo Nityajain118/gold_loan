@@ -2,7 +2,8 @@
    Hisab Kitaab v2 — Real-Time Interest Engine
    ============================================ */
 const HisabKitaabPage = (() => {
-    let _tithiMode = false;
+    // Tithi mode is now controlled globally by the navbar moon icon.
+    // Read DB.getSettings().timeMode === 'tithi' everywhere instead of a local flag.
 
     function _t() {
         const h = (typeof I18n !== 'undefined') && I18n.getLang() === 'hi';
@@ -154,12 +155,22 @@ const HisabKitaabPage = (() => {
     }
 
 
-    // ── Tithi Helper ──────────────────────────────
+
+    // ── Tithi Helper ─────────────────────────────────────────────────────────
+    // Returns the correct Vikram Samvat format: "Samvat 2083 • Magha • Shukla Chaturdashi"
+    // Uses Tithi.formatTithi() — NOT the broken Intl.DateTimeFormat(ca-indian)
+    // which produced Shaka output like "30 Chaitra 1948 Shaka".
     function _getTithi(dateString) {
         try {
-            const d = new Date(dateString);
-            return new Intl.DateTimeFormat('hi-IN-u-ca-indian', {day: 'numeric', month: 'long', year: 'numeric'}).format(d);
-        } catch(e) { return ''; }
+            if (typeof Tithi !== 'undefined') return Tithi.formatTithi(dateString);
+            return UI.formatDate(dateString);
+        } catch(e) { return UI.formatDate(dateString); }
+    }
+
+    // ── Global Tithi mode helper (reads from DB, no local state) ─────────────
+    function _isTithiMode() {
+        try { return (typeof DB !== 'undefined') && DB.getSettings().timeMode === 'tithi'; }
+        catch(e) { return false; }
     }
 
     // ── Interest Engine ───────────────────────────
@@ -335,7 +346,7 @@ const HisabKitaabPage = (() => {
                 </div>
                 <div class="hk-card-body">
                     <div class="hk-card-dates">
-                        ${_tithiMode ? `<div class="hk-date-hi" style="font-size:0.85rem; color:var(--text-primary);">🪔 Tithi: ${tithiStr}</div>` : `<div class="hk-date-en" style="font-size:0.85rem; color:var(--text-primary);">📅 ${UI.formatDate(e.date)}</div>`}
+                        <div class="hk-date-en" style="font-size:0.85rem; color:var(--text-primary); line-height:1.5;">${UI.formatDate(e.date)}</div>
                         ${chk}
                     </div>
                     ${detailsHtml}
@@ -430,14 +441,8 @@ const HisabKitaabPage = (() => {
             <div class="hk-header"><div class="hk-header-left"><div class="hk-avatar">${ini}</div><div class="hk-customer-info"><div class="hk-customer-name">${loan.customerName || '—'}</div><div class="hk-customer-meta"><span>📞 ${t.phone}: <strong>${loan.mobile || '—'}</strong></span><span>🔒 ${t.locker}: <strong>${loan.lockerName || loan.lockerNo || '—'}</strong></span></div>${loan.address ? `<div class="hk-customer-meta">📍 ${t.address}: ${loan.address}</div>` : ''}</div></div><div class="hk-header-right"><div class="hk-rate-info"><span>${t.monthly_rate}: <strong>${mr.toFixed(2)}%</strong></span><span>${t.annual_rate}: <strong>${ar.toFixed(2)}%</strong></span></div><span class="ld-badge ${isClosed ? 'ld-badge-closed' : 'ld-badge-active'}">${isClosed ? '🔴 CLOSED' : '🟢 ACTIVE'}</span></div></div>
             ${!isClosed ? `<div class="hk-actions"><button class="hk-action-btn hk-btn-add kn-focusable" onclick="HisabKitaabPage.showAddMoneyModal('${loan.id}')"><span class="hk-btn-icon">➕</span><span class="hk-btn-label">${t.add_money}</span></button><button class="hk-action-btn hk-btn-payment kn-focusable" onclick="HisabKitaabPage.showPayModal('${loan.id}')"><span class="hk-btn-icon">💰</span><span class="hk-btn-label">${t.receive_payment}</span></button><button class="hk-action-btn hk-btn-discount kn-focusable" onclick="HisabKitaabPage.showDiscModal('${loan.id}')"><span class="hk-btn-icon">🎯</span><span class="hk-btn-label">${t.give_discount}</span></button><button class="hk-action-btn hk-btn-settle kn-focusable" onclick="HisabKitaabPage.showSettleModal('${loan.id}')"><span class="hk-btn-icon">✅</span><span class="hk-btn-label">${t.settle_loan}</span></button></div>` : ''}
             
-            <div class="hk-tithi-toggle-bar" style="display:flex; justify-content:center; align-items:center; gap:12px; margin-top:8px; padding:12px; background:var(--bg-card); border-radius:12px; border:1px solid var(--border-color);">
-                <span style="font-weight:600; color:var(--text-primary); font-size:0.85rem;">📅 Normal Date</span>
-                <label class="hk-switch">
-                    <input type="checkbox" ${_tithiMode ? 'checked' : ''} onchange="HisabKitaabPage.toggleTithiMode('${loan.id}')">
-                    <span class="hk-slider"></span>
-                </label>
-                <span style="font-weight:600; color:var(--text-primary); font-size:0.85rem;">🪔 Tithi Mode</span>
-            </div>
+            <!-- Tithi Mode is controlled globally by the navbar moon icon -->
+            <!-- No local toggle needed here anymore -->
             
             ${splitLayoutHtml}
             ${discountSectionHtml}
@@ -462,10 +467,9 @@ const HisabKitaabPage = (() => {
     }
 
     // ── Selection Handler ─────────────────────────
-    function toggleTithiMode(loanId) {
-        _tithiMode = !_tithiMode;
-        render(document.getElementById('page-container'), loanId);
-    }
+    // Kept as a no-op stub for backward compat in case any old onclick calls exist.
+    // Tithi mode is now controlled globally by the navbar moon icon.
+    function toggleTithiMode() {}
 
     function toggleCard(cardEl, loanId) {
         const cb = cardEl.querySelector('.hk-card-cb');
@@ -508,7 +512,7 @@ const HisabKitaabPage = (() => {
             const label = _typeLabel(e.type);
             const icon = _typeIcon(e.type);
             
-            const dateStr = _tithiMode ? _getTithi(e.date) : UI.formatDate(e.date);
+            const dateStr = UI.formatDate(e.date);
             const row = `<div class="hk-select-row">
                 <div class="hk-sel-left"><span class="hk-sel-label">${icon} ${label}</span><span class="hk-sel-date">${dateStr} → ${isHi ? 'आज' : 'Today'} (${_formatDuration(days)})</span></div>
                 <div class="hk-sel-right">

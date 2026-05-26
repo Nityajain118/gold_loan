@@ -110,7 +110,7 @@ const CustomerProfilePage = (() => {
                 const statusColor = loan.status === 'closed' ? '#999' : loan.status === 'active' ? '#10b981' : '#f59e0b';
 
                 return `
-                    <div class="loan-card" onclick="UI.navigateTo('loan-detail','${loan.id}')" style="cursor:pointer;">
+                    <div class="loan-card" onclick="LoanDetailPage.setBackTarget('customer-ledger','${loan.customerId}','Back to ${loan.customerName}'); UI.navigateTo('loan-detail','${loan.id}')" style="cursor:pointer;">
                         <div class="loan-card-header">
                             <div style="flex:1;">
                                 <div style="font-weight:600;margin-bottom:4px;">${idx + 1}. ${icon} ${loan.metalSubType} • ${loan.weightGrams}g</div>
@@ -137,7 +137,7 @@ const CustomerProfilePage = (() => {
                             </div>
                         </div>
                         <div class="loan-card-footer">
-                            <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation(); UI.navigateTo('loan-detail','${loan.id}')">👁️ View</button>
+                            <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation(); LoanDetailPage.setBackTarget('customer-ledger','${loan.customerId}','Back to ${loan.customerName}'); UI.navigateTo('loan-detail','${loan.id}')">👁️ View</button>
                             <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation(); Export.exportLoanPDF(DB.getLoan('${loan.id}'))">📄 PDF</button>
                         </div>
                     </div>

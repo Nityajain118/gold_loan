@@ -259,24 +259,46 @@
     }
 
     // --- Time Mode Toggle (Normal / Tithi) ---
+    // The moon icon in the top navbar is the ONLY global Tithi Mode controller.
+    // Clicking it saves the new mode to DB, updates the icon, and instantly
+    // re-renders the current page so all dates switch format simultaneously.
     function setupTimeMode() {
         const settings = DB.getSettings();
         const btn = document.getElementById('time-mode-toggle');
         if (btn) {
             btn.textContent = settings.timeMode === 'tithi' ? '🌙' : '📅';
-            btn.title = settings.timeMode === 'tithi' ? 'Tithi Mode Active (Click for Normal)' : 'Normal Mode Active (Click for Tithi)';
+            btn.title = settings.timeMode === 'tithi'
+                ? 'Tithi Mode ON — Click for Normal'
+                : 'Normal Mode — Click for Tithi';
         }
 
         window._toggleTimeMode = () => {
             const s = DB.getSettings();
             const newMode = s.timeMode === 'tithi' ? 'normal' : 'tithi';
+
+            // Save globally
             DB.saveSettings({ timeMode: newMode });
+
+            // Update the moon icon
             const b = document.getElementById('time-mode-toggle');
             if (b) {
                 b.textContent = newMode === 'tithi' ? '🌙' : '📅';
-                b.title = newMode === 'tithi' ? 'Tithi Mode Active (Click for Normal)' : 'Normal Mode Active (Click for Tithi)';
+                b.title = newMode === 'tithi'
+                    ? 'Tithi Mode ON — Click for Normal'
+                    : 'Normal Mode — Click for Tithi';
             }
-            UI.toast(newMode === 'tithi' ? '🌙 Tithi Mode Activated' : '📅 Normal Mode Activated', 'info');
+
+            // Instantly re-render the current visible page so all dates switch format.
+            // UI.formatDate() is globally Tithi-aware, so every date on every page
+            // will automatically use the correct format after this re-render.
+            UI.rerenderCurrentPage();
+
+            UI.toast(
+                newMode === 'tithi'
+                    ? '🌙 Tithi Mode — Samvat dates active'
+                    : '📅 Normal Mode — Gregorian dates active',
+                'info'
+            );
         };
     }
 
@@ -309,15 +331,51 @@
     // ─── Enter Key → Focus Next Field ──────────────────────────────────────────
     // Pressing Enter in any INPUT or SELECT moves focus to the next field.
     // Textarea is intentionally excluded so multi-line address entry still works.
+    // Works both on the main page and inside form modals (Add Loan, HK modals, etc.)
     function setupEnterNavigation() {
         document.addEventListener('keydown', function(e) {
             if (e.key !== 'Enter') return;
             const tag = e.target.tagName;
             if (tag !== 'INPUT' && tag !== 'SELECT') return;
             if (e.target.type === 'submit' || e.target.type === 'button') return;
-            // Allow Enter inside modals to bubble naturally (don't block modal confirms)
-            if (e.target.closest('.modal-overlay')) return;
 
+            const modalOverlay = e.target.closest('.modal-overlay');
+            if (modalOverlay) {
+                // Inside a modal — only run Enter-to-next-field if it's a FORM modal
+                // (i.e. has a <form> or a known form container). Skip simple confirm dialogs
+                // that only have .modal-actions (Cancel / Confirm buttons) with no inputs
+                // other than the current one.
+                const isFormModal = !!(
+                    e.target.closest('form') ||          // has a <form> ancestor
+                    modalOverlay.id === 'add-loan-modal' || // Add Loan modal
+                    modalOverlay.id === 'hk-modal'          // HK action modals
+                );
+                if (!isFormModal) return; // let confirm dialogs handle Enter natively
+
+                e.preventDefault();
+                // Search scope = the modal itself so we don't leak outside
+                const scope = e.target.closest('.modal') || modalOverlay;
+                const focusable = Array.from(scope.querySelectorAll(
+                    'input:not([disabled]):not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), select:not([disabled]), textarea:not([disabled])'
+                ));
+                const idx = focusable.indexOf(e.target);
+                if (idx > -1 && idx < focusable.length - 1) {
+                    const next = focusable[idx + 1];
+                    next.focus();
+                    if (next.type === 'number' || next.type === 'text' || next.type === 'tel') {
+                        next.select();
+                    }
+                } else if (idx === focusable.length - 1) {
+                    // On last field — try to submit / click the primary action button
+                    const confirmBtn = scope.querySelector(
+                        '#hk-modal-confirm-btn, .btn-gold:not([disabled]), .btn-primary:not([disabled])'
+                    );
+                    if (confirmBtn) confirmBtn.click();
+                }
+                return;
+            }
+
+            // Outside modals — standard page Enter-to-next-field
             e.preventDefault();
             const form = e.target.closest('form') || document.getElementById('page-container');
             if (!form) return;
